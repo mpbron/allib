@@ -1,0 +1,113 @@
+from __future__ import annotations
+
+import pickle
+from typing import Iterable, List, Set, Tuple
+
+import numpy as np
+from sklearn.base import ClassifierMixin, TransformerMixin
+
+from balancing import IdentityBalancer, BaseBalancer
+from instances import Instance
+from environment import AbstractEnvironment
+from utils import SaveableInnerModel
+
+from .base import AbstractClassifier
+
+
+class SkLearnClassifier(SaveableInnerModel, AbstractClassifier):
+    def __init__(
+            self,
+            estimator: ClassifierMixin, encoder: TransformerMixin, balancer: BaseBalancer = IdentityBalancer(),
+            storage_location=None, filename=None) -> None:
+        SaveableInnerModel.__init__(self, estimator, storage_location, filename)
+        self.encoder = encoder
+        self._fitted = False
+        self._target_labels = frozenset()
+        self.balancer = balancer
+
+    def __call__(self, environment: AbstractEnvironment) -> SkLearnClassifier:
+        self._target_labels = frozenset(environment.label_provider.labelset)
+        self.encoder.fit(list(self._target_labels))
+        return self
+
+    def encode_labels(self, labels: Iterable[str]) -> np.ndarray:
+        return self.encoder.transform(list(set(labels)))
+
+    def decode_vector(self, vector: np.ndarray) -> List[str]:
+        labelings = self.encoder.inverse_transform(vector).tolist()
+        return labelings
+
+    def get_label_column_index(self, label: str) -> int:
+        label_list = self.encoder.classes_.tolist()
+        return label_list.index(label)
+
+    @SaveableInnerModel.load_model_fallback
+    def fit(self, x_data: np.ndarray, y_data: np.ndarray):
+        assert x_data.shape[0] == y_data.shape[0]
+        x_resampled, y_resampled = self.balancer.resample(x_data, y_data)
+        self.innermodel.fit(x_resampled, y_resampled)
+        self._fitted = True
+
+    def encode_x(self, instances: List[Instance]) -> np.ndarray:
+        # TODO Maybe convert to staticmethod
+        x_data = [
+            instance.vector for instance in instances if instance.vector is not None]
+        x_vec = np.vstack(x_data)
+        return x_vec
+
+    def encode_y(self, labelings: List[Iterable[str]]) -> np.ndarray:
+        y_data = [self.encode_labels(labeling) for labeling in labelings]
+        y_vec = np.vstack(y_data)
+        if y_vec.shape[1] == 1:
+            y_vec = np.reshape(y_vec, (y_vec.shape[0],))
+        return y_vec
+
+    @SaveableInnerModel.load_model_fallback
+    def predict_proba(self, x_data: np.ndarray) -> np.ndarray:
+        return self.innermodel.predict_proba(x_data)
+
+    @SaveableInnerModel.load_model_fallback
+    def predict(self, x_data: np.ndarray) -> np.ndarray:
+        return self.innermodel.predict(x_data)
+
+    def predict_instances(self, instances: List[Instance]) -> List[Set[str]]:
+        x_vec = self.encode_x(instances)
+        y_pred = self.predict(x_vec)
+        return self.decode_vector(y_pred)
+
+    def predict_proba_instances(self, instances: List[Instance]) -> List[Set[Tuple[str, float]]]:
+        x_vec = self.encode_x(instances)
+        y_pred = self.predict_proba(x_vec).tolist()
+        label_list = self.encoder.classes_.tolist()
+        y_labels = [
+            frozenset(zip(y_vec, label_list))
+            for y_vec in y_pred
+        ]
+        return y_labels
+
+    def fit_instances(self, instances: List[Instance], labels: List[Set[str]]):
+        assert len(instances) == len(labels)
+        x_train_vec = self.encode_x(instances)
+        y_train_vec = self.encode_y(labels)
+        self.fit(x_train_vec, y_train_vec)
+
+    @property
+    def fitted(self) -> bool:
+        return self._fitted
+
+
+
+
+class MultilabelSkLearnClassifier(SkLearnClassifier):
+    def __call__(self, environment : AbstractEnvironment) -> MultilabelSkLearnClassifier:
+        self._target_labels = frozenset(environment.label_provider.labelset)
+        self.encoder.fit([list(self._target_labels)])
+        return self
+
+    def encode_labels(self, labels: Iterable[str]) -> np.ndarray:
+        return self.encoder.transform([list(set(labels))])
+
+    def decode_vector(self, vector: np.ndarray) -> List[Set[str]]:
+        labelings = self.encoder.inverse_transform(vector)
+        # We need to return sets instead of Tuples
+        return [frozenset(labeling) for labeling in labelings]
