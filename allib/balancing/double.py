@@ -19,7 +19,7 @@ import numpy as np
 
 from .base import BaseBalancer
 from .base import IdentityBalancer
-from utils.random import get_random_generator
+from ..utils.random import get_random_generator
 
 class DoubleBalancer(BaseBalancer):
     """Dynamic Resampling balance strategy.

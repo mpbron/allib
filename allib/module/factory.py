@@ -1,38 +1,37 @@
-import activelearning as al
-import balancing as bl
-import environment as env
-import feature_extraction as fe
-import machinelearning as ml
-
-from .component import Component
-from factory.factory import ObjectFactory
+from ..activelearning import ActiveLearningFactory
+from ..component import Component
+from ..environment import EnvironmentFactory
+from ..factory import ObjectFactory
+from ..feature_extraction import FeatureExtractionFactory
+from .catalog import ModuleCatalog as Cat
 
 CONFIG = {
     Component.ACTIVELEARNER: {
-        "al_paradigm": al.catalog.ALParadigm.POOLBASED,
-        "query_type": al.catalog.QueryType.INTERLEAVE,
+        "al_paradigm": Cat.AL.Paradigm.POOLBASED,
+        "query_type": Cat.AL.QueryType.INTERLEAVE,
         "machinelearning": {
-            "sklearn_model": ml.catalog.SklearnModel.RANDOM_FOREST,
+            "sklearn_model": Cat.ML.SklearnModel.RANDOM_FOREST,
             "model_configuration": {},
-            "ml_task": ml.catalog.MachineLearningTask.MULTILABEL,
-            "mc_method": ml.catalog.MulticlassMethod.ONE_VS_REST,
+            "ml_task": Cat.ML.Task.MULTILABEL,
+            "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
             "min_train_annotations": 30,
             Component.BALANCER: {
-                "balancer_type"
+                "balancer_type": Cat.BL.Type.IDENTITY,
+                "balancer_config": {}
             }
         }
     },
     Component.ENVIRONMENT: {
-        "environment_type": env.catalog.EnvironmentType.MEMORY,
+        "environment_type": Cat.ENV.Type.MEMORY,
 
     },
     Component.FEATURE_EXTRACTION:{
-        "datatype": fe.catalog.DataType.TEXTINSTANCE,
-        "vec_type": fe.catalog.VectorizerType.STACK,
+        "datatype": Cat.FE.DataType.TEXTINSTANCE,
+        "vec_type": Cat.FE.VectorizerType.STACK,
         "vectorizers": [
             {
-                "vec_type": fe.catalog.VectorizerType.SKLEARN,
-                "sklearn_vec_type": fe.catalog.SklearnVecType.TFIDF_VECTORIZER,
+                "vec_type": Cat.FE.VectorizerType.SKLEARN,
+                "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
                 "sklearn_config": {
                     "min_df": 1,
                     "max_df": 0.8,
@@ -43,7 +42,7 @@ CONFIG = {
                 }
             },
             {
-                "vec_type": fe.catalog.VectorizerType.DOC2VEC,
+                "vec_type": Cat.FE.VectorizerType.DOC2VEC,
                 "d2v_params": {
                     "epochs": 5,
                     "vector_size": 300,
@@ -56,6 +55,6 @@ CONFIG = {
 class MainFactory(ObjectFactory):
     def __init__(self) -> None:
         super().__init__()
-        self.attach(fe.FeatureExtractionFactory())
-        self.attach(al.ActiveLearningFactory())
-        self.attach(env.EnvironmentFactory())
+        self.attach(FeatureExtractionFactory())
+        self.attach(ActiveLearningFactory())
+        self.attach(EnvironmentFactory())

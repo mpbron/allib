@@ -1,11 +1,11 @@
 import numpy as np
 from typing import Sequence, Dict, List, Any, Callable, TypeVar
 from sklearn.base import clone
-from activelearning.base import AbstractActiveLearner
+from .base import AbstractActiveLearner
 from sklearn.base import BaseEstimator
 
-from activelearning.datapoint import DataPoint
-from activelearning.oracles import OracleFunction
+from .datapoint import DataPoint
+from .oracles import OracleFunction
 
 T = TypeVar('T')
 

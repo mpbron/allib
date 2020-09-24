@@ -1,7 +1,7 @@
 from typing import Generic, List, Sequence, TypeVar, Tuple
 
 from abc import ABC, abstractmethod
-from instances import Instance
+from ..instances import Instance
 
 LT = TypeVar("LT")
 MT = TypeVar("MT")

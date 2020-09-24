@@ -8,8 +8,8 @@ from typing import (Callable, Dict, Generic, Iterable, List, Iterator,
                     Optional, Sequence, Tuple, TypeVar, Union, Deque)
 from collections import deque
 
-from environment import AbstractEnvironment
-from instances import Instance, InstanceProvider
+from ..environment import AbstractEnvironment
+from ..instances import Instance, InstanceProvider
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")

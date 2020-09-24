@@ -3,7 +3,7 @@ from typing import KT, Generic, Iterator, List, Optional, TypeVar
 
 import numpy as np
 
-from instances import Instance
+from ..instances import Instance
 
 from .base import ActiveLearner
 from .poolbased import PoolbasedAL

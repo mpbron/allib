@@ -13,12 +13,12 @@ from sklearn.cluster import KMeans, MiniBatchKMeans
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy import spatial
 
-from activelearning.base import AbstractActiveLearner
-from activelearning.random import RandomSampling
-from activelearning.datapoint import ClusteredDataPoint
-from activelearning.oracles import OracleFunction
+from .base import AbstractActiveLearner
+from .random import RandomSampling
+from .datapoint import ClusteredDataPoint
+from .oracles import OracleFunction
 
-from instances import Instance, InstanceProvider
+from ..instances import Instance, InstanceProvider
 
 
 class ATSCluster(RandomSampling):

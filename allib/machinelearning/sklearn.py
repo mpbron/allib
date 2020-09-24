@@ -6,10 +6,10 @@ from typing import Iterable, List, Set, Tuple
 import numpy as np
 from sklearn.base import ClassifierMixin, TransformerMixin
 
-from balancing import IdentityBalancer, BaseBalancer
-from instances import Instance
-from environment import AbstractEnvironment
-from utils import SaveableInnerModel
+from ..balancing import IdentityBalancer, BaseBalancer
+from ..instances import Instance
+from ..environment import AbstractEnvironment
+from ..utils import SaveableInnerModel
 
 from .base import AbstractClassifier
 

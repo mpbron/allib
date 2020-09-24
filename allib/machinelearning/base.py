@@ -7,8 +7,8 @@ import functools
 import uuid
 import os
 
-from environment import AbstractEnvironment
-from instances import Instance
+from ..environment import AbstractEnvironment
+from ..instances import Instance
 
 VT = TypeVar("VT")
 LVT = TypeVar("LVT")

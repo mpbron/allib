@@ -1,12 +1,10 @@
 from typing import Iterator, Generic, TypeVar, Set, Iterable, Sequence, Union
 
-from instances import Instance, InstanceProvider
-from labels import LabelProvider, to_key
+from ..instances import Instance, InstanceProvider
+from .base import LabelProvider, to_key
 
 LT = TypeVar("LT")
 KT = TypeVar("KT")
-
-
 
 class MemoryLabelProvider(LabelProvider, Generic[KT, LT]):
     """A Memory based implementation to test and benchmark AL algorithms

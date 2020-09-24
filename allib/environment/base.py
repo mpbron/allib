@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from instances import InstanceProvider
-from labels import LabelProvider
+from ..instances import InstanceProvider
+from ..labels import LabelProvider
 
 
 class AbstractEnvironment(ABC):

@@ -19,7 +19,7 @@ from math import ceil
 import numpy as np
 
 from .base import BaseBalancer
-from utils.random import get_random_generator
+from ..utils.random import get_random_generator
 
 class UndersampleBalancer(BaseBalancer):
     """Balancing class that undersamples the data with a given ratio.

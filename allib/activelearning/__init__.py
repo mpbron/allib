@@ -3,4 +3,4 @@ from .factory import ActiveLearningFactory
 from .poolbased import PoolbasedAL
 from .random import RandomSampling
 from .uncertainty import EntropySampling, LeastConfidence
-from .catalog import ALParadigm, QueryType
+from .catalog import ALCatalog

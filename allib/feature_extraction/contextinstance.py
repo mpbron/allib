@@ -2,7 +2,7 @@ from typing import Sequence
 
 import numpy as np
 
-from instances.base import ContextInstance
+from ..instances.base import ContextInstance
 from .base import BaseVectorizer, SeparateContextVectorizer
 
 class ContextVectorizer(BaseVectorizer):

@@ -5,7 +5,7 @@ from typing import Tuple
 
 import numpy as np
 
-from environment import AbstractEnvironment
+from ..environment import AbstractEnvironment
 
 class BaseBalancer(ABC):
     """Abstract class for balance strategies."""

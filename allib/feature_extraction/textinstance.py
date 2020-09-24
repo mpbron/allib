@@ -2,7 +2,7 @@ from typing import Sequence, Generic, TypeVar
 
 
 
-from instances import Instance
+from ..instances import Instance
 
 from .base import BaseVectorizer
 

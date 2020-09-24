@@ -2,47 +2,21 @@
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from environment import MemoryEnvironment
-from factory.base import FACTORY, CONFIG
-from factory.catalog import *
-from activelearning import ActiveLearner, RandomSampling
-from activelearning.mostcertain import LabelMaximizer
-from instances.memory import DataPoint
-from feature_extraction.base import BaseVectorizer
+
+from allib.instances import DataPoint
+from allib.module.factory import MainFactory, CONFIG
+from allib.environment import MemoryEnvironment
+from allib import Component
+from allib.activelearning import ActiveLearner
+from allib.feature_extraction import BaseVectorizer
+from allib.activelearning.mostcertain import LabelMaximizer
+
+from allib.module.catalog import ModuleCatalog as Cat
 
 # %%
-CONFIG = {
-    "al_paradigm": ALParadigm.POOLBASED,
-    "query_type": QueryType.INTERLEAVE,
-    "environment_type": EnvironmentType.MEMORY,
-    "datatype": DataType.TEXTINSTANCE,
-    "vec_type": VectorizerType.STACK,
-    "vectorizers": [
-        {
-            "vec_type": VectorizerType.SKLEARN,
-            "sklearn_vec_type": SklearnVecType.TFIDF_VECTORIZER,
-            "sklearn_config": {
-                "max_features": 400,
-                "ngram_range": (1,1)
-            },
-            "storage_location": "../securedata/",
-            "filename": "vectorizer.pkl"
-        }
-    ],
-    "ml_task": MachineLearningTask.N,
-    "ml_model": {
-        "ml_task:"
-    }
-    "sklearn_model": SklearnModel.RANDOM_FOREST,
-    "model_configuration": {},
-    
-    "storage_location": "../securedata/",
-    "filename": "model.pkl"
-}
-
-
+factory = MainFactory()
 # %% DATA IMPORT
-dataset = pd.read_csv("../securedata/Software_Engineering_Hall.csv")
+dataset = pd.read_csv("../machine-teacher-local/securedata/Software_Engineering_Hall.csv")
 
 #%%
 labels = ["Irrelevant", "Relevant"]
@@ -56,10 +30,57 @@ def yield_cols(dataset_df: pd.DataFrame):
     return list(indices), list(texts), list(labels_true)
 indices_train, texts_train, labels_train = yield_cols(dataset)
 
+
+#%%
+al_config = {
+    "paradigm": Cat.AL.Paradigm.POOLBASED,
+    "query_type": Cat.AL.QueryType.LABELMAXIMIZER,
+    "machinelearning": {
+        "sklearn_model": Cat.ML.SklearnModel.RANDOM_FOREST,
+        "model_configuration": {},
+        "task": Cat.ML.Task.MULTILABEL,
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
+        "min_train_annotations": 30,
+        "balancer": {
+            "type": Cat.BL.Type.DOUBLE,
+            "config": {}
+        }
+    },
+    "label" : "Relevant"
+}
+env_config = { "environment_type": Cat.ENV.Type.MEMORY }
+
+fe_config ={
+    "datatype": Cat.FE.DataType.TEXTINSTANCE,
+    "vec_type": Cat.FE.VectorizerType.STACK,
+    "vectorizers": [
+        {
+            "vec_type": Cat.FE.VectorizerType.SKLEARN,
+            "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
+            "sklearn_config": {
+                "min_df": 1,
+                "max_df": 0.8,
+                "max_features": 2000,
+                "analyzer": "char_wb",
+                "ngram_range": (3, 4),
+                "sublinear_tf": True
+            }
+        },
+        {
+            "vec_type": Cat.FE.VectorizerType.DOC2VEC,
+            "d2v_params": {
+                "epochs": 5,
+                "vector_size": 300,
+                "workers": 2,
+            }
+        }
+    ]
+}
+
 # %%
 environment = MemoryEnvironment(indices_train, texts_train, [], labels)
-al: RandomSampling = FACTORY.create(Component.ACTIVELEARNER, **CONFIG)
-fe: BaseVectorizer = FACTORY.create(Component.FEATURE_EXTRACTION, **CONFIG)
+al: ActiveLearner = factory.create(Component.ACTIVELEARNER, **al_config)
+fe: BaseVectorizer = factory.create(Component.FEATURE_EXTRACTION, **fe_config)
 #%%
 instances = list(environment.dataset_provider.get_all())
 matrix = fe.fit_transform(instances)
@@ -67,7 +88,7 @@ environment.set_vectors(instances, matrix)
 
 #%% 
 # Attach environment
-al = LabelMaximizer(al.classifier, "Relevant")
+#al = LabelMaximizer(al.classifier, "Relevant")
 al = al(environment)
 # %%
 def id_oracle(doc: DataPoint):

@@ -9,9 +9,9 @@ from typing import Dict, Generic, Iterator, List, Optional, TypeVar
 import numpy as np
 from sklearn.exceptions import NotFittedError
 
-from environment import AbstractEnvironment
-from instances import Instance
-from machinelearning import AbstractClassifier
+from ..environment import AbstractEnvironment
+from ..instances import Instance
+from ..machinelearning import AbstractClassifier
 
 from .base import ActiveLearner
 from .poolbased import PoolbasedAL

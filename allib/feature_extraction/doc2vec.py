@@ -10,7 +10,7 @@ from gensim.models.doc2vec import Doc2Vec, TaggedLineDocument
 from gensim.utils import save_as_line_sentence
 
 from .base import BaseVectorizer
-from utils import SaveableInnerModel
+from ..utils import SaveableInnerModel
 
 
 def get_line_docs(documents: Sequence[str]) -> TaggedLineDocument:

@@ -8,9 +8,9 @@ import numpy as np
 from sklearn.exceptions import NotFittedError
 from scipy.stats import entropy
 
-from environment import AbstractEnvironment
-from instances import Instance
-from machinelearning import AbstractClassifier
+from ..environment import AbstractEnvironment
+from ..instances import Instance
+from ..machinelearning import AbstractClassifier
 
 from .base import ActiveLearner
 from .ml_based import MLBased

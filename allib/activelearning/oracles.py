@@ -2,7 +2,7 @@ from typing import Any, Callable, Iterable, List, Optional, TypeVar
 
 import numpy as np
 
-from instances import Instance
+from ..instances import Instance
 
 LT = TypeVar("LT")
 

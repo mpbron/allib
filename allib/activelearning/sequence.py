@@ -2,10 +2,10 @@ from typing import Any, Optional, Set, Tuple
 
 import numpy as np
 
-from activelearning.base import AbstractActiveLearner
-from activelearning.oracles import OracleFunction
+from .base import AbstractActiveLearner
+from .oracles import OracleFunction
 
-from instances import Instance
+from ..instances import Instance
 
 class LeastConfidence(AbstractActiveLearner):
     def sample(self) -> Optional[Instance]:

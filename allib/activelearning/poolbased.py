@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections import deque
 from typing import (Callable, Dict, Generic, Iterable, Iterator, List,
                     Optional, Sequence, Set, Tuple, TypeVar, Union)
-from collections import deque
+
 import pandas as pd
-from environment import AbstractEnvironment
-from instances import Instance, InstanceProvider
-from labels import LabelProvider
-from machinelearning import AbstractClassifier
+
+from ..environment import AbstractEnvironment
+from ..instances import Instance, InstanceProvider
+from ..labels import LabelProvider
+from ..machinelearning import AbstractClassifier
 from .base import ActiveLearner, NotInitializedException
 
 DT = TypeVar("DT")

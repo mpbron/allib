@@ -2,9 +2,8 @@ from typing import Generic, Sequence, Set, TypeVar
 
 import numpy as np
 
-from instances import Instance
-from instances.memory import DataPointProvider
-from labels.memory import MemoryLabelProvider
+from ..instances import Instance, DataPointProvider
+from ..labels.memory import MemoryLabelProvider
 
 from .base import AbstractEnvironment
 

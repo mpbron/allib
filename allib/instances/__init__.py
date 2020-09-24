@@ -1,2 +1,2 @@
-from instances.base import Instance, InstanceProvider, ChildInstance, ParentInstance
-from instances.memory import DataPoint, DataPointProvider
+from .base import Instance, InstanceProvider, ChildInstance, ParentInstance
+from .memory import DataPoint, DataPointProvider

@@ -8,7 +8,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.exceptions import NotFittedError
 
-from utils import SaveableInnerModel
+from ..utils import SaveableInnerModel
 from .base import BaseVectorizer
 
 

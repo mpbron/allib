@@ -4,9 +4,9 @@ from typing import (Callable, Dict, Generic, Iterable, List, Optional,
 
 from numpy.random import choice
 
-from environment import AbstractEnvironment
-from instances import Instance, InstanceProvider
-from machinelearning import AbstractClassifier
+from ..environment import AbstractEnvironment
+from ..instances import Instance, InstanceProvider
+from ..machinelearning import AbstractClassifier
 
 from .base import ActiveLearner
 #from .elastic_query import ElasticQuery

@@ -1,15 +1,14 @@
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
-from factory.catalog import Component
-from factory.factory import AbstractBuilder, ObjectFactory
+from allib.factory import AbstractBuilder, ObjectFactory
+from allib import Component
 
 from .base import SeparateContextVectorizer, StackVectorizer
-from .catalog import DataType, VectorizerType, SklearnVecType
+from .catalog import FECatalog as FE
 from .contextinstance import ContextVectorizer
 from .doc2vec import Doc2VecVectorizer
 from .textinstance import TextInstanceVectorizer
 from .textsklearn import SklearnVectorizer
-
 
 
 class FeatureExtractorBuilder(AbstractBuilder):
@@ -60,17 +59,19 @@ class CountVectorizerBuilder(AbstractBuilder):
 class FeatureExtractionFactory(ObjectFactory):
     def __init__(self) -> None:
         super().__init__()
+        self.register_builder(Component.FEATURE_EXTRACTION, FeatureExtractorBuilder())
+        self.register_builder(Component.VECTORIZER, VectorizerBuilder())
         # Data extractors
-        self.register_builder(DataType.CHATMESSAGES, 
+        self.register_builder(FE.DataType.CHATMESSAGES, 
                          ContextInstanceVectorizerBuilder())
-        self.register_builder(DataType.TEXTINSTANCE,
+        self.register_builder(FE.DataType.TEXTINSTANCE,
                          TextInstanceVectorizerBuilder())
         # Vectorizer Containers
-        self.register_builder(VectorizerType.STACK, StackVectorizerBuilder())
-        self.register_builder(VectorizerType.SKLEARN, SklearnVectorizerBuilder())
-        self.register_builder(VectorizerType.DUALVEC, SeparateContextVectorizerBuider)
+        self.register_builder(FE.VectorizerType.STACK, StackVectorizerBuilder())
+        self.register_builder(FE.VectorizerType.SKLEARN, SklearnVectorizerBuilder())
+        self.register_builder(FE.VectorizerType.DUALVEC, SeparateContextVectorizerBuider())
 
         # Actual vectorizers
-        self.register_constructor(VectorizerType.DOC2VEC, Doc2VecVectorizer)
-        self.register_constructor(SklearnVecType.TFIDF_VECTORIZER, TfidfVectorizer)
-        self.register_constructor(SklearnVecType.COUNT_VECTORIZER, CountVectorizer)
+        self.register_constructor(FE.VectorizerType.DOC2VEC, Doc2VecVectorizer)
+        self.register_constructor(FE.SklearnVecType.TFIDF_VECTORIZER, TfidfVectorizer)
+        self.register_constructor(FE.SklearnVecType.COUNT_VECTORIZER, CountVectorizer)
