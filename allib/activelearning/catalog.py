@@ -14,3 +14,4 @@ class ALCatalog:
         VARIOUS = "VariousDjangoDefault"
         INTERLEAVE = "InterleaveAL"
         LABELMAXIMIZER = "LabelMaximizer"
+        ESTIMATOR = "Estimator"

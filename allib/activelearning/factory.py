@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Dict
+from typing import Dict, List
 
 from allib import Component
 from ..factory import AbstractBuilder, ObjectFactory
@@ -7,6 +7,7 @@ from ..machinelearning import AbstractClassifier
 from ..machinelearning import MachineLearningFactory
 
 from .catalog import ALCatalog as AL
+from .estimator import Estimator
 from .random import RandomSampling
 from .uncertainty import MarginSampling, NearDecisionBoundary, EntropySampling, LeastConfidence
 from .interleave import InterleaveAL
@@ -28,6 +29,17 @@ class PoolbasedBuilder(AbstractBuilder):
             classifier=classifier,
             **kwargs)
 
+class EstimatorBuilder(AbstractBuilder):
+    def __call__(
+            self, learners: List[Dict], 
+            machinelearning: Dict, **kwargs) -> Estimator:
+        learners = [
+            self._factory.create(Component.ACTIVELEARNER, **learner_config)
+            for learner_config in learners
+        ]
+        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
+        return Estimator(learners, classifier)
+
 class ActiveLearningFactory(ObjectFactory):
     def __init__(self) -> None:
         super().__init__()
@@ -42,3 +54,4 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_constructor(AL.QueryType.INTERLEAVE, InterleaveAL)
         self.register_constructor(AL.QueryType.LABELMAXIMIZER, LabelMaximizer)
         self.register_constructor(AL.QueryType.MOST_CERTAIN, MostCertainSampling)
+        self.register_constructor(AL.QueryType.ESTIMATOR, Estimator)

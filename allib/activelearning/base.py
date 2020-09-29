@@ -1,5 +1,6 @@
 from __future__ import annotations
 import functools
+import itertools
 import logging
 import sys
 
@@ -87,7 +88,6 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
     def __call__(self, environment: AbstractEnvironment) -> ActiveLearner:
         raise NotImplementedError
 
-    @abstractmethod
     def query(self) -> Optional[Instance]:
         """Query the most informative instance
         Returns
@@ -95,9 +95,9 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
         Optional[Instance]
             The most informative instance
         """
-        raise NotImplementedError
+        return next(self, None)
 
-    @abstractmethod
+   
     def query_batch(self, batch_size: int) -> List[Instance]:
         """Query the `batch_size` most informative instances
 
@@ -111,7 +111,7 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
         List[Instance]
             A batch with `len(batch) <= batch_size` 
         """
-        raise NotImplementedError
+        return list(itertools.islice(self, batch_size))
 
     @abstractmethod
     def set_as_labeled(self, instance: Instance) -> None:

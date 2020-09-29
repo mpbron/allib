@@ -30,7 +30,7 @@ class PoolbasedAL(ActiveLearner, ABC, Generic[KT, VT, DT, LT, LVT]):
                  ) -> None:
         self.initialized = False
         self._labelprovider = None
-        self._whole = None
+        self._dataset = None
         self._unlabeled = None
         self._labeled = None
         self._sampled = None
@@ -42,13 +42,16 @@ class PoolbasedAL(ActiveLearner, ABC, Generic[KT, VT, DT, LT, LVT]):
     def __call__(self, environment: AbstractEnvironment) -> PoolbasedAL:
         self._env = environment
         self._labelprovider = environment.label_provider
-        self._whole = environment.dataset_provider
-        self._unlabeled = environment.unlabeled_provider
+        self._dataset = environment.dataset_provider
+        self._unlabeled = environment.unlabeled_provide
         self._labeled = environment.labeled_provider
         self._sampled = environment.create_empty_provider()
         self.classifier = self.classifier(environment)
         self.initialized = True
         return self
+
+    def attach_labelprovider(self, labelprovider: LabelProvider) -> None:
+        self._labelprovider = labelprovider
 
     @ActiveLearner.iterator_log
     def __next__(self) -> Instance:
@@ -61,32 +64,6 @@ class PoolbasedAL(ActiveLearner, ABC, Generic[KT, VT, DT, LT, LVT]):
             return self._unlabeled[key]
         except IndexError:
             raise StopIteration()
-
-    @abstractmethod
-    def query(self) -> Optional[Instance]:
-        """Query the most informative instance
-        Returns
-        -------
-        Optional[Instance]
-            The most informative instance
-        """        
-        raise NotImplementedError
-    
-    @abstractmethod
-    def query_batch(self, batch_size: int) -> List[Instance]:
-        """Query the `batch_size` most informative instances
-        
-        Parameters
-        ----------
-        batch_size : int
-            The size of the batch
-        
-        Returns
-        -------
-        List[Instance]
-            A batch with `len(batch) <= batch_size` 
-        """        
-        raise NotImplementedError
 
     @property
     def len_unlabeled(self) -> int:
@@ -155,7 +132,7 @@ class PoolbasedAL(ActiveLearner, ABC, Generic[KT, VT, DT, LT, LVT]):
             for doc_id in self._unlabeled:
                 yield self._unlabeled[doc_id].vector
         else:
-            for _, dat in self._whole.items():
+            for _, dat in self._dataset.items():
                 yield dat.vector
 
     def row_generator(self) -> Iterator[Dict[str, Union[KT, VT, DT, LT]]]:

@@ -61,8 +61,12 @@ class DoubleBalancer(BaseBalancer):
         self._rng = get_random_generator(rng)
 
     def resample(self, x_data: np.ndarray, y_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        positive_indices = np.where(np.any(y_data == 1, axis=1))[0]
-        negative_indices = np.where(np.all(y_data == 0, axis=1))[0]
+        if y_data.ndim > 1:
+            positive_indices = np.where(np.any(y_data == 1, axis=1))[0]
+            negative_indices = np.where(np.all(y_data == 0, axis=1))[0]
+        else:
+            positive_indices = np.where(y_data == 1)[0]
+            negative_indices = np.where(y_data == 0)[0]
 
         n_positive = len(positive_indices)
         n_negative = len(negative_indices)
@@ -116,7 +120,7 @@ def random_round(value: float, rng: np.random.Generator) -> int:
     to 9, 10% of the time.
     """
     base = int(floor(value))
-    if rng.rand() < value - base:
+    if rng.random() < value - base:
         base += 1
     return base
 

@@ -1,4 +1,6 @@
-from abc import ABC, abstractmethod
+from __future__ import annotations
+
+from abc import ABC, abstractmethod, abstractclassmethod
 from ..instances import InstanceProvider
 from ..labels import LabelProvider
 
@@ -28,3 +30,6 @@ class AbstractEnvironment(ABC):
     def label_provider(self) -> LabelProvider:
         raise NotImplementedError
 
+    @abstractclassmethod
+    def from_environment(cls, provider: AbstractEnvironment) -> AbstractEnvironment:
+        raise NotImplementedError

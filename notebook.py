@@ -1,4 +1,6 @@
 #%%
+import itertools
+
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
@@ -34,19 +36,58 @@ indices_train, texts_train, labels_train = yield_cols(dataset)
 #%%
 al_config = {
     "paradigm": Cat.AL.Paradigm.POOLBASED,
-    "query_type": Cat.AL.QueryType.LABELMAXIMIZER,
+    "query_type": Cat.AL.QueryType.ESTIMATOR,
+    "learners": [
+        {
+            "paradigm": Cat.AL.Paradigm.POOLBASED,
+            "query_type": Cat.AL.QueryType.LABELMAXIMIZER,
+            "label": "Relevant",
+            "machinelearning": {
+                "sklearn_model": Cat.ML.SklearnModel.NAIVE_BAYES,
+                "model_configuration": {},
+                "task": Cat.ML.Task.BINARY,
+                "balancer": {
+                    "type": Cat.BL.Type.DOUBLE,
+                    "config": {}
+                }
+            }
+        },
+        {
+            "paradigm": Cat.AL.Paradigm.POOLBASED,
+            "query_type": Cat.AL.QueryType.MAX_ENTROPY,
+            "machinelearning": {
+                "sklearn_model": Cat.ML.SklearnModel.NAIVE_BAYES,
+                "model_configuration": {},
+                "task": Cat.ML.Task.BINARY,
+                "balancer": {
+                    "type": Cat.BL.Type.DOUBLE,
+                    "config": {}
+                }
+            }
+        },
+        {
+            "paradigm": Cat.AL.Paradigm.POOLBASED,
+            "query_type": Cat.AL.QueryType.RANDOM_SAMPLING,
+            "machinelearning": {
+                "sklearn_model": Cat.ML.SklearnModel.NAIVE_BAYES,
+                "model_configuration": {},
+                "task": Cat.ML.Task.BINARY,
+                "balancer": {
+                    "type": Cat.BL.Type.DOUBLE,
+                    "config": {}
+                }
+            }
+        },
+    ],
     "machinelearning": {
-        "sklearn_model": Cat.ML.SklearnModel.RANDOM_FOREST,
+        "sklearn_model": Cat.ML.SklearnModel.NAIVE_BAYES,
         "model_configuration": {},
-        "task": Cat.ML.Task.MULTILABEL,
-        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
-        "min_train_annotations": 30,
+        "task": Cat.ML.Task.BINARY,
         "balancer": {
             "type": Cat.BL.Type.DOUBLE,
             "config": {}
         }
-    },
-    "label" : "Relevant"
+    }
 }
 env_config = { "environment_type": Cat.ENV.Type.MEMORY }
 
@@ -58,37 +99,21 @@ fe_config ={
             "vec_type": Cat.FE.VectorizerType.SKLEARN,
             "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
             "sklearn_config": {
-                "min_df": 1,
-                "max_df": 0.8,
-                "max_features": 2000,
-                "analyzer": "char_wb",
-                "ngram_range": (3, 4),
-                "sublinear_tf": True
-            }
-        },
-        {
-            "vec_type": Cat.FE.VectorizerType.DOC2VEC,
-            "d2v_params": {
-                "epochs": 5,
-                "vector_size": 300,
-                "workers": 2,
+                "max_features": 300,
+                "ngram_range": (1, 1),
             }
         }
     ]
 }
 
 # %%
-environment = MemoryEnvironment(indices_train, texts_train, [], labels)
 al: ActiveLearner = factory.create(Component.ACTIVELEARNER, **al_config)
 fe: BaseVectorizer = factory.create(Component.FEATURE_EXTRACTION, **fe_config)
 #%%
+environment = MemoryEnvironment.from_data(indices_train, texts_train, [], [])
 instances = list(environment.dataset_provider.get_all())
 matrix = fe.fit_transform(instances)
 environment.set_vectors(instances, matrix)
-
-#%% 
-# Attach environment
-#al = LabelMaximizer(al.classifier, "Relevant")
 al = al(environment)
 # %%
 def id_oracle(doc: DataPoint):
@@ -109,7 +134,7 @@ def al_loop(learner: ActiveLearner, env: MemoryEnvironment):
     count = 0
     it = 1
     while learner.len_labeled < 300:
-        sample = [next(learner)]
+        sample = itertools.islice(learner, 5)
         for instance in sample:
             oracle_labels = id_oracle(instance)
             if "Relevant" in oracle_labels:
