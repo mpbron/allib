@@ -1,4 +1,4 @@
-import imblearn
+import imblearn # type: ignore
 
 from .base import BaseBalancer
 

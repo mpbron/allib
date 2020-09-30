@@ -7,8 +7,8 @@ from typing import Generic, Sequence, TypeVar, List, Optional
 import functools
 import uuid
 
-from sklearn.exceptions import NotFittedError
-import numpy as np
+from sklearn.exceptions import NotFittedError # type: ignore
+import numpy as np # type: ignore
 
 DT = TypeVar("DT")
 CT = TypeVar("CT")
@@ -22,7 +22,7 @@ class BaseVectorizer(ABC, Generic[DT]):
         self.fitted = False
     
     @abstractmethod
-    def fit(self, x_data: Sequence[DT], **kwargs) -> BaseVectorizer:
+    def fit(self, x_data: Sequence[DT], **kwargs) -> None:
         pass
 
     @abstractmethod
@@ -105,8 +105,8 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
     
     def __init__(
             self,
-            data_vectorizer: BaseVectorizer,
-            context_vectorizer: BaseVectorizer,
+            data_vectorizer: BaseVectorizer[DT],
+            context_vectorizer: BaseVectorizer[CT],
             **kwargs):
         self.fitted = False
         self.data_vectorizer = data_vectorizer
@@ -139,7 +139,7 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
             context_data: Sequence[CT],
             **kwargs) -> np.ndarray:
         self.fit(x_data, **kwargs)
-        return self.transform(context_data, **kwargs)
+        return self.transform(x_data, context_data, **kwargs)
 
 
 class StackVectorizer(BaseVectorizer, Generic[DT]):

@@ -6,7 +6,7 @@ from allib import Component
 
 
 class EnvironmentBuilder(AbstractBuilder):
-    def __call__(self, environment_type: ENV.Type, **kwargs):
+    def __call__(self, environment_type: ENV.Type, **kwargs): # type: ignore
         return self._factory.create(environment_type, **kwargs)
 
 

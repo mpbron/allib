@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
 from typing import Generic, Iterable, Iterator, List, Optional, TypeVar, Union
 
-import numpy as np
+import numpy as np # type: ignore
 
 KT = TypeVar("KT")
 DT = TypeVar("DT")
@@ -12,7 +12,7 @@ VT = TypeVar("VT")
 RT = TypeVar("RT")
 LT = TypeVar("LT")
 CT = TypeVar("CT")
-LVT = TypeVar("SKT")
+LVT = TypeVar("LVT")
 
 class Matrix(Generic[KT]):
     def __init__(self, matrix, keys):
@@ -48,7 +48,7 @@ class Matrix(Generic[KT]):
         self.index_map[instance.identifier] = self.size  
         self.size += 1
         
-class Instance(ABC, Generic[KT, DT, VT, RT, LT]):
+class Instance(ABC, Generic[KT, DT, VT, RT]):
 
     @property
     @abstractmethod
@@ -89,8 +89,7 @@ class Instance(ABC, Generic[KT, DT, VT, RT, LT]):
         raise NotImplementedError
 
     @vector.setter
-    @abstractmethod
-    def vector(self, value: VT):
+    def vector(self, value: Optional[VT]):
         raise NotImplementedError
 
     @property
@@ -105,44 +104,44 @@ class Instance(ABC, Generic[KT, DT, VT, RT, LT]):
         """
         raise NotImplementedError
 
-class ContextInstance(Instance, ABC, Generic[KT, DT, VT, RT, LT, CT]):
+class ContextInstance(Instance[KT, DT, VT, RT], ABC, Generic[KT, DT, VT, RT, CT]):
     @property
     @abstractmethod
     def context(self) -> CT:
         raise NotImplementedError
 
 
-class ChildInstance(Instance, ABC, Generic[KT, DT, VT, RT, LT]):
+class ChildInstance(Instance[KT, DT, VT, RT], ABC, Generic[KT, DT, VT, RT]):
     @property
     @abstractmethod
-    def parent(self) -> Instance:
+    def parent(self) -> Instance[KT, DT, VT, RT]:
         raise NotImplementedError
 
 
-class ParentInstance(Instance, ABC, Generic[KT, DT, VT, RT, LT]):
+class ParentInstance(Instance[KT, DT, VT, RT], ABC, Generic[KT, DT, VT, RT]):
     @property
     @abstractmethod
-    def children(self) -> List[ChildInstance]:
+    def children(self) -> List[ChildInstance[KT, DT, VT, RT]]:
         raise NotImplementedError
 
 
-class InstanceProvider(ABC, MutableMapping, Generic[KT, LT]):
-    _feature_matrix: Matrix
+class InstanceProvider(ABC, MutableMapping, Generic[KT, DT, VT, RT]):
+    _feature_matrix: Optional[Matrix]
 
     @abstractmethod
-    def __contains__(self, item: KT) -> bool:
+    def __contains__(self, item: object) -> bool:
         raise NotImplementedError
 
     @abstractmethod
     def __iter__(self) -> Iterator[KT]:
         raise NotImplementedError
 
-    def add(self, instance: Instance) -> None:
+    def add(self, instance: Instance[KT, DT, VT, RT]) -> None:
         self.__setitem__(instance.identifier, instance)
         if self._feature_matrix is not None:
             self._feature_matrix.add(instance)
 
-    def discard(self, instance: Instance) -> None:
+    def discard(self, instance: Instance[KT, DT, VT, RT]) -> None:
         try:
             self.__delitem__(instance.identifier)
             if self._feature_matrix is not None:
@@ -160,11 +159,11 @@ class InstanceProvider(ABC, MutableMapping, Generic[KT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def get_all(self) -> Iterator[Instance]:
+    def get_all(self) -> Iterator[Instance[KT, DT, VT, RT]]:
         raise NotImplementedError
 
     @abstractmethod
-    def clear(self) -> bool:
+    def clear(self) -> None:
         raise NotImplementedError
 
     @property
@@ -174,5 +173,5 @@ class InstanceProvider(ABC, MutableMapping, Generic[KT, LT]):
             self._feature_matrix = Matrix(np.vstack(vectors), self.key_list)
         return self._feature_matrix
 
-    def bulk_get_all(self) -> List[Instance]:
+    def bulk_get_all(self) -> List[Instance[KT, DT, VT, RT]]:
         return list(self.get_all())

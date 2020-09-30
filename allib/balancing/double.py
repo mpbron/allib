@@ -15,7 +15,7 @@
 from math import log, floor
 from typing import Tuple, Optional
 
-import numpy as np
+import numpy as np # type: ignore
 
 from .base import BaseBalancer
 from .base import IdentityBalancer

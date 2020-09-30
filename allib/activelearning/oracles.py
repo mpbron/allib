@@ -1,6 +1,6 @@
 from typing import Any, Callable, Iterable, List, Optional, TypeVar
 
-import numpy as np
+import numpy as np # type: ignore
 
 from ..instances import Instance
 
@@ -10,7 +10,7 @@ OracleFunction = Callable[[Instance, Iterable[LT]], LT]
 
 def console_text_oracle(
         doc: Instance,
-        labels: Iterable[LT]) -> LT:
+        labels: Iterable[LT]) -> List[LT]:
     label_dict = dict(enumerate(labels, start=1))
     qstr =  "Please label the following instance: \n"
     qstr += "==================================== \n"

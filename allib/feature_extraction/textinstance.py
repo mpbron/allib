@@ -6,7 +6,10 @@ from ..instances import Instance
 
 from .base import BaseVectorizer
 
+KT = TypeVar("KT")
 VT = TypeVar("VT")
+RT = TypeVar("RT")
+DT = TypeVar("DT")
 
 class TextInstanceVectorizer(BaseVectorizer, Generic[VT]):
     name = "TextInstanceVectorizer"
@@ -16,7 +19,7 @@ class TextInstanceVectorizer(BaseVectorizer, Generic[VT]):
         super().__init__()
         self.innermodel = vectorizer
 
-    def fit(self, x_data: Sequence[Instance], **kwargs) -> None:
+    def fit(self, x_data: Sequence[Instance[KT, DT, VT, RT]], **kwargs) -> None:
         texts = [x.data for x in x_data]
         self.innermodel.fit(texts)
 

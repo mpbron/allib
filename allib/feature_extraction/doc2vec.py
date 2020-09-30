@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import Sequence, Optional, Callable, List, Dict, Any
 from tempfile import NamedTemporaryFile
 
-import numpy as np
-from sklearn.exceptions import NotFittedError
+import numpy as np # type: ignore
+from sklearn.exceptions import NotFittedError # type: ignore
 
-from gensim.models.doc2vec import Doc2Vec, TaggedLineDocument
-from gensim.utils import save_as_line_sentence
+from gensim.models.doc2vec import Doc2Vec, TaggedLineDocument # type: ignore
+from gensim.utils import save_as_line_sentence # type: ignore
 
 from .base import BaseVectorizer
 from ..utils import SaveableInnerModel
@@ -26,7 +26,7 @@ def split_tokenizer(text: str) -> List[str]:
     return text.split(' ')
 
 
-DocTokenizer = Callable[[str], Sequence[str]]
+DocTokenizer = Callable[..., List[str]]
 
 
 class Doc2VecVectorizer(BaseVectorizer, SaveableInnerModel):
@@ -42,7 +42,7 @@ class Doc2VecVectorizer(BaseVectorizer, SaveableInnerModel):
         filename: Optional[str] = None
     ) -> None:
         BaseVectorizer.__init__(self)
-        self.tokenizer = tokenizer
+        self.tokenizer = tokenizer # type: ignore
         self.d2v_params = d2v_params
         self.innermodel = None
         SaveableInnerModel.__init__(self, self.innermodel, storage_location, filename)

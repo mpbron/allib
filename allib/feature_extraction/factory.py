@@ -1,4 +1,4 @@
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer # type: ignore
 
 from allib.factory import AbstractBuilder, ObjectFactory
 from allib import Component

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod, abstractclassmethod
 
-from typing import Iterator, Generic, TypeVar, Union, Iterable, Set
+from typing import Iterator, Generic, TypeVar, Union, Iterable, Set, FrozenSet
 
 from ..instances import Instance, InstanceProvider
 
@@ -30,7 +30,7 @@ def to_key(instance_or_key: Union[KT, Instance]) -> KT:
 class LabelProvider(ABC, Generic[KT, LT]):
     @property
     @abstractmethod
-    def labelset(self) -> Set[LT]:
+    def labelset(self) -> FrozenSet[LT]:
         """Report all possible labels (example usage: for setting up a classifier)
 
         Returns

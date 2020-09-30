@@ -2,14 +2,13 @@ from __future__ import annotations
 from typing import (Callable, Dict, Generic, Iterable, List, Optional,
                     Sequence, Tuple, TypeVar, Union)
 
-from numpy.random import choice
+from numpy.random import choice # type: ignore
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
 
 from .base import ActiveLearner
-#from .elastic_query import ElasticQuery
 from .mostcertain import MostConfidence
 from .poolbased import PoolbasedAL
 from .random import RandomSampling
@@ -23,7 +22,7 @@ class VariousDjangoDefault(PoolbasedAL):
         super().__init__(classifier)
         self._environment = None
         self._pos_examples_threshold = min_train_annotations
-        self._learners = {
+        self._learners: Dict[str, PoolbasedAL]= {
             "random": RandomSampling(self.classifier),
             "uncertainty": EntropySampling(self.classifier),
             "mostconfidence": MostConfidence(self.classifier),
@@ -34,9 +33,8 @@ class VariousDjangoDefault(PoolbasedAL):
 
     def __call__(self, environment: AbstractEnvironment) -> VariousDjangoDefault:
         super().__call__(environment)
-        self._environment = environment
         for key, learner in self._learners.items():
-            self._learners[key] = learner(self._environment)
+            self._learners[key] = learner(self.env)
         self.initialized = True
         return self
 

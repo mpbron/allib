@@ -1,4 +1,5 @@
 from __future__ import annotations
+from allib.labels.base import LabelProvider
 import functools
 import itertools
 import logging
@@ -30,9 +31,8 @@ class NotInitializedException(Exception):
 
 class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
     _name = "ActiveLearner"
-    ordering: Deque[KT]
-    _unlabeled: InstanceProvider
-    _labeled: InstanceProvider
+    ordering: Optional[Deque[KT]]
+    _env: Optional[AbstractEnvironment]
 
     @property
     def name(self):
@@ -41,6 +41,28 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
     def __iter__(self) -> ActiveLearner:
         return self
 
+    @property
+    def env(self) -> AbstractEnvironment:
+        if self._env is None:
+            raise NotInitializedException
+        return self._env
+
+    @property
+    def _unlabeled(self) -> InstanceProvider:
+        return self.env.unlabeled
+    
+    @property
+    def _labeled(self) -> InstanceProvider:
+        return self.env.labeled
+    
+    @property
+    def _dataset(self) -> InstanceProvider:
+        return self.env.dataset
+
+    @property
+    def _labelprovider(self) -> LabelProvider:
+        return self.env.labels
+    
     @abstractmethod
     def calculate_ordering(self) -> List[KT]:
         raise NotImplementedError
@@ -57,31 +79,6 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
             LOGGER.info("Sampled document %i with method %s",
                             result.identifier, self.name)
             return result
-        return wrapper
-
-    @staticmethod
-    def query_log(func):
-        @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
-            result = func(self, *args, **kwargs)
-            if "disable_logging" not in kwargs or not kwargs["disable_logging"]:
-                LOGGER.info("Sampled document %i with method %s",
-                            result.identifier, self.name)
-            return result
-        return wrapper
-
-    @staticmethod
-    def query_batch_log(func):
-        @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
-            result_batch = func(self, *args, **kwargs)
-            if "disable_logging" not in kwargs or not kwargs["disable_logging"]:
-                for instance in result_batch:
-                    LOGGER.info("Sampled document %i with method %s",
-                                instance.identifier, self.name)
-                    print(
-                        f"Sampled document {instance.identifier} with method {self.name}")
-            return result_batch
         return wrapper
 
     @abstractmethod
@@ -230,28 +227,3 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
             the ratio
         """
         return self.len_labeled / self.size
-
-    @staticmethod
-    def ordered_max(instances: InstanceProvider, fun: Callable[[VT], float]) -> List[KT]:
-        funmap = ((key, fun(instances[key].vector)) for key in instances)
-        return sorted(funmap, key=lambda x: x[1], reverse=True)
-
-    @staticmethod
-    def argmax_n(instances: InstanceProvider,
-                 fun: Callable[[VT], float],
-                 count: int) -> List[KT]:
-        return [t[0] for t in ActiveLearner.ordered_max(instances, fun)[:count]]
-
-    @staticmethod
-    def argmin_n(instances: InstanceProvider,
-                 fun: Callable[[VT], float],
-                 count: int) -> List[KT]:
-        return [t[0] for t in ActiveLearner.ordered_max(instances, fun)[-count:]]
-
-    @staticmethod
-    def argmax(instances: InstanceProvider, fun: Callable[[VT], float]) -> KT:
-        return ActiveLearner.ordered_max(instances, fun)[0][0]
-
-    @staticmethod
-    def argmin(instances: InstanceProvider, fun: Callable[[VT], float]) -> KT:
-        return ActiveLearner.ordered_max(instances, fun)[-1][0]

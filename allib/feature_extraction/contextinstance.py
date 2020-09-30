@@ -1,6 +1,6 @@
 from typing import Sequence
 
-import numpy as np
+import numpy as np # type: ignore
 
 from ..instances.base import ContextInstance
 from .base import BaseVectorizer, SeparateContextVectorizer

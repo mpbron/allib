@@ -12,7 +12,7 @@ from .undersample import UndersampleBalancer
 
 
 class BalancerBuilder(AbstractBuilder):
-    def __call__(self, 
+    def __call__(self, # type: ignore
             type: BL.Type, 
             config: Dict, **kwargs) -> BaseBalancer:
         return self._factory.create(type, **config)

@@ -1,6 +1,6 @@
 from typing import Optional
 
-import numpy as np
+import numpy as np # type: ignore
 
 def get_random_generator(
         rng: Optional[np.random.Generator] = None) -> np.random.Generator:

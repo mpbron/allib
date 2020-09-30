@@ -19,7 +19,7 @@ class ALBuilder(AbstractBuilder):
         return self._factory.create(paradigm, **kwargs)
 
 class PoolbasedBuilder(AbstractBuilder):
-    def __call__(
+    def __call__( # type: ignore
             self,
             query_type: AL.QueryType,
             machinelearning: Dict,
@@ -30,15 +30,15 @@ class PoolbasedBuilder(AbstractBuilder):
             **kwargs)
 
 class EstimatorBuilder(AbstractBuilder):
-    def __call__(
+    def __call__( # type: ignore
             self, learners: List[Dict], 
             machinelearning: Dict, **kwargs) -> Estimator:
-        learners = [
+        configured_learners = [
             self._factory.create(Component.ACTIVELEARNER, **learner_config)
             for learner_config in learners
         ]
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
-        return Estimator(learners, classifier)
+        return Estimator(classifier, configured_learners)
 
 class ActiveLearningFactory(ObjectFactory):
     def __init__(self) -> None:
@@ -46,6 +46,7 @@ class ActiveLearningFactory(ObjectFactory):
         self.attach(MachineLearningFactory())
         self.register_builder(Component.ACTIVELEARNER, ALBuilder())
         self.register_builder(AL.Paradigm.POOLBASED, PoolbasedBuilder())
+        self.register_builder(AL.Paradigm.ESTIMATOR, EstimatorBuilder())
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)
         self.register_constructor(AL.QueryType.MAX_ENTROPY, EntropySampling)
@@ -54,4 +55,3 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_constructor(AL.QueryType.INTERLEAVE, InterleaveAL)
         self.register_constructor(AL.QueryType.LABELMAXIMIZER, LabelMaximizer)
         self.register_constructor(AL.QueryType.MOST_CERTAIN, MostCertainSampling)
-        self.register_constructor(AL.QueryType.ESTIMATOR, Estimator)

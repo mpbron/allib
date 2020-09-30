@@ -5,7 +5,7 @@ from collections import deque
 from typing import (Callable, Dict, Generic, Iterable, Iterator, List,
                     Optional, Sequence, Set, Tuple, TypeVar, Union)
 
-import pandas as pd
+import pandas as pd # type: ignore
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
@@ -29,32 +29,22 @@ class PoolbasedAL(ActiveLearner, ABC, Generic[KT, VT, DT, LT, LVT]):
                  classifier: AbstractClassifier
                  ) -> None:
         self.initialized = False
-        self._labelprovider = None
-        self._dataset = None
-        self._unlabeled = None
-        self._labeled = None
-        self._sampled = None
-        self._env = None
+        self._sampled: Optional[InstanceProvider] = None
+        self._env: Optional[AbstractEnvironment] = None
         self.classifier = classifier
         self.fitted = False
         self.ordering = None
 
     def __call__(self, environment: AbstractEnvironment) -> PoolbasedAL:
         self._env = environment
-        self._labelprovider = environment.label_provider
-        self._dataset = environment.dataset_provider
-        self._unlabeled = environment.unlabeled_provide
-        self._labeled = environment.labeled_provider
         self._sampled = environment.create_empty_provider()
         self.classifier = self.classifier(environment)
         self.initialized = True
         return self
 
-    def attach_labelprovider(self, labelprovider: LabelProvider) -> None:
-        self._labelprovider = labelprovider
-
     @ActiveLearner.iterator_log
     def __next__(self) -> Instance:
+        assert self._unlabeled is not None
         if self.ordering is None:
             self.ordering = deque(self.calculate_ordering())
         try:
@@ -73,7 +63,7 @@ class PoolbasedAL(ActiveLearner, ABC, Generic[KT, VT, DT, LT, LVT]):
         -------
         int
             The number of unlabeled documents
-        """        
+        """ 
         return len(self._unlabeled)
 
     @property
@@ -96,6 +86,7 @@ class PoolbasedAL(ActiveLearner, ABC, Generic[KT, VT, DT, LT, LVT]):
         instance : Instance
             The now labeled instance
         """
+        assert self._sampled is not None
         self._unlabeled.discard(instance)
         self._sampled.add(instance)
 
@@ -107,6 +98,7 @@ class PoolbasedAL(ActiveLearner, ABC, Generic[KT, VT, DT, LT, LVT]):
         instance : Instance
             The now labeled instance
         """
+        assert self._sampled is not None
         self._sampled.discard(instance)
         self._labeled.discard(instance)
         self._unlabeled.add(instance)

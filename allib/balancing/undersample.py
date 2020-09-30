@@ -16,7 +16,7 @@ from typing import Optional
 
 from math import ceil
 
-import numpy as np
+import numpy as np # type: ignore
 
 from .base import BaseBalancer
 from ..utils.random import get_random_generator

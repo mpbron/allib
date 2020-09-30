@@ -4,9 +4,9 @@ import pickle
 
 from typing import Sequence
 
-import numpy as np
-from sklearn.base import BaseEstimator
-from sklearn.exceptions import NotFittedError
+import numpy as np # type: ignore
+from sklearn.base import BaseEstimator # type: ignore
+from sklearn.exceptions import NotFittedError # type: ignore
 
 from ..utils import SaveableInnerModel
 from .base import BaseVectorizer

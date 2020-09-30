@@ -1,5 +1,5 @@
-import numpy as np
-from scipy.stats import entropy
+import numpy as np # type: ignore
+from scipy.stats import entropy #type: ignore
 
 from .ml_based import ProbabiltyBased, LabelProbabilityBased
 

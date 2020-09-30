@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Iterator, TypeVar, Generic, Set, List, Tuple, Optional
+from typing import Iterable, Iterator, TypeVar, Generic, Set, List, Tuple, Optional, Sequence, FrozenSet
 from abc import ABC, abstractmethod
 
 import functools
@@ -35,31 +35,31 @@ class AbstractClassifier(ABC, Generic[VT, LVT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def fit(self, x_data: List[VT], y_data: List[LVT]):
+    def fit(self, x_data: Sequence[VT], y_data: Sequence[LVT]):
         pass
 
     @abstractmethod
-    def predict_proba(self, x_data: List[VT]) -> PVT:
+    def predict_proba(self, x_data: Sequence[VT]) -> PVT:
         pass
 
     @abstractmethod
-    def predict(self, x_data: List[VT]) -> List[LVT]:
+    def predict(self, x_data: Sequence[VT]) -> Sequence[LVT]:
         pass
 
     @abstractmethod
-    def encode_labels(self, labels: Set[LT]) -> LVT:
+    def encode_labels(self, labels: Iterable[LT]) -> LVT:
         pass
 
     @abstractmethod
-    def predict_instances(self, instances: List[Instance]) -> List[LT]:
+    def predict_instances(self, instances: Sequence[Instance]) -> Sequence[LT]:
         pass
 
     @abstractmethod
-    def fit_instances(self, instances: List[Instance], labels: List[Set[LT]]):
+    def fit_instances(self, instances: Sequence[Instance], labels: Sequence[Set[LT]]):
         pass
 
     @abstractmethod
-    def predict_proba_instances(self, instances: List[Instance]) -> List[Set[Tuple[LT, float]]]:
+    def predict_proba_instances(self, instances: Sequence[Instance]) -> Sequence[FrozenSet[Tuple[LT, float]]]:
         pass
 
     @property

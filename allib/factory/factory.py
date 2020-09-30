@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, Optional, Callable
 
 _T = TypeVar("_T")
 
@@ -10,16 +10,16 @@ class ObjectFactory:
     def __init__(self):
         self.builders = {}
 
-    def register_constructor(self, key: str, constructor: Any) -> None:
-        builder = ObjectBuilder(constructor)
+    def register_constructor(self, key: Any, constructor: Any) -> None:
+        builder = ObjectBuilder[Any](constructor)
         self.register_builder(key, builder)
 
-    def register_builder(self, key: str, builder: AbstractBuilder):
+    def register_builder(self, key: Any, builder: AbstractBuilder):
         builder.register_factory(self)
         self.builders[key] = builder
         
 
-    def create(self, key: str, **kwargs):
+    def create(self, key: Any, **kwargs):
         builder = self.builders.get(key)
         if not builder:
             raise NotImplementedError(
@@ -32,19 +32,20 @@ class ObjectFactory:
 
 
 class AbstractBuilder(ABC):
+    _factory: ObjectFactory
     def __init__(self):
-        self._factory = None
+        self._factory = ObjectFactory()
 
     def register_factory(self, factory: ObjectFactory):
         self._factory = factory
 
     @abstractmethod
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs): # type: ignore
         raise NotImplementedError
 
 
 class ObjectBuilder(AbstractBuilder, Generic[_T]):
-    def __init__(self, constructor: _T) -> None:
+    def __init__(self, constructor: Callable[..., _T]) -> None:
         super().__init__()
         self.constructor = constructor
 

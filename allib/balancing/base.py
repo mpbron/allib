@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from abc import abstractmethod, ABC
-from typing import Tuple
+from typing import Tuple, Optional
 
-import numpy as np
+import numpy as np # type: ignore
 
 from ..environment import AbstractEnvironment
 
 class BaseBalancer(ABC):
     """Abstract class for balance strategies."""
-    _environment: AbstractEnvironment
+    _environment: Optional[AbstractEnvironment]
     name = "BaseBalancer"
     
     def __call__(self, environment: AbstractEnvironment) -> BaseBalancer:

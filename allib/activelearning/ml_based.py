@@ -3,11 +3,11 @@ from __future__ import annotations
 import functools
 import itertools
 import logging
-from abc import ABC, abstractstaticmethod
-from typing import Dict, Generic, Iterator, List, Optional, TypeVar
+from abc import ABC, abstractmethod
+from typing import Dict, Generic, Iterator, List, Optional, TypeVar, Callable
 
-import numpy as np
-from sklearn.exceptions import NotFittedError
+import numpy as np # type: ignore
+from sklearn.exceptions import NotFittedError# type: ignore
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance
@@ -75,17 +75,19 @@ class ProbabiltyBased(MLBased, ABC):
         super().__init__(classifier, fallback)
         self._metric_result = None
 
-    @abstractstaticmethod
+    @staticmethod
+    @abstractmethod
     def selection_criterion(prob_vec: np.ndarray) -> np.ndarray:
         raise NotImplementedError
 
     def _calculate_metric(self) -> np.ndarray:
+        assert self._unlabeled is not None
         feature_matrix = self._unlabeled.feature_matrix
         if feature_matrix is None:
             raise ValueError("The feature matrix is empty")
-        prob_vec = self.classifier.predict_proba(feature_matrix.matrix)
+        prob_vec: np.ndarray = self.classifier.predict_proba(feature_matrix.matrix)
         metric_result = self.selection_criterion(prob_vec)
-        return self
+        return metric_result
 
     def calculate_ordering(self):
         metric_result = self._calculate_metric()
@@ -98,44 +100,12 @@ class ProbabiltyBased(MLBased, ABC):
     def __next__(self) -> Instance:
         return super().__next__()
 
-    @MLBased.query_fallback
-    @ActiveLearner.query_log
-    def query(self) -> Optional[Instance]:
-        """Select the instance whose posterior probability is most near 0.5
-
-        Returns
-        -------
-        Optional[Instance]
-            An object containing:
-                - The document identifier
-                - The document vector
-                - The document data
-        """
-        metric_result = self._calculate_metric()
-        np_idx = np.argmax(metric_result)
-        doc_id = self._unlabeled.feature_matrix.get_instance_id(np_idx)
-        if doc_id is not None:
-            return self._unlabeled[doc_id]
-        return None
-    
-    @MLBased.query_batch_fallback
-    @ActiveLearner.query_batch_log
-    def query_batch(self, batch_size: int) -> List[Instance]:
-        metric_result = self._calculate_metric()
-        np_idxs = np.flip(np.argsort(metric_result[np.argpartition(metric_result, -batch_size)])).tolist()
-        results = []
-        for np_idx in np_idxs[0:batch_size]:
-            doc_id = self._unlabeled.feature_matrix.get_instance_id(np_idx)
-            if doc_id is not None:
-                results.append(self._unlabeled[doc_id])
-        return results
-
 
 class LabelProbabilityBased(ProbabiltyBased, ABC, Generic[LT]):
     def __init__(self, classifier, label: LT) -> None:
         super().__init__(classifier)
         self.label = label
-        self.labelposition = None
+        self.labelposition: Optional[int] = None
     
     def __call__(self, environment: AbstractEnvironment) -> LabelProbabilityBased:
         super().__call__(environment)
@@ -146,15 +116,18 @@ class LabelProbabilityBased(ProbabiltyBased, ABC, Generic[LT]):
     def name(self) -> str:
         return f"{self._name} :: {self.label}"
 
-    @abstractstaticmethod
+    @staticmethod
+    @abstractmethod
     def selection_criterion(prob_vec: np.ndarray) -> np.ndarray:
         raise NotImplementedError
 
     def _calculate_metric(self) -> np.ndarray:
+        assert self._unlabeled is not None
+        assert self.labelposition is not None
         feature_matrix = self._unlabeled.feature_matrix
         if feature_matrix is None:
             raise ValueError("The feature matrix is empty")
-        prob_vec = self.classifier.predict_proba(feature_matrix.matrix)
+        prob_vec: np.ndarray = self.classifier.predict_proba(feature_matrix.matrix)
         sliced_prob_vec = prob_vec[:,self.labelposition]
         return self.selection_criterion(sliced_prob_vec)
 
@@ -163,12 +136,13 @@ class LabelEnsemble(PoolbasedAL):
 
     def __init__(self, classifier: AbstractClassifier, al_method: LabelProbabilityBased) -> None:
         super().__init__(classifier)
-        self._almethod = al_method
+        self._almethod: Callable[..., LabelProbabilityBased] = al_method
         self._project = None
         self._learners: Dict[str, LabelProbabilityBased] = dict()
 
     def __call__(self, environment: AbstractEnvironment) -> LabelEnsemble:
         super().__call__(environment)
+        assert self._labelprovider is not None
         self._learners = {
             label: self._almethod(self.classifier, label)(environment)
             for label in self._labelprovider.labelset
@@ -179,6 +153,7 @@ class LabelEnsemble(PoolbasedAL):
         raise NotImplementedError
 
     def __next__(self) -> Instance:
+        assert self._labelprovider is not None
         labelcounts = [(self._labelprovider.document_count(label), label) for label in self._labelprovider.labelset]
         min_label = min(labelcounts)[1]
         return next(self._learners[min_label])

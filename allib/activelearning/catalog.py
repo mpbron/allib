@@ -3,6 +3,8 @@ from enum import Enum
 class ALCatalog:
     class Paradigm(Enum):
         POOLBASED = "Poolbased"
+        ESTIMATOR = "Estimator"
+        ENSEMBLE  = "Ensemble"
 
     class QueryType(Enum):
         RANDOM_SAMPLING = "RandomSampling"
@@ -14,4 +16,3 @@ class ALCatalog:
         VARIOUS = "VariousDjangoDefault"
         INTERLEAVE = "InterleaveAL"
         LABELMAXIMIZER = "LabelMaximizer"
-        ESTIMATOR = "Estimator"

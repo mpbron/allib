@@ -74,10 +74,12 @@ class SaveableInnerModel(Generic[MT]):
         return state
 
     def save(self) -> None:
+        assert self.filepath is not None
         with open(self.filepath, mode="wb") as filehandle:
             pickle.dump(self.innermodel, filehandle)
         self.saved = True
 
     def load(self):
+        assert self.filepath is not None
         with open(self.filepath, mode="rb") as filehandle:
             self.innermodel = pickle.load(filehandle)
