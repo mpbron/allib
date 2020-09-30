@@ -1,4 +1,5 @@
 #%%
+from typing import List, Tuple, Optional
 import itertools
 
 import numpy as np # type: ignore
@@ -98,7 +99,7 @@ dataset = pd.read_csv("./datasets/Software_Engineering_Hall.csv")
 labels = ["Irrelevant", "Relevant"]
 
 # %%
-def yield_cols(dataset_df: pd.DataFrame):
+def yield_cols(dataset_df: pd.DataFrame) -> Tuple[List[int], List[str], List[str]]:
     def yield_row_values():
         for i, row in dataset_df.iterrows():
             yield i, str(row["abstract"]), labels[row["included"]]

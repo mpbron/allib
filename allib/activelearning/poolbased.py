@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import deque
 from typing import (Callable, Dict, Generic, Iterable, Iterator, List,
-                    Optional, Sequence, Set, Tuple, TypeVar, Union)
+                    Optional, Sequence, Set, Tuple, TypeVar, Union, Any)
 
 import pandas as pd # type: ignore
 
@@ -17,6 +17,7 @@ DT = TypeVar("DT")
 VT = TypeVar("VT")
 KT = TypeVar("KT")
 LT = TypeVar("LT")
+RT = TypeVar("RT")
 LVT = TypeVar("LVT")
 
 BasePrediction = List[Tuple[LT, float]]
@@ -24,7 +25,7 @@ ChildPrediction = Dict[KT, BasePrediction]
 Prediction = Union[BasePrediction, ChildPrediction]
 
 
-class PoolbasedAL(ActiveLearner, ABC, Generic[KT, VT, DT, LT, LVT]):
+class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, VT, DT, LT, LVT, RT]):
     def __init__(self,
                  classifier: AbstractClassifier
                  ) -> None:
@@ -127,7 +128,7 @@ class PoolbasedAL(ActiveLearner, ABC, Generic[KT, VT, DT, LT, LVT]):
             for _, dat in self._dataset.items():
                 yield dat.vector
 
-    def row_generator(self) -> Iterator[Dict[str, Union[KT, VT, DT, LT]]]:
+    def row_generator(self) -> Iterator[Dict[Any, Any]]:
         """Generate dictionaries that can be used to populate a Pandas DataFrame
 
         Yields

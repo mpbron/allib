@@ -3,6 +3,7 @@ from typing import Generic, List, Sequence, TypeVar, Tuple
 from abc import ABC, abstractmethod
 from ..instances import Instance
 
+KT = TypeVar("KT")
 LT = TypeVar("LT")
 MT = TypeVar("MT")
 ST = TypeVar("ST")
@@ -10,12 +11,6 @@ ST = TypeVar("ST")
 
 
 class BaseLogger(ABC, Generic[LT, KT, ST]):
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_, **__):
-        self.close()
-
     @abstractmethod
     def set_labels(self, x: Instance, y: str) -> None:
         """Add/set labels to state
@@ -91,7 +86,7 @@ class BaseLogger(ABC, Generic[LT, KT, ST]):
     def store_metric(self, key: str, metric: MT, value: float) -> None:
         raise NotImplementedError
 
-    @property
+    @abstractmethod
     def store_info_score(self, instance: Instance, score: float) -> None:
         raise NotImplementedError
 

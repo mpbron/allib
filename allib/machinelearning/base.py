@@ -1,25 +1,29 @@
 from __future__ import annotations
 
-from typing import Iterable, Iterator, TypeVar, Generic, Set, List, Tuple, Optional, Sequence, FrozenSet
-from abc import ABC, abstractmethod
-
 import functools
-import uuid
 import os
+import uuid
+from abc import ABC, abstractmethod
+from typing import (FrozenSet, Generic, Iterable, Iterator, List, Optional,
+                    Sequence, Set, Tuple, TypeVar, Any)
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance
 
+KT = TypeVar("KT")
+DT = TypeVar("DT")
 VT = TypeVar("VT")
 LVT = TypeVar("LVT")
 LT = TypeVar("LT")
 PVT = TypeVar("PVT")
 
-class AbstractClassifier(ABC, Generic[VT, LVT, LT]):
+class AbstractClassifier(ABC, Generic[KT, VT, LT, LVT, PVT]):
     name = "AbstractClassifier"
 
     @abstractmethod
-    def __call__(self, environment: AbstractEnvironment) -> AbstractClassifier:
+    def __call__(self, 
+            environment: AbstractEnvironment[KT, Any, VT, Any, LT]
+        ) -> AbstractClassifier[KT, VT, LT, LVT, PVT]:
         """Initialize the classifier by supplying the target labels
         
         Parameters
@@ -51,15 +55,15 @@ class AbstractClassifier(ABC, Generic[VT, LVT, LT]):
         pass
 
     @abstractmethod
-    def predict_instances(self, instances: Sequence[Instance]) -> Sequence[LT]:
+    def predict_instances(self, instances: Sequence[Instance[KT, Any, VT, Any]]) -> Sequence[FrozenSet[LT]]:
         pass
 
     @abstractmethod
-    def fit_instances(self, instances: Sequence[Instance], labels: Sequence[Set[LT]]):
+    def fit_instances(self, instances: Sequence[Instance[KT, Any, VT, Any]], labels: Sequence[Set[LT]]):
         pass
 
     @abstractmethod
-    def predict_proba_instances(self, instances: Sequence[Instance]) -> Sequence[FrozenSet[Tuple[LT, float]]]:
+    def predict_proba_instances(self, instances: Sequence[Instance[KT, Any, VT, Any]]) -> Sequence[FrozenSet[Tuple[LT, float]]]:
         pass
 
     @property

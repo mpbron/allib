@@ -1,4 +1,5 @@
 from __future__ import annotations
+from os import RTLD_NOLOAD
 from allib.labels.base import LabelProvider
 import functools
 import itertools
@@ -17,6 +18,7 @@ DT = TypeVar("DT")
 VT = TypeVar("VT")
 KT = TypeVar("KT")
 LT = TypeVar("LT")
+RT = TypeVar("RT")
 LVT = TypeVar("LVT")
 
 BasePrediction = List[Tuple[LT, float]]
@@ -29,38 +31,38 @@ class NotInitializedException(Exception):
     pass
 
 
-class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
+class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT, RT, LT]):
     _name = "ActiveLearner"
     ordering: Optional[Deque[KT]]
-    _env: Optional[AbstractEnvironment]
+    _env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]]
 
     @property
     def name(self):
         return self._name
    
-    def __iter__(self) -> ActiveLearner:
+    def __iter__(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
         return self
 
     @property
-    def env(self) -> AbstractEnvironment:
+    def env(self) -> AbstractEnvironment[KT, DT, VT, RT, LT]:
         if self._env is None:
             raise NotInitializedException
         return self._env
 
     @property
-    def _unlabeled(self) -> InstanceProvider:
+    def _unlabeled(self) -> InstanceProvider[KT, DT, VT, RT]:
         return self.env.unlabeled
     
     @property
-    def _labeled(self) -> InstanceProvider:
+    def _labeled(self) -> InstanceProvider[KT, DT, VT, RT]:
         return self.env.labeled
     
     @property
-    def _dataset(self) -> InstanceProvider:
+    def _dataset(self) -> InstanceProvider[KT, DT, VT, RT]:
         return self.env.dataset
 
     @property
-    def _labelprovider(self) -> LabelProvider:
+    def _labelprovider(self) -> LabelProvider[KT, LT]:
         return self.env.labels
     
     @abstractmethod
@@ -68,7 +70,7 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
         raise NotImplementedError
     
     @abstractmethod
-    def __next__(self) -> Instance:
+    def __next__(self) -> Instance[KT, DT, VT, RT]:
         raise NotImplementedError
        
     @staticmethod
@@ -82,10 +84,12 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
         return wrapper
 
     @abstractmethod
-    def __call__(self, environment: AbstractEnvironment) -> ActiveLearner:
+    def __call__(
+            self, 
+            environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> ActiveLearner[KT, DT, VT, RT, LT]:
         raise NotImplementedError
 
-    def query(self) -> Optional[Instance]:
+    def query(self) -> Optional[Instance[KT, DT, VT, RT]]:
         """Query the most informative instance
         Returns
         -------
@@ -95,7 +99,7 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
         return next(self, None)
 
    
-    def query_batch(self, batch_size: int) -> List[Instance]:
+    def query_batch(self, batch_size: int) -> List[Instance[KT, DT, VT, RT]]:
         """Query the `batch_size` most informative instances
 
         Parameters
@@ -111,7 +115,7 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
         return list(itertools.islice(self, batch_size))
 
     @abstractmethod
-    def set_as_labeled(self, instance: Instance) -> None:
+    def set_as_labeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         """Mark the instance as labeled
 
         Parameters
@@ -122,7 +126,7 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def set_as_sampled(self, instance: Instance) -> None:
+    def set_as_sampled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         """Mark the instance as labeled
 
         Parameters
@@ -133,7 +137,7 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def set_as_unlabeled(self, instance: Instance) -> None:
+    def set_as_unlabeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         """Mark the instance as unlabeled
 
         Parameters
@@ -150,7 +154,7 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def predict(self, instances: Sequence[Instance]) -> Sequence[Prediction]:
+    def predict(self, instances: Sequence[Instance[KT, DT, VT, RT]]) -> Sequence[Prediction]:
         """Return the labeling of the instance
 
         Parameters
@@ -166,7 +170,7 @@ class ActiveLearner(ABC, Iterator[Instance], Generic[KT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def predict_proba(self, instances: Sequence[Instance]):
+    def predict_proba(self, instances: Sequence[Instance[KT, DT, VT, RT]]):
         """Return the labeling of the instance
 
         Parameters
