@@ -1,15 +1,14 @@
 from __future__ import annotations
-from os import RTLD_NOLOAD
+
 from allib.labels.base import LabelProvider
 import functools
 import itertools
 import logging
-import sys
+
 
 from abc import ABC, abstractmethod
-from typing import (Callable, Dict, Generic, Iterable, List, Iterator,
-                    Optional, Sequence, Tuple, TypeVar, Union, Deque)
-from collections import deque
+from typing import (Callable, Dict, FrozenSet, Generic, List, Iterator,
+                    Optional, Sequence, Tuple, TypeVar, Deque, Any)
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
@@ -20,10 +19,10 @@ KT = TypeVar("KT")
 LT = TypeVar("LT")
 RT = TypeVar("RT")
 LVT = TypeVar("LVT")
+FT = TypeVar("FT")
 
-BasePrediction = List[Tuple[LT, float]]
-ChildPrediction = Dict[KT, BasePrediction]
-Prediction = Union[BasePrediction, ChildPrediction]
+ProbabilityPrediction = FrozenSet[Tuple[LT, float]]
+LabelPrediction = FrozenSet[LT]
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,8 +36,8 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
     _env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]]
 
     @property
-    def name(self):
-        return self._name
+    def name(self) -> Tuple[str, Optional[LT]]:
+        return self._name, None
    
     def __iter__(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
         return self
@@ -66,7 +65,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         return self.env.labels
     
     @abstractmethod
-    def calculate_ordering(self) -> List[KT]:
+    def calculate_ordering(self) -> Sequence[KT]:
         raise NotImplementedError
     
     @abstractmethod
@@ -74,13 +73,17 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         raise NotImplementedError
        
     @staticmethod
-    def iterator_log(func):
+    def iterator_log(func: Callable[..., FT]) -> Callable[..., FT]:
         @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(
+                self: ActiveLearner[KT, DT, VT, RT, LT], 
+                *args: Any, **kwargs: Dict[str, Any]) -> FT:
             result = func(self, *args, **kwargs)
-            LOGGER.info("Sampled document %i with method %s",
-                            result.identifier, self.name)
-            return result
+            if isinstance(result, Instance):
+                LOGGER.info("Sampled document %i with method %s",
+                            result.identifier, self.name) # type: ignore
+                self.env.logger.log_sample(result, self.name)
+            return result # type: ignore
         return wrapper
 
     @abstractmethod
@@ -154,7 +157,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         raise NotImplementedError
 
     @abstractmethod
-    def predict(self, instances: Sequence[Instance[KT, DT, VT, RT]]) -> Sequence[Prediction]:
+    def predict(self, instances: Sequence[Instance[KT, DT, VT, RT]]) -> Sequence[LabelPrediction]:
         """Return the labeling of the instance
 
         Parameters
@@ -170,7 +173,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         raise NotImplementedError
 
     @abstractmethod
-    def predict_proba(self, instances: Sequence[Instance[KT, DT, VT, RT]]):
+    def predict_proba(self, instances: Sequence[Instance[KT, DT, VT, RT]]) -> Sequence[ProbabilityPrediction]:
         """Return the labeling of the instance
 
         Parameters

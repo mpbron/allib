@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections import deque
-from typing import (Callable, Dict, Generic, Iterable, Iterator, List,
-                    Optional, Sequence, Set, Tuple, TypeVar, Union, Any)
+from typing import (Dict, Generic, Iterator,
+                    Optional, Sequence,  Tuple, TypeVar, Any)
 
 import pandas as pd # type: ignore
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
-from ..labels import LabelProvider
 from ..machinelearning import AbstractClassifier
 from .base import ActiveLearner, NotInitializedException
 
@@ -19,24 +18,22 @@ KT = TypeVar("KT")
 LT = TypeVar("LT")
 RT = TypeVar("RT")
 LVT = TypeVar("LVT")
+PVT = TypeVar("PVT")
 
-BasePrediction = List[Tuple[LT, float]]
-ChildPrediction = Dict[KT, BasePrediction]
-Prediction = Union[BasePrediction, ChildPrediction]
-
-
-class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, VT, DT, LT, LVT, RT]):
+class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     def __init__(self,
-                 classifier: AbstractClassifier
+                 classifier: AbstractClassifier[KT, VT, LT, LVT, PVT]
                  ) -> None:
         self.initialized = False
-        self._sampled: Optional[InstanceProvider] = None
-        self._env: Optional[AbstractEnvironment] = None
+        self._sampled: Optional[InstanceProvider[KT, DT, VT, RT]] = None
+        self._env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]] = None
         self.classifier = classifier
         self.fitted = False
         self.ordering = None
 
-    def __call__(self, environment: AbstractEnvironment) -> PoolbasedAL:
+    def __call__(self, 
+            environment: AbstractEnvironment[KT, DT, VT, RT, LT]
+        ) -> PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]:
         self._env = environment
         self._sampled = environment.create_empty_provider()
         self.classifier = self.classifier(environment)
@@ -44,7 +41,7 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, VT, DT, LT
         return self
 
     @ActiveLearner.iterator_log
-    def __next__(self) -> Instance:
+    def __next__(self) -> Instance[KT, DT, VT, RT]:
         assert self._unlabeled is not None
         if self.ordering is None:
             self.ordering = deque(self.calculate_ordering())
@@ -75,11 +72,11 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, VT, DT, LT
     def size(self) -> int:
         return self.len_labeled + self.len_unlabeled
 
-    def set_as_labeled(self, instance: Instance) -> None:
+    def set_as_labeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         self._unlabeled.discard(instance)
         self._labeled.add(instance)
 
-    def set_as_sampled(self, instance: Instance) -> None:
+    def set_as_sampled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         """Mark the instance as labeled
         
         Parameters
@@ -91,7 +88,7 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, VT, DT, LT
         self._unlabeled.discard(instance)
         self._sampled.add(instance)
 
-    def set_as_unlabeled(self, instance: Instance) -> None:
+    def set_as_unlabeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         """Mark the instance as unlabeled
         
         Parameters
@@ -104,7 +101,7 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, VT, DT, LT
         self._labeled.discard(instance)
         self._unlabeled.add(instance)
 
-    def vector_generator(self, only_unlabeled=False) -> Iterator[VT]:
+    def vector_generator(self, only_unlabeled: bool=False) -> Iterator[VT]:
         """Return the vectors of documents contained in this AL Container
         
         Parameters
@@ -122,11 +119,15 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, VT, DT, LT
         VT Feature vector
         """        
         if only_unlabeled:
-            for doc_id in self._unlabeled:
-                yield self._unlabeled[doc_id].vector
+            for doc_id in self.env.unlabeled:
+                vector = self.env.unlabeled[doc_id].vector
+                if vector is not None:
+                    yield vector
         else:
-            for _, dat in self._dataset.items():
-                yield dat.vector
+            for _, dat in self.env.dataset.items():
+                vector = dat.vector
+                if vector is not None:
+                    yield vector
 
     def row_generator(self) -> Iterator[Dict[Any, Any]]:
         """Generate dictionaries that can be used to populate a Pandas DataFrame
@@ -139,9 +140,9 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, VT, DT, LT
 
         """
         for _, doc in self._labeled.items():
-            doc_labels = self._labelprovider.get_labels(doc)
+            doc_labels = self.env.labels.get_labels(doc)
             label_dict = {
-                label: (label in doc_labels) for label in self._labelprovider.labelset}
+                label: (label in doc_labels) for label in self.env.labels.labelset}
             doc_dict = {
                 "id": doc.identifier,
                 "vector": doc.vector,
@@ -160,10 +161,11 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, VT, DT, LT
                  y -- the instances label vector
         """
         for _, doc in self._labeled.items():
-            doc_labels = self._labelprovider.get_labels(doc)
+            doc_labels = self.env.labels.get_labels(doc)
             x = doc.vector
             y = self.classifier.encode_labels(doc_labels)
-            yield x, y
+            if x is not None and y is not None:
+                yield x, y
 
     def retrain(self) -> None:
         # Ensure instances match labelings
@@ -175,12 +177,12 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, VT, DT, LT
         self.fitted = True
         self.ordering = None
 
-    def predict(self, instances: Sequence[Instance]):
+    def predict(self, instances: Sequence[Instance[KT, DT, VT, RT]]):
         if not self.initialized:
             raise NotInitializedException
         return self.classifier.predict_instances(instances)
 
-    def predict_proba(self, instances: Sequence[Instance]):
+    def predict_proba(self, instances: Sequence[Instance[KT, DT, VT, RT]]):
         if not self.initialized:
             raise NotInitializedException
         return self.classifier.predict_proba_instances(instances)

@@ -1,14 +1,14 @@
-from abc import ABC, abstractmethod, abstractclassmethod
+from abc import ABC, abstractmethod
 
-from typing import Iterator, Generic, TypeVar, Union, Iterable, Set, FrozenSet
+from typing import  Generic, TypeVar, Union,  Set, FrozenSet, Any
 
-from ..instances import Instance, InstanceProvider
+from ..instances import Instance
 
 LT = TypeVar("LT")
 KT = TypeVar("KT")
 
 
-def to_key(instance_or_key: Union[KT, Instance]) -> KT:
+def to_key(instance_or_key: Union[KT, Instance[KT, Any, Any, Any]]) -> KT:
     """Returns the identifier of the instance if `instance_or_key` is an `Instance`
     or return the key if `instance_or_key` is a `KT`
 
@@ -41,7 +41,7 @@ class LabelProvider(ABC, Generic[KT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_labels(self, instance: Union[KT, Instance], *labels: LT) -> None:
+    def remove_labels(self, instance: Union[KT, Instance[KT, Any, Any, Any]], *labels: LT) -> None:
         """Remove the labels from this instance
 
         Parameters
@@ -54,7 +54,7 @@ class LabelProvider(ABC, Generic[KT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def set_labels(self, instance: Union[KT, Instance], *labels: LT) -> None:
+    def set_labels(self, instance: Union[KT, Instance[KT, Any, Any, Any]], *labels: LT) -> None:
         """Annotate the instance with the labels listed in the parameters
 
         Parameters
@@ -67,7 +67,7 @@ class LabelProvider(ABC, Generic[KT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def get_labels(self, instance: Union[KT, Instance]) -> Set[LT]:
+    def get_labels(self, instance: Union[KT, Instance[KT, Any, Any, Any]]) -> Set[LT]:
         """Return the labels that are associated with the instance
 
         Parameters

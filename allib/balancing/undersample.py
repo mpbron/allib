@@ -43,11 +43,13 @@ class UndersampleBalancer(BaseBalancer):
         # encoded as zeroes. Works for multiclass,
         # multilabel. Works for binary classification
         # if the positive class is encoded as 1.
-        positive_indices = np.where(
-            np.any(y_data == 1, axis=1))[0]
-        negative_indices = np.where(
-            np.all(y_data == 0, axis=1))[0]
-
+        if y_data.ndim > 1:
+            positive_indices = np.where(np.any(y_data == 1, axis=1))[0]
+            negative_indices = np.where(np.all(y_data == 0, axis=1))[0]
+        else:
+            positive_indices = np.where(y_data == 1)[0]
+            negative_indices = np.where(y_data == 0)[0]
+            
         n_positive = len(positive_indices)
         n_negative = len(negative_indices)
 

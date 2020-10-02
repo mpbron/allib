@@ -6,7 +6,7 @@ class ALCatalog:
         ESTIMATOR = "Estimator"
         ENSEMBLE  = "Ensemble"
 
-    class QueryType(Enum):
+    class QueryType(str, Enum):
         RANDOM_SAMPLING = "RandomSampling"
         LEAST_CONFIDENCE = "LeastConfidence"
         NEAR_DECISION_BOUNDARY = "NearDecisionBoundary"
@@ -16,3 +16,5 @@ class ALCatalog:
         VARIOUS = "VariousDjangoDefault"
         INTERLEAVE = "InterleaveAL"
         LABELMAXIMIZER = "LabelMaximizer"
+        MIN_ENTROPY = "MinEntropy"
+        MOST_CONFIDENCE = "MostConfidence"

@@ -37,12 +37,12 @@ class DataPoint(Instance[KT, DT, VT, DT], Generic[KT, DT, VT]):
         return self._vector
 
     @vector.setter
-    def vector(self, value: Optional[VT]) -> None:
+    def vector(self, value: Optional[VT]) -> None: # type: ignore
         self._vector = value
 
 class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
 
-    def __init__(self, datapoints: Iterable[DataPoint]) -> None:
+    def __init__(self, datapoints: Iterable[DataPoint[KT,DT, VT]]) -> None:
         self.dictionary = {data.identifier: data for data in datapoints}
         self._feature_matrix = None
 
@@ -53,31 +53,37 @@ class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
                   vectors: Optional[Sequence[Optional[VT]]] = None):
         if vectors is None or len(vectors) != len(indices):
             vectors = [None] * len(indices)
-        datapoints = itertools.starmap(DataPoint, zip(indices, raw_data, vectors))
+        datapoints = itertools.starmap(DataPoint[KT, DT, VT], zip(indices, raw_data, vectors))
         return cls(datapoints)
 
     @classmethod
     def from_data(cls, raw_data: Sequence[DT]) -> DataPointProvider[KT, DT, VT]:
         indices = range(len(raw_data))
         vectors = [None] * len(raw_data)
-        datapoints = itertools.starmap(DataPoint, zip(indices, raw_data, vectors))
+        datapoints = itertools.starmap(DataPoint[KT, DT, VT], zip(indices, raw_data, vectors))
         return cls(datapoints)
 
     @classmethod
-    def from_provider(cls, provider: InstanceProvider[KT, VT, DT, Any]) -> DataPointProvider[KT, DT, VT]:
+    def from_provider(cls, provider: InstanceProvider[KT, DT, VT, Any]) -> DataPointProvider[KT, DT, VT]:
+        if isinstance(provider, DataPointProvider):
+            return cls.copy(provider)
         instances = provider.bulk_get_all()
-        datapoints = [DataPoint(ins.identifier, ins.data, ins.vector) for ins in instances]
+        datapoints = [DataPoint[KT, DT, VT](ins.identifier, ins.data, ins.vector) for ins in instances]
         return cls(datapoints)
-        
 
+    @classmethod
+    def copy(cls, provider: DataPointProvider[KT, DT, VT]) -> DataPointProvider[KT, DT, VT]:
+        instances = provider.bulk_get_all()
+        return cls(instances) # type: ignore
+        
     def __iter__(self) -> Iterator[KT]:
         yield from self.dictionary.keys()
 
     def __getitem__(self, key: KT) -> DataPoint[KT, DT, VT]:
         return self.dictionary[key]
     
-    def __setitem__(self, key: KT, value: DataPoint[KT, DT, VT]) -> None:
-        self.dictionary[key] = value
+    def __setitem__(self, key: KT, value: Instance[KT, DT, VT, Any]) -> None:
+        self.dictionary[key] = value # type: ignore
 
     def __delitem__(self, key: KT) -> None:
         del self.dictionary[key]

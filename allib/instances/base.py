@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
-from typing import Generic, Iterable, Iterator, List, Optional, TypeVar, Union
+from typing import Generic, Iterator, List, Optional, TypeVar, Any, Mapping
 
-import numpy as np # type: ignore
+import numpy as np #type: ignore
 
 KT = TypeVar("KT")
 DT = TypeVar("DT")
@@ -14,8 +14,9 @@ LT = TypeVar("LT")
 CT = TypeVar("CT")
 LVT = TypeVar("LVT")
 
+
 class Matrix(Generic[KT]):
-    def __init__(self, matrix, keys):
+    def __init__(self, matrix: np.ndarray, keys: List[KT]):
         self.matrix = matrix
         self.index_list = keys
         self.index_map = {
@@ -23,15 +24,15 @@ class Matrix(Generic[KT]):
         }
         self.size = len(keys)
 
-    def get_instance_id(self, row_idx) -> KT:
+    def get_instance_id(self, row_idx: int) -> KT:
         return self.index_list[row_idx]
 
-    def discard(self, identifier: KT):
+    def discard(self, identifier: KT) -> None:
         # Find the row_idx that belongs to the instance
         row_idx = self.index_map[identifier]
 
         # Delete data from the matrix and book keeping lists
-        self.matrix = np.delete(self.matrix, row_idx, axis=0)
+        self.matrix = np.delete(self.matrix, row_idx, axis=0) # type: ignore
         del self.index_list[row_idx]
         del self.index_map[identifier]
 
@@ -42,11 +43,12 @@ class Matrix(Generic[KT]):
         # Update size
         self.size -= 1
 
-    def add(self, instance: Instance):
-        self.matrix = np.concatenate((self.matrix), instance.vector)
-        self.index_list.append(instance.identifier)
-        self.index_map[instance.identifier] = self.size  
-        self.size += 1
+    def add(self, instance: Instance[KT, Any, Any, Any]) -> None:
+        if instance.vector is not None:
+            self.matrix = np.concatenate((self.matrix), instance.vector) # type: ignore
+            self.index_list.append(instance.identifier)
+            self.index_map[instance.identifier] = self.size  
+            self.size += 1
         
 class Instance(ABC, Generic[KT, DT, VT, RT]):
 
@@ -89,7 +91,7 @@ class Instance(ABC, Generic[KT, DT, VT, RT]):
         raise NotImplementedError
 
     @vector.setter
-    def vector(self, value: Optional[VT]):
+    def vector(self, value: Optional[VT]) -> None: # type: ignore
         raise NotImplementedError
 
     @property
@@ -125,8 +127,8 @@ class ParentInstance(Instance[KT, DT, VT, RT], ABC, Generic[KT, DT, VT, RT]):
         raise NotImplementedError
 
 
-class InstanceProvider(ABC, MutableMapping, Generic[KT, DT, VT, RT]):
-    _feature_matrix: Optional[Matrix]
+class InstanceProvider(ABC, MutableMapping, Mapping[KT, Instance[KT, DT, VT, RT]], Generic[KT, DT, VT, RT]):
+    _feature_matrix: Optional[Matrix[KT]]
 
     @abstractmethod
     def __contains__(self, item: object) -> bool:
@@ -167,10 +169,10 @@ class InstanceProvider(ABC, MutableMapping, Generic[KT, DT, VT, RT]):
         raise NotImplementedError
 
     @property
-    def feature_matrix(self) -> Matrix:
+    def feature_matrix(self) -> Matrix[KT]:
         if self._feature_matrix is None:
             vectors = [ins.vector for ins in self.values()]
-            self._feature_matrix = Matrix(np.vstack(vectors), self.key_list)
+            self._feature_matrix = Matrix(np.vstack(vectors), self.key_list) # type: ignore
         return self._feature_matrix
 
     def bulk_get_all(self) -> List[Instance[KT, DT, VT, RT]]:

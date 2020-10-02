@@ -1,10 +1,10 @@
 from __future__ import annotations
+from allib.instances.base import InstanceProvider
 
 import functools
-import itertools
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Generic, Iterator, List, Optional, TypeVar, Callable
+from typing import Dict, Generic, Optional, TypeVar, Callable, Any, Sequence, Tuple
 
 import numpy as np # type: ignore
 from sklearn.exceptions import NotFittedError# type: ignore
@@ -13,68 +13,51 @@ from ..environment import AbstractEnvironment
 from ..instances import Instance
 from ..machinelearning import AbstractClassifier
 
-from .base import ActiveLearner
 from .poolbased import PoolbasedAL
 from .random import RandomSampling
 
+DT = TypeVar("DT")
+VT = TypeVar("VT")
+KT = TypeVar("KT")
 LT = TypeVar("LT")
+RT = TypeVar("RT")
+LVT = TypeVar("LVT")
+PVT = TypeVar("PVT")
+FT = TypeVar("FT")
 
 LOGGER = logging.getLogger(__name__)
 
-class MLBased(RandomSampling):
+class MLBased(RandomSampling[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     def __init__(self,
-                 classifier: AbstractClassifier,
-                 fallback = RandomSampling
+                 classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
+                 fallback: Callable[..., PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]] = RandomSampling[KT, DT, VT, RT, LT, LVT, PVT]
                  ) -> None:
         super().__init__(classifier)
         self.fallback = fallback(classifier)
 
-    def __call__(self, environment: AbstractEnvironment) -> PoolbasedAL:
+    def __call__(self, 
+                 environment: AbstractEnvironment[KT, DT, VT, RT, LT]
+                 ) -> MLBased[KT, DT, VT, RT, LT, LVT, PVT]:
         super().__call__(environment)
         self.fallback = self.fallback(environment)
         return self
 
     @staticmethod
-    def iterator_fallback(func):
+    def iterator_fallback(func: Callable[..., Instance[KT, DT, VT, RT]]) -> Callable[..., Instance[KT, DT, VT, RT]]:
         @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: MLBased[KT, DT, VT, RT, LT, LVT, PVT], 
+                    *args: Any, 
+                    **kwargs: Dict[str, Any]) -> Instance[KT, DT, VT, RT]:
             if self.fitted:
                 try:
                     return func(self, *args, **kwargs)
                 except (NotFittedError, IndexError, ValueError) as ex:
                     LOGGER.warning("[%s] Falling back to model %s, because of:", self.name, self.fallback.name, exc_info=ex)
-            return next(self.fallback)
+            fallback_value = next(self.fallback)
+            return fallback_value
         return wrapper
 
-    @staticmethod
-    def query_fallback(func):
-        @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
-            if self.fitted:
-                try:
-                    return func(self, *args, **kwargs)
-                except (NotFittedError, IndexError, ValueError) as ex:
-                    LOGGER.warning("[%s] Falling back to model %s, because of:", self.name, self.fallback.name, exc_info=ex)
-            return self.fallback.query()
-        return wrapper
-
-    @staticmethod
-    def query_batch_fallback(func):
-        @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
-            if self.classifier.fitted:
-                try:
-                    return func(self, *args, **kwargs)
-                except (NotFittedError, IndexError, ValueError) as ex:
-                    LOGGER.warning("[%s] Falling back to model %s, because of:", self.name, self.fallback.name, exc_info=ex)
-            return self.fallback.query_batch(*args, **kwargs)
-        return wrapper
-
-class ProbabiltyBased(MLBased, ABC):
-    def __init__(self, classifier: AbstractClassifier, fallback=RandomSampling):
-        super().__init__(classifier, fallback)
-        self._metric_result = None
-
+class ProbabiltyBased(MLBased[KT, DT, VT, RT, LT, LVT, PVT], ABC, Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     @staticmethod
     @abstractmethod
     def selection_criterion(prob_vec: np.ndarray) -> np.ndarray:
@@ -85,36 +68,36 @@ class ProbabiltyBased(MLBased, ABC):
         feature_matrix = self._unlabeled.feature_matrix
         if feature_matrix is None:
             raise ValueError("The feature matrix is empty")
-        prob_vec: np.ndarray = self.classifier.predict_proba(feature_matrix.matrix)
+        prob_vec: np.ndarray = self.classifier.predict_proba(feature_matrix.matrix) # type: ignore
         metric_result = self.selection_criterion(prob_vec)
         return metric_result
 
-    def calculate_ordering(self):
+    def calculate_ordering(self) -> Sequence[KT]:
         metric_result = self._calculate_metric()
         arg_sort = np.argsort(metric_result)
-        metric_sort = metric_result[arg_sort]
-        ordering = np.flip(arg_sort).tolist()
-        return ordering
+        metric_sort = metric_result[arg_sort] #type: ignore
+        ordering = np.flip(arg_sort).tolist() #type: ignore 
+        return ordering # type: ignore
         
     @MLBased.iterator_fallback
-    def __next__(self) -> Instance:
-        return super().__next__()
+    def __next__(self) -> Instance[KT, DT, VT, RT]:
+        value: Instance[KT, DT, VT, RT] = super(ProbabiltyBased, self).__next__()
+        return value
 
-
-class LabelProbabilityBased(ProbabiltyBased, ABC, Generic[LT]):
-    def __init__(self, classifier, label: LT) -> None:
+class LabelProbabilityBased(ProbabiltyBased[KT, DT, VT, RT, LT, LVT, PVT], ABC, Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+    def __init__(self, classifier: AbstractClassifier[KT, VT, LT, LVT, PVT], label: LT) -> None:
         super().__init__(classifier)
         self.label = label
         self.labelposition: Optional[int] = None
     
-    def __call__(self, environment: AbstractEnvironment) -> LabelProbabilityBased:
+    def __call__(self, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> LabelProbabilityBased[KT, DT, VT, RT, LT, LVT, PVT]:
         super().__call__(environment)
         self.labelposition = self.classifier.get_label_column_index(self.label)
         return self
 
     @property
-    def name(self) -> str:
-        return f"{self._name} :: {self.label}"
+    def name(self) -> Tuple[str, LT]:
+        return self._name, self.label
 
     @staticmethod
     @abstractmethod
@@ -127,20 +110,23 @@ class LabelProbabilityBased(ProbabiltyBased, ABC, Generic[LT]):
         feature_matrix = self._unlabeled.feature_matrix
         if feature_matrix is None:
             raise ValueError("The feature matrix is empty")
-        prob_vec: np.ndarray = self.classifier.predict_proba(feature_matrix.matrix)
+        prob_vec: np.ndarray = self.classifier.predict_proba(feature_matrix.matrix) # type: ignore
         sliced_prob_vec = prob_vec[:,self.labelposition]
         return self.selection_criterion(sliced_prob_vec)
 
-class LabelEnsemble(PoolbasedAL):
+class LabelEnsemble(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     _name = "LabelEnsemble"
 
-    def __init__(self, classifier: AbstractClassifier, al_method: LabelProbabilityBased) -> None:
+    def __init__(self, 
+                 classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
+                 al_method: LabelProbabilityBased[KT, DT, VT, RT, LT, LVT, PVT]
+                 ) -> None:
         super().__init__(classifier)
-        self._almethod: Callable[..., LabelProbabilityBased] = al_method
+        self._almethod: Callable[..., LabelProbabilityBased[KT, DT, VT, RT, LT, LVT, PVT]] = al_method
         self._project = None
-        self._learners: Dict[str, LabelProbabilityBased] = dict()
+        self._learners: Dict[LT, LabelProbabilityBased[KT, DT, VT, RT, LT, LVT, PVT]] = dict()
 
-    def __call__(self, environment: AbstractEnvironment) -> LabelEnsemble:
+    def __call__(self, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> LabelEnsemble[KT, DT, VT, RT, LT, LVT, PVT]:
         super().__call__(environment)
         assert self._labelprovider is not None
         self._learners = {
@@ -149,17 +135,12 @@ class LabelEnsemble(PoolbasedAL):
         }
         return self
 
-    def calculate_ordering(self) -> List[int]:
+    def calculate_ordering(self) -> Sequence[KT]:
         raise NotImplementedError
 
-    def __next__(self) -> Instance:
+    def __next__(self) -> Instance[KT, DT, VT, RT]:
         assert self._labelprovider is not None
         labelcounts = [(self._labelprovider.document_count(label), label) for label in self._labelprovider.labelset]
         min_label = min(labelcounts)[1]
         return next(self._learners[min_label])
-        
-    def query(self) -> Optional[Instance]:
-        return next(self)
 
-    def query_batch(self, batch_size: int) -> List[Instance]:
-        return list(itertools.islice(self, batch_size))

@@ -8,7 +8,7 @@ from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
 
-from .base import ActiveLearner, Prediction
+from .base import ActiveLearner, LabelPrediction
 from .mostcertain import LabelMaximizer
 from .poolbased import PoolbasedAL
 from .random import RandomSampling
@@ -38,7 +38,7 @@ class InterleaveAL(PoolbasedAL, Generic[KT]):
     def _choose_active_learner(self) -> str:
         """ Makes a weighted decision and returns the chosen ActiveLearner """
         learners = list(self._learners.keys())
-        learner_key = np.random.choice(learners, 1, p=self._weights)
+        learner_key = np.random.choice(learners, size=1, p=self._weights) # type: ignore
         return learner_key[0]
 
     def calculate_ordering(self) -> List[KT]:

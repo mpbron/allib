@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Any
 from abc import ABC, abstractmethod, abstractclassmethod
+from ..history import BaseLogger
 from ..instances import InstanceProvider
 from ..labels import LabelProvider
 
@@ -10,6 +11,7 @@ LT = TypeVar("LT")
 VT = TypeVar("VT")
 DT = TypeVar("DT")
 RT = TypeVar("RT")
+
 class AbstractEnvironment(ABC, Generic[KT, DT, VT, RT, LT]):
     @abstractmethod
     def create_empty_provider(self) -> InstanceProvider[KT, DT, VT, RT]:
@@ -32,9 +34,15 @@ class AbstractEnvironment(ABC, Generic[KT, DT, VT, RT, LT]):
 
     @property
     @abstractmethod
+    def logger(self) -> BaseLogger[KT, LT, Any]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
     def labels(self) -> LabelProvider[KT, LT]:
         raise NotImplementedError
 
     @abstractclassmethod
-    def from_environment(cls, provider: AbstractEnvironment[KT, DT, VT, RT, LT]) -> AbstractEnvironment[KT, DT, VT, RT, LT]:
+    def from_environment(cls, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> AbstractEnvironment[KT, DT, VT, RT, LT]:
         raise NotImplementedError
+

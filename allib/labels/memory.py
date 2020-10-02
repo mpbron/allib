@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import (Dict, FrozenSet, Generic, Iterable, Iterator, Optional,
-                    Sequence, Set, TypeVar, Union)
+from typing import (Dict, FrozenSet, Generic, Iterable, Optional,
+                    Sequence, Set, TypeVar, Union, Any)
 
-from ..instances import Instance, InstanceProvider
+from ..instances import Instance
 from .base import LabelProvider, to_key
 
 LT = TypeVar("LT")
@@ -11,7 +11,7 @@ KT = TypeVar("KT")
 
 
 
-class MemoryLabelProvider(LabelProvider[KT, LT]):
+class MemoryLabelProvider(LabelProvider[KT, LT], Generic[KT, LT]):
     """A Memory based implementation to test and benchmark AL algorithms
     """
     _labelset: FrozenSet[LT]
@@ -63,7 +63,7 @@ class MemoryLabelProvider(LabelProvider[KT, LT]):
     def labelset(self) -> FrozenSet[LT]:
         return self._labelset
 
-    def remove_labels(self, instance: Union[KT, Instance], *labels: LT):
+    def remove_labels(self, instance: Union[KT, Instance[KT, Any, Any, Any]], *labels: LT):
         key = to_key(instance)
         if key not in self._labeldict:
             raise KeyError("Key {} is not found".format(key))
@@ -71,13 +71,13 @@ class MemoryLabelProvider(LabelProvider[KT, LT]):
             self._labeldict[key].discard(label)
             self._labeldict_inv[label].discard(key)
 
-    def set_labels(self, instance: Union[KT, Instance], *labels: LT):
+    def set_labels(self, instance: Union[KT, Instance[KT, Any, Any, Any]], *labels: LT):
         key = to_key(instance)
         for label in labels:
             self._labeldict.setdefault(key, set()).add(label)
             self._labeldict_inv.setdefault(label, set()).add(key)
 
-    def get_labels(self, instance: Union[KT, Instance]) -> Set[LT]:
+    def get_labels(self, instance: Union[KT, Instance[KT, Any, Any, Any]]) -> Set[LT]:
         key = to_key(instance)
         return self._labeldict.setdefault(key, set())
 

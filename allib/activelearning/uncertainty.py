@@ -1,8 +1,17 @@
+from typing import Generic, TypeVar, Any
+
 import numpy as np # type: ignore
 from scipy.stats import entropy #type: ignore
 
 from .ml_based import ProbabiltyBased, LabelProbabilityBased
 
+DT = TypeVar("DT")
+VT = TypeVar("VT")
+KT = TypeVar("KT")
+LT = TypeVar("LT")
+RT = TypeVar("RT")
+LVT = TypeVar("LVT")
+PVT = TypeVar("PVT")
 class LeastConfidence(ProbabiltyBased):
     _name = "LeastConfidence"
     @staticmethod

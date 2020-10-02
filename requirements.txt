@@ -4,3 +4,5 @@ numpy
 imblearn
 scipy
 gensim
+mypy
+pylint
