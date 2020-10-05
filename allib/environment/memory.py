@@ -43,7 +43,7 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
             data: Sequence[DT], 
             vectors: Sequence[VT]) -> MemoryEnvironment[KT, DT, VT, LT]:
         dataset = DataPointProvider.from_data_and_indices(indices, data, vectors)
-        unlabeled = DataPointProvider.from_data_and_indices(indices, data, vectors)
+        unlabeled = DataPointProvider.copy(dataset)
         labeled = DataPointProvider[KT, DT, VT]([])
         labelprovider = MemoryLabelProvider.from_data(target_labels, indices, [])
         logger = MemoryLogger[KT, LT, Any]()

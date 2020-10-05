@@ -89,7 +89,7 @@ fe_config ={
             "vec_type": Cat.FE.VectorizerType.SKLEARN,
             "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
             "sklearn_config": {
-                "max_features": 5000
+                #"max_features": 5000
             }
         }
     ]
@@ -127,6 +127,8 @@ def get_labels_idx(idx: List[int], lbl: List[str]) -> Dict[str,List[int]]:
 label_idx = get_labels_idx(indices_train, labels_train)
 #%%
 environment = MemoryEnvironment[int, str, np.ndarray, str].from_data(labels, indices_train, texts_train, [])
+
+#%%
 instances = environment.dataset.bulk_get_all()
 matrix = fe.fit_transform(instances)
 environment.set_vectors(instances, matrix)
@@ -160,7 +162,7 @@ def al_loop(learner: ActiveLearner, start_env: AbstractEnvironment, label_dict, 
     # Start the active learning loop
     count = 0
     it = 1
-    while len(learner.env.labels.get_instances_by_label("Relevant")) < 40:
+    while len(learner.env.labels.get_instances_by_label("Relevant")) < 20:
         sample = itertools.islice(learner, batch_size)
         for instance in sample:
             oracle_labels = id_oracle(instance)
@@ -172,7 +174,7 @@ def al_loop(learner: ActiveLearner, start_env: AbstractEnvironment, label_dict, 
             it = it + 1
         learner.retrain()
 # %%
-al_loop(al, environment, label_idx, "Relevant", "Irrelevant", 5)
+al_loop(al, environment, label_idx, "Relevant", "Irrelevant", 10)
 
 
 # %%
