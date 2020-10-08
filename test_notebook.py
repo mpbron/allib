@@ -89,7 +89,7 @@ fe_config ={
             "vec_type": Cat.FE.VectorizerType.SKLEARN,
             "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
             "sklearn_config": {
-                #"max_features": 5000
+                "max_features": 5000
             }
         }
     ]
@@ -149,7 +149,7 @@ def al_loop(learner: ActiveLearner, start_env: AbstractEnvironment, label_dict, 
     ## Initialize new environment
     learner = learner(MemoryEnvironment.from_environment(start_env, shared_labels=False))
     
-    # Sample 2 pos en 5 neg documents
+    # Sample 1 pos en 1 neg documents
     pos_docs = random.sample(label_dict[pos_label], 1)
     neg_docs = random.sample(label_dict[neg_label], 1)
     docs = pos_docs + neg_docs
@@ -162,11 +162,11 @@ def al_loop(learner: ActiveLearner, start_env: AbstractEnvironment, label_dict, 
     # Start the active learning loop
     count = 0
     it = 1
-    while len(learner.env.labels.get_instances_by_label("Relevant")) < 20:
+    while learner.env.labels.document_count(pos_label) < len(label_dict[pos_label]):
         sample = itertools.islice(learner, batch_size)
         for instance in sample:
             oracle_labels = id_oracle(instance)
-            if "Relevant" in oracle_labels:
+            if pos_label in oracle_labels:
                 count += 1
                 print(f"Found document {count} after reading {it} documents")
             learner.env.labels.set_labels(instance, *oracle_labels)

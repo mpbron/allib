@@ -44,7 +44,6 @@ class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
 
     def __init__(self, datapoints: Iterable[DataPoint[KT,DT, VT]]) -> None:
         self.dictionary = {data.identifier: data for data in datapoints}
-        self._feature_matrix = None
 
     @classmethod
     def from_data_and_indices(cls, 

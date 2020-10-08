@@ -19,25 +19,25 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
             estimator: ClassifierMixin, encoder: TransformerMixin, balancer: BaseBalancer = IdentityBalancer(),
             storage_location=None, filename=None) -> None:
         SaveableInnerModel.__init__(self, estimator, storage_location, filename)
-        self.encoder = encoder
+        self.encoder = encoder 
         self._fitted = False
         self._target_labels: FrozenSet[str] = frozenset()
         self.balancer = balancer
 
     def __call__(self, environment: AbstractEnvironment[int, Any, np.ndarray, Any, str]) -> SkLearnClassifier:
         self._target_labels = frozenset(environment.labels.labelset)
-        self.encoder.fit(list(self._target_labels))
+        self.encoder.fit(list(self._target_labels)) # type: ignore
         return self
 
     def encode_labels(self, labels: Iterable[str]) -> np.ndarray:
-        return self.encoder.transform(list(set(labels)))
+        return self.encoder.transform(list(set(labels))) # type: ignore
 
     def decode_vector(self, vector: np.ndarray) -> Sequence[FrozenSet[str]]:
-        labelings = self.encoder.inverse_transform(vector).tolist()
+        labelings = self.encoder.inverse_transform(vector).tolist() # type: ignore
         return [frozenset(labeling) for labeling in labelings]
 
     def get_label_column_index(self, label: str) -> int:
-        label_list = self.encoder.classes_.tolist()
+        label_list = self.encoder.classes_.tolist() # type: ignore
         return label_list.index(label)
 
     @SaveableInnerModel.load_model_fallback
@@ -47,7 +47,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
         self.innermodel.fit(x_resampled, y_resampled) # type: ignore
         self._fitted = True
 
-    def encode_x(self, instances: Sequence[Instance]) -> np.ndarray:
+    def encode_x(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]]) -> np.ndarray:
         # TODO Maybe convert to staticmethod
         x_data = [
             instance.vector for instance in instances if instance.vector is not None]
@@ -79,7 +79,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
     def predict_proba_instances(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]]) -> Sequence[FrozenSet[Tuple[str, float]]]:
         x_vec = self.encode_x(instances)
         y_pred = self.predict_proba(x_vec).tolist()
-        label_list = self.encoder.classes_.tolist()
+        label_list = self.encoder.classes_.tolist() # type: ignore
         y_labels = [
             frozenset(zip(y_vec, label_list))
             for y_vec in y_pred
