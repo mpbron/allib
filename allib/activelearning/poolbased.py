@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections import deque
-from typing import (Dict, Generic, Iterator,
+from typing import (Dict, Generic, Iterator, Deque, Set,
                     Optional, Sequence,  Tuple, TypeVar, Any)
 
 import pandas as pd # type: ignore
@@ -25,11 +25,11 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, DT, VT, RT
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT]
                  ) -> None:
         self.initialized = False
-        self._sampled: Optional[InstanceProvider[KT, DT, VT, RT]] = None
         self._env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]] = None
         self.classifier = classifier
         self.fitted = False
         self.ordering = None
+        self.sampled: Set[KT] = set()
 
     def __call__(self, 
             environment: AbstractEnvironment[KT, DT, VT, RT, LT]
@@ -42,14 +42,14 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, DT, VT, RT
 
     @ActiveLearner.iterator_log
     def __next__(self) -> Instance[KT, DT, VT, RT]:
-        assert self._unlabeled is not None
         if self.ordering is None:
             self.ordering = deque(self.calculate_ordering())
         try:
             key = self.ordering.popleft()
-            while key not in self._unlabeled:
+            while key not in self.env.unlabeled or key in self.sampled:
                 key = self.ordering.popleft()
-            return self._unlabeled[key]
+            self.sampled.add(key)
+            return self.env.unlabeled[key]
         except IndexError:
             raise StopIteration()
 
@@ -76,18 +76,6 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, DT, VT, RT
         self._unlabeled.discard(instance)
         self._labeled.add(instance)
 
-    def set_as_sampled(self, instance: Instance[KT, DT, VT, RT]) -> None:
-        """Mark the instance as labeled
-        
-        Parameters
-        ----------
-        instance : Instance
-            The now labeled instance
-        """
-        assert self._sampled is not None
-        self._unlabeled.discard(instance)
-        self._sampled.add(instance)
-
     def set_as_unlabeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         """Mark the instance as unlabeled
         
@@ -96,8 +84,6 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, DT, VT, RT
         instance : Instance
             The now labeled instance
         """
-        assert self._sampled is not None
-        self._sampled.discard(instance)
         self._labeled.discard(instance)
         self._unlabeled.add(instance)
 
@@ -176,6 +162,7 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, DT, VT, RT
         self.classifier.fit_instances(instances, labelings)
         self.fitted = True
         self.ordering = None
+        self.sampled = set()
 
     def predict(self, instances: Sequence[Instance[KT, DT, VT, RT]]):
         if not self.initialized:

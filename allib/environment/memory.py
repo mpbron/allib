@@ -1,11 +1,10 @@
 from __future__ import annotations
-from allib import labels
 
-from typing import Generic, Sequence, Set, TypeVar, Iterable, Dict, Any
+from typing import Generic, Sequence, TypeVar, Iterable, Dict, Any
 
 import numpy as np # type: ignore
 
-from ..instances import DataPoint, DataPointProvider, Instance
+from ..instances import DataPointProvider, DataBucketProvider
 from ..labels.memory import MemoryLabelProvider
 from ..history import MemoryLogger
 
@@ -32,7 +31,6 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
         self._unlabeled = unlabeled
         self._labeled = labeled
         self._labelprovider = labelprovider
-        self._providers = [self._dataset, self._unlabeled, self._labeled]
         self._named_providers: Dict[str, DataPointProvider[KT, DT, VT]] = dict()
         self._logger = logger
 
@@ -42,18 +40,21 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
             indices: Sequence[KT], 
             data: Sequence[DT], 
             vectors: Sequence[VT]) -> MemoryEnvironment[KT, DT, VT, LT]:
-        dataset = DataPointProvider.from_data_and_indices(indices, data, vectors)
-        unlabeled = DataPointProvider.copy(dataset)
-        labeled = DataPointProvider[KT, DT, VT]([])
+        dataset = DataPointProvider[KT, DT, VT].from_data_and_indices(indices, data, vectors)
+        unlabeled = DataBucketProvider[KT, DT, VT](dataset, dataset.key_list)
+        labeled = DataBucketProvider[KT, DT, VT](dataset, [])
         labelprovider = MemoryLabelProvider.from_data(target_labels, indices, [])
         logger = MemoryLogger[KT, LT, Any]()
         return cls(dataset, unlabeled, labeled, labelprovider, logger)
 
     @classmethod
     def from_environment(cls, environment: AbstractEnvironment[KT, DT, VT, DT, LT], shared_labels: bool = True) -> MemoryEnvironment[KT, DT, VT, LT]:
-        dataset = DataPointProvider[KT, DT, VT].from_provider(environment.dataset)
-        unlabeled = DataPointProvider[KT, DT, VT].from_provider(environment.unlabeled)
-        labeled = DataPointProvider[KT, DT, VT].from_provider(environment.labeled)
+        if isinstance(environment.dataset, DataPointProvider):
+            dataset: DataPointProvider[KT, DT, VT] = environment.dataset
+        else:
+            dataset = DataPointProvider[KT, DT, VT].from_provider(environment.dataset)
+        unlabeled = DataBucketProvider[KT, DT, VT](dataset, environment.unlabeled.key_list)
+        labeled = DataBucketProvider[KT, DT, VT](dataset, environment.labeled.key_list)
         if isinstance(environment.labels, MemoryLabelProvider) and shared_labels:
             labels: MemoryLabelProvider[KT, LT] = environment.labels
         else:
@@ -65,7 +66,7 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
         return cls(dataset, unlabeled, labeled, labels, logger)
 
     def create_named_provider(self, name: str) -> DataPointProvider[KT, DT, VT]:
-        self._named_providers[name] = DataPointProvider[KT, DT, VT]([])
+        self._named_providers[name] = DataBucketProvider[KT, DT, VT](self._dataset, [])
         return self._named_providers[name]
 
     def get_named_provider(self, name: str) -> DataPointProvider[KT, DT, VT]:
@@ -95,16 +96,6 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
     @property
     def logger(self) -> MemoryLogger[KT, LT, Any]: # TODO Replace Any Type
         return self._logger
-
-    def set_vectors(self,
-        instances: Sequence[Instance[KT, DT, VT, DT]], matrix: np.ndarray):
-        vectors = matrix.tolist()
-        for i, instance in enumerate(instances):
-            key = instance.identifier
-            instance.vector = np.array(vectors[i]).reshape(1, -1) # type: ignore
-            for provider in self._providers:
-                if key in provider and isinstance(instance, DataPoint):
-                    provider[key] = instance
 
 
         

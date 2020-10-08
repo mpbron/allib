@@ -29,7 +29,7 @@ def split_tokenizer(text: str) -> List[str]:
 DocTokenizer = Callable[..., List[str]]
 
 
-class Doc2VecVectorizer(BaseVectorizer, SaveableInnerModel):
+class Doc2VecVectorizer(BaseVectorizer[str], SaveableInnerModel[Doc2Vec]):
     name = "Doc2Vec"
     innermodel: Optional[Doc2Vec]
     tokenizer: DocTokenizer
@@ -47,31 +47,32 @@ class Doc2VecVectorizer(BaseVectorizer, SaveableInnerModel):
         self.innermodel = None
         SaveableInnerModel.__init__(self, self.innermodel, storage_location, filename)
 
-    def fit(self, x_data: Sequence[str], **kwargs) -> None:
+    def fit(self, x_data: Sequence[str], **kwargs: Any) -> Doc2VecVectorizer:
         self.innermodel = Doc2Vec(
             documents=get_line_docs(x_data), **self.d2v_params)
-        self.innermodel.delete_temporary_training_data(
-            keep_doctags_vectors=True, keep_inference=True)
+        self.innermodel.delete_temporary_training_data( # type: ignore
+            keep_doctags_vectors=True, keep_inference=True) 
         self.fitted = True
+        return self
 
     @SaveableInnerModel.load_model_fallback
-    def transform(self, x_data: Sequence[str], **kwargs) -> np.ndarray:
+    def transform(self, x_data: Sequence[str], **kwargs: Any) -> np.ndarray: # type: ignore
         if self.fitted and self.innermodel is not None:
-            return np.array(
+            return np.array( # type: ignore
                 [
-                    self.innermodel.infer_vector(self.tokenizer(doc))
+                    self.innermodel.infer_vector(self.tokenizer(doc)) # type: ignore
                     for doc in x_data
-                ])
+                ]) 
         raise NotFittedError
 
-    def fit_transform(self, x_data: Sequence[str], **kwargs) -> np.ndarray:
+    def fit_transform(self, x_data: Sequence[str], **kwargs: Any) -> np.ndarray: # type: ignore
         self.fit(x_data)
-        return self.transform(x_data)
+        return self.transform(x_data) # type: ignore
 
     def save(self) -> None:
         if self.innermodel is not None:
-            self.innermodel.save(self.filepath)
+            self.innermodel.save(self.filepath) # type: ignore
             self.saved = True
 
     def load(self) -> None:
-        self.innermodel = Doc2Vec.load(self.filepath)
+        self.innermodel = Doc2Vec.load(self.filepath) # type: ignore

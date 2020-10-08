@@ -6,8 +6,6 @@ from typing import Generic, Iterator, Sequence, List, Optional, TypeVar, Any, Ma
 
 import numpy as np #type: ignore
 
-from ..utils.chuncks import divide_sequence
-
 KT = TypeVar("KT")
 DT = TypeVar("DT")
 VT = TypeVar("VT")

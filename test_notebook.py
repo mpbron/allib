@@ -1,19 +1,20 @@
 #%%
 from allib.environment.base import AbstractEnvironment
 import logging
-from typing import List, Tuple, Any, Dict
+from typing import List, Tuple, Any, Dict, Sequence
 import itertools
 import random
 
 import numpy as np # type: ignore
 import pandas as pd # type: ignore
 
-from allib.instances import  Instance
+from allib.instances import  Instance, DataPoint
 from allib.module.factory import MainFactory
 from allib.environment import MemoryEnvironment
 from allib import Component
 from allib.activelearning import ActiveLearner
 from allib.feature_extraction import BaseVectorizer
+from allib.utils import divide_sequence
 
 
 from allib.module.catalog import ModuleCatalog as Cat
@@ -130,8 +131,14 @@ environment = MemoryEnvironment[int, str, np.ndarray, str].from_data(labels, ind
 
 #%%
 instances = environment.dataset.bulk_get_all()
-matrix = fe.fit_transform(instances)
-environment.set_vectors(instances, matrix)
+vectorizer = fe.fit(instances)
+def set_vectors(instances: Sequence[DataPoint[int, str, np.ndarray]],vectorizer: BaseVectorizer[Any], batch_size = 100) -> None:
+    instance_chunks = divide_sequence(instances, batch_size)
+    for instance_chunk in instance_chunks:
+        matrix = vectorizer.transform(instance_chunk)
+        for i, instance in enumerate(instance_chunk):
+            instance.vector = matrix[i,:]
+set_vectors(instances, fe)
 # %%
 def id_oracle(doc: Instance):
     return [labels_train[doc.identifier]]
@@ -160,14 +167,13 @@ def al_loop(learner: ActiveLearner, start_env: AbstractEnvironment, label_dict, 
     learner.retrain()
     
     # Start the active learning loop
-    count = 0
     it = 1
     while learner.env.labels.document_count(pos_label) < len(label_dict[pos_label]):
         sample = itertools.islice(learner, batch_size)
         for instance in sample:
             oracle_labels = id_oracle(instance)
             if pos_label in oracle_labels:
-                count += 1
+                count = learner.env.labels.document_count(pos_label)
                 print(f"Found document {count} after reading {it} documents")
             learner.env.labels.set_labels(instance, *oracle_labels)
             learner.set_as_labeled(instance)

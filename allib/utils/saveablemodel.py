@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from typing import Generic, TypeVar, Optional, List
+from typing import Generic, TypeVar, Optional, List, Callable, Any
 
 import functools
 import pickle
@@ -10,6 +10,7 @@ import uuid
 
 MT = TypeVar("MT")
 
+F = TypeVar('F', bound=Callable[..., Any])
 
 class SaveableInnerModel(Generic[MT]):
     name = "AbstractSaveableInnerModel"
@@ -21,7 +22,7 @@ class SaveableInnerModel(Generic[MT]):
         if filename is None:
             self.filename = self._generate_random_file_name()
         self.taboo_fields = {"innermodel": None}
-        if taboo_fields is not None and isinstance(taboo_fields, list):
+        if taboo_fields is not None:
             for field in taboo_fields:
                 self.taboo_fields[field] = None
 
@@ -52,9 +53,9 @@ class SaveableInnerModel(Generic[MT]):
         return self.saved
 
     @staticmethod
-    def load_model_fallback(func):
+    def load_model_fallback(func: F) -> F:
         @functools.wraps(func)
-        def wrapper(self: SaveableInnerModel, *args, **kwargs):
+        def wrapper(self: SaveableInnerModel[MT], *args: Any, **kwargs: Any):
             if not self.is_loaded and self.is_stored:
                 self.load()
             return func(self, *args, **kwargs)
@@ -79,7 +80,7 @@ class SaveableInnerModel(Generic[MT]):
             pickle.dump(self.innermodel, filehandle)
         self.saved = True
 
-    def load(self):
+    def load(self) -> None:
         assert self.filepath is not None
         with open(self.filepath, mode="rb") as filehandle:
             self.innermodel = pickle.load(filehandle)

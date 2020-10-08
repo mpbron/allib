@@ -19,7 +19,7 @@ import numpy as np # type: ignore
 
 from .base import BaseBalancer
 from .base import IdentityBalancer
-from ..utils.random import get_random_generator
+from ..utils import get_random_generator
 
 class DoubleBalancer(BaseBalancer):
     """Dynamic Resampling balance strategy.
@@ -51,18 +51,18 @@ class DoubleBalancer(BaseBalancer):
     name = "DoubleBalancer"
 
     def __init__(self, a=2.155, alpha=0.94, b=0.789, beta=1.0,
-                 rng:  Optional[np.random.Generator] = None):
+                 rng:  Optional[np.random.Generator] = None): # type: ignore
         super(DoubleBalancer, self).__init__()
         self.a = a
         self.alpha = alpha
         self.b = b
         self.beta = beta
         self.fallback_model = IdentityBalancer()
-        self._rng = get_random_generator(rng)
+        self._rng = get_random_generator(rng) # type: ignore
 
     def resample(self, x_data: np.ndarray, y_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         if y_data.ndim > 1:
-            positive_indices = np.where(np.any(y_data == 1, axis=1))[0]
+            positive_indices = np.where(np.any(y_data == 1, axis=1))[0] # type: ignore
             negative_indices = np.where(np.all(y_data == 0, axis=1))[0]
         else:
             positive_indices = np.where(y_data == 1)[0]
@@ -113,7 +113,7 @@ def _zero_weight(n_read: int, b: float, beta: float) -> float:
     return weight
 
 
-def random_round(value: float, rng: np.random.Generator) -> int:
+def random_round(value: float, rng: np.random.Generator) -> int: # type: ignore
     """Round up or down, depending on how far the value is.
 
     For example: 8.1 would be rounded to 8, 90% of the time, and rounded
@@ -125,11 +125,11 @@ def random_round(value: float, rng: np.random.Generator) -> int:
     return base
 
 
-def fill_training(src_idx: np.ndarray, n_train: int, rng: np.random.Generator) -> np.ndarray:
+def fill_training(src_idx: np.ndarray, n_train: int, rng: np.random.Generator) -> np.ndarray: # type: ignore
     """Copy/sample until there are n_train indices sampled/copied.
     """
     # Number of copies needed.
-    n_copy = np.int(n_train / len(src_idx))
+    n_copy = np.int(n_train / len(src_idx)) # type: ignore
     # For the remainder, use sampling.
     n_sample = n_train - n_copy * len(src_idx)
 

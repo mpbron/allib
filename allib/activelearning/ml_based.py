@@ -13,8 +13,8 @@ from sklearn.exceptions import NotFittedError# type: ignore
 from ..environment import AbstractEnvironment
 from ..instances.base import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
-from ..utils.func import mapsnd
-from ..utils.chuncks import divide_sequence
+from ..utils import mapsnd, divide_sequence
+
 
 from .poolbased import PoolbasedAL
 from .random import RandomSampling

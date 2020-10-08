@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import os
-
 from abc import ABC, abstractmethod
-from typing import Generic, Sequence, TypeVar, List, Optional
-import functools
-import uuid
+from typing import Generic, Sequence, TypeVar, List, Any
 
 from sklearn.exceptions import NotFittedError # type: ignore
 import numpy as np # type: ignore
@@ -22,83 +18,17 @@ class BaseVectorizer(ABC, Generic[DT]):
         self.fitted = False
     
     @abstractmethod
-    def fit(self, x_data: Sequence[DT], **kwargs) -> None:
+    def fit(self, x_data: Sequence[DT], **kwargs: Any) -> BaseVectorizer[DT]:
         pass
 
     @abstractmethod
-    def transform(self, x_data: Sequence[DT], **kwargs) -> np.ndarray:
+    def transform(self, x_data: Sequence[DT], **kwargs: Any) -> np.ndarray: # type: ignore
         pass
 
     @abstractmethod
-    def fit_transform(self, x_data: Sequence[DT], **kwargs) -> np.ndarray:
+    def fit_transform(self, x_data: Sequence[DT], **kwargs: Any) -> np.ndarray: # type: ignore
         pass
 
-class SaveableVectorizer(BaseVectorizer, ABC):
-    name = "SaveableVectorizer"
-
-    def __init__(self, storage_location, filename = None):
-        super().__init__()
-        self.storage_location = storage_location
-        self.saved = False
-        self.innermodel = None
-        if filename is None:
-            self.filename = self._generate_random_file_name()
-    
-    def _generate_random_file_name(self) -> str:
-        """Generates a random filename
-
-        Returns
-        -------
-        str
-            A random file name
-        """
-        gen_uuid = uuid.uuid4()
-        filename = f"vectorizer_{self.name}_{gen_uuid}.data"
-        return filename
-
-    @property
-    def filepath(self) -> Optional[str]:
-        if self.storage_location is not None:
-            return os.path.join(self.storage_location, self.filename)
-        return None
-
-    @property
-    def has_storage_location(self) -> bool:
-        return self.storage_location is not None
-
-    @property
-    def is_stored(self) -> bool:
-        return self.saved
-  
-    @staticmethod
-    def load_model_fallback(func):
-        @functools.wraps(func)
-        def wrapper(self: SaveableVectorizer, *args, **kwargs):
-            if not self.is_loaded and self.is_stored:
-                self.load()
-            return func(self, *args, **kwargs)
-        return wrapper
-
-    @property
-    def is_loaded(self) -> bool:
-        return self.innermodel is not None
-    
-    @abstractmethod
-    def save(self) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def load(self) -> None:
-        raise NotImplementedError
-
-    def __getstate__(self):
-        if not self.has_storage_location:
-            return self.__dict__
-        self.save()
-        state = {key: value for (key, value) in self.__dict__.items() if key != "innermodel"}
-        state = {**state.copy(), **{"innermodel": None}}
-        return state
-    
 class SeparateContextVectorizer(ABC, Generic[DT, CT]):
     fitted: bool
     name = "SeparateContextVectorizer"
@@ -106,8 +36,8 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
     def __init__(
             self,
             data_vectorizer: BaseVectorizer[DT],
-            context_vectorizer: BaseVectorizer[CT],
-            **kwargs):
+            context_vectorizer: BaseVectorizer[CT]
+        ):
         self.fitted = False
         self.data_vectorizer = data_vectorizer
         self.context_vectorizer = context_vectorizer
@@ -116,55 +46,57 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
             self,
             x_data: Sequence[DT],
             context_data: Sequence[CT],
-            **kwargs):
+            **kwargs: Any) -> SeparateContextVectorizer[DT, CT]:
         self.data_vectorizer.fit(x_data, **kwargs)
         self.context_vectorizer.fit(context_data, **kwargs)
         self.fitted = True
+        return self
 
     def transform(
             self,
             x_data: Sequence[DT],
             context_data: Sequence[CT],
-            **kwargs) -> np.ndarray:
+            **kwargs: Any) -> np.ndarray: # type: ignore
         if self.fitted:
-            data_part = self.data_vectorizer.transform(x_data, **kwargs)
-            context_part = self.context_vectorizer.transform(
-                context_data, **kwargs)
-            return np.concatenate((data_part, context_part), axis=1)
+            data_part: np.ndarray = self.data_vectorizer.transform(x_data, **kwargs) # type: ignore
+            context_part: np.ndarray = self.context_vectorizer.transform( # type: ignore
+                context_data, **kwargs) # type: ignore
+            return np.concatenate((data_part, context_part), axis=1) # type: ignore
         raise NotFittedError
 
     def fit_transform(
             self,
             x_data: Sequence[DT],
             context_data: Sequence[CT],
-            **kwargs) -> np.ndarray:
+            **kwargs: Any) -> np.ndarray: # type: ignore
         self.fit(x_data, **kwargs)
-        return self.transform(x_data, context_data, **kwargs)
+        return self.transform(x_data, context_data, **kwargs) # type: ignore
 
 
-class StackVectorizer(BaseVectorizer, Generic[DT]):
-    vectorizers: List[BaseVectorizer]
+class StackVectorizer(BaseVectorizer[DT], Generic[DT]):
+    vectorizers: List[BaseVectorizer[DT]]
     name = "StackVectorizer"
 
     def __init__(self,
-                 vectorizer: BaseVectorizer,
-                 *vectorizers: BaseVectorizer) -> None:
+                 vectorizer: BaseVectorizer[DT],
+                 *vectorizers: BaseVectorizer[DT]) -> None:
         super().__init__()
         self.vectorizers = [vectorizer, *vectorizers]
 
-    def fit(self, x_data: Sequence[DT], **kwargs) -> None:
+    def fit(self, x_data: Sequence[DT], **kwargs: Any) -> StackVectorizer[DT]:
         for vec in self.vectorizers:
             vec.fit(x_data, **kwargs)
         self.fitted = True
+        return self
 
-    def transform(self, x_data: Sequence[DT], **kwargs) -> np.ndarray:
+    def transform(self, x_data: Sequence[DT], **kwargs: Any) -> np.ndarray: # type: ignore
         if self.fitted:
-            sub_vectors = [
-                vec.transform(x_data, **kwargs) 
+            sub_vectors = [ # type: ignore
+                vec.transform(x_data, **kwargs) # type: ignore
                 for vec in self.vectorizers]
-            return np.concatenate(sub_vectors, axis=1)
+            return np.concatenate(sub_vectors, axis=1) # type: ignore
         raise NotFittedError
 
-    def fit_transform(self, x_data: Sequence[DT], **kwargs) -> np.ndarray:
+    def fit_transform(self, x_data: Sequence[DT], **kwargs: Any) -> np.ndarray: # type: ignore
         self.fit(x_data, **kwargs)
-        return self.transform(x_data, **kwargs)
+        return self.transform(x_data, **kwargs) # type: ignore

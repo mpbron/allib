@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import (Dict, Generic, List, Optional,
-                    TypeVar, Union, Any)
-import random
+                    TypeVar, Any)
 import numpy as np  # type: ignore
 
 from ..environment import AbstractEnvironment
@@ -11,7 +10,7 @@ from ..machinelearning import AbstractClassifier
 from .base import NotInitializedException
 from .poolbased import PoolbasedAL
 
-from ..utils.random import get_random_generator
+from ..utils import get_random_generator
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")

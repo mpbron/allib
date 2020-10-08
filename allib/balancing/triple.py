@@ -23,7 +23,7 @@ from .double import DoubleBalancer
 from .double import _zero_weight
 from .double import fill_training
 from .double import random_round
-from ..utils.random import get_random_generator 
+from ..utils import get_random_generator 
 
 from ..activelearning.catalog import ALCatalog
 

@@ -19,7 +19,7 @@ from math import ceil
 import numpy as np # type: ignore
 
 from .base import BaseBalancer
-from ..utils.random import get_random_generator
+from ..utils import get_random_generator
 
 class UndersampleBalancer(BaseBalancer):
     """Balancing class that undersamples the data with a given ratio.
@@ -49,7 +49,7 @@ class UndersampleBalancer(BaseBalancer):
         else:
             positive_indices = np.where(y_data == 1)[0]
             negative_indices = np.where(y_data == 0)[0]
-            
+
         n_positive = len(positive_indices)
         n_negative = len(negative_indices)
 

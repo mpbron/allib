@@ -129,17 +129,6 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         raise NotImplementedError
 
     @abstractmethod
-    def set_as_sampled(self, instance: Instance[KT, DT, VT, RT]) -> None:
-        """Mark the instance as labeled
-
-        Parameters
-        ----------
-        instance : Instance
-            The now labeled instance
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def set_as_unlabeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         """Mark the instance as unlabeled
 

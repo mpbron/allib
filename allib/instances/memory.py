@@ -103,4 +103,41 @@ class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
     def clear(self) -> None:
         self.dictionary = {}
 
-    
+
+class DataBucketProvider(DataPointProvider[KT, DT, VT], Generic[KT, DT, VT]):
+    def __init__(self, dataset: DataPointProvider[KT, DT, VT], instances: Iterable[KT]):
+        self._elements = set(instances)
+        self.dataset = dataset
+
+    def __iter__(self) -> Iterator[KT]:
+        yield from self._elements
+
+    def __getitem__(self, key: KT) -> DataPoint[KT, DT, VT]:
+        if key in self._elements:
+            return self.dataset[key]
+        raise KeyError(f"This datapoint with key {key} does not exist in this provider")
+
+    def __setitem__(self, key: KT, value: Instance[KT, DT, VT, Any]) -> None:
+        self._elements.add(key)
+        self.dataset[key] = value # type: ignore
+
+    def __delitem__(self, key: KT) -> None:
+        self._elements.discard(key)
+
+    def __len__(self) -> int:
+        return len(self._elements)
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._elements
+
+    @property
+    def empty(self) -> bool:
+        return not self._elements
+
+    @classmethod
+    def from_provider(cls, dataset: DataPointProvider[KT, DT, VT], provider: InstanceProvider[KT, DT, VT, Any]) -> DataBucketProvider[KT, DT, VT]:
+        return cls(dataset, provider.key_list)
+
+    @classmethod
+    def copy(cls, provider: DataBucketProvider[KT, DT, VT]) -> DataBucketProvider[KT, DT, VT]:
+        return cls(provider.dataset, provider.key_list)
