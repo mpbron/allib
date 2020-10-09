@@ -60,7 +60,8 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
         return ins
 
     def set_as_labeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
-        super().set_as_labeled(instance)
+        self.env.labeled.add(instance)
+        self.env.unlabeled.discard(instance)
         if instance.identifier in self._sample_dict:
             learner = self._learners[self._sample_dict[instance.identifier]]
             learner.set_as_labeled(instance)

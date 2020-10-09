@@ -8,7 +8,7 @@ import logging
 
 from abc import ABC, abstractmethod
 from typing import (Callable, Dict, FrozenSet, Generic, List, Iterator,
-                    Optional, Sequence, Tuple, TypeVar, Deque, Any)
+                    Optional, Sequence, Tuple, TypeVar, Deque, Any, Union)
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
@@ -20,6 +20,7 @@ LT = TypeVar("LT")
 RT = TypeVar("RT")
 LVT = TypeVar("LVT")
 FT = TypeVar("FT")
+F = TypeVar("F", bound=Callable[..., Any])
 
 ProbabilityPrediction = FrozenSet[Tuple[LT, float]]
 LabelPrediction = FrozenSet[LT]
@@ -73,17 +74,28 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         raise NotImplementedError
        
     @staticmethod
-    def iterator_log(func: Callable[..., FT]) -> Callable[..., FT]:
+    def iterator_log(func: F) -> F:
         @functools.wraps(func)
         def wrapper(
                 self: ActiveLearner[KT, DT, VT, RT, LT], 
                 *args: Any, **kwargs: Dict[str, Any]) -> FT:
-            result = func(self, *args, **kwargs)
+            result: Union[Any,Instance[KT, DT, VT, RT]] = func(self, *args, **kwargs)
             if isinstance(result, Instance):
                 LOGGER.info("Sampled document %i with method %s",
                             result.identifier, self.name) # type: ignore
                 self.env.logger.log_sample(result, self.name)
             return result # type: ignore
+        return wrapper
+    
+    @staticmethod
+    def label_log(func: F) -> F:
+        @functools.wraps(func)
+        def wrapper(
+            self: ActiveLearner[KT, DT, VT, RT, LT], 
+            instance: Instance[KT, DT, VT, RT], *args: Any, **kwargs: Any):
+            labels = self.env.labels.get_labels(instance)
+            self.env.logger.log_label(instance, *labels)
+            return func(self, instance, *args, **kwargs)
         return wrapper
 
     @abstractmethod

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from abc import ABC
 from collections import deque
-from typing import (Dict, Generic, Iterator, Deque, Set,
+from typing import (Dict, Generic, Iterator, Set,
                     Optional, Sequence,  Tuple, TypeVar, Any)
 
 import pandas as pd # type: ignore
 
 from ..environment import AbstractEnvironment
-from ..instances import Instance, InstanceProvider
+from ..instances import Instance
 from ..machinelearning import AbstractClassifier
 from .base import ActiveLearner, NotInitializedException
 
@@ -72,9 +72,10 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, DT, VT, RT
     def size(self) -> int:
         return self.len_labeled + self.len_unlabeled
 
+    @ActiveLearner.label_log
     def set_as_labeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
-        self._unlabeled.discard(instance)
-        self._labeled.add(instance)
+        self.env.unlabeled.discard(instance)
+        self.env.labeled.add(instance)
 
     def set_as_unlabeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         """Mark the instance as unlabeled
@@ -84,8 +85,8 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, DT, VT, RT
         instance : Instance
             The now labeled instance
         """
-        self._labeled.discard(instance)
-        self._unlabeled.add(instance)
+        self.env.labeled.discard(instance)
+        self.env.unlabeled.add(instance)
 
     def vector_generator(self, only_unlabeled: bool=False) -> Iterator[VT]:
         """Return the vectors of documents contained in this AL Container

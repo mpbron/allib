@@ -14,6 +14,10 @@ class BaseLogger(ABC, Generic[KT, LT, ST]):
     @abstractmethod
     def log_sample(self, x: Instance[KT, Any, Any, Any], sample_method: ST) -> None:
         raise NotImplementedError
+
+    @abstractmethod
+    def log_label(self, x: Instance[KT, Any, Any, Any], *labels: LT) -> None:
+        raise NotImplementedError
     
     @abstractmethod
     def get_sampled_info(self, x: Instance[KT, Any, Any, Any]) -> FrozenSet[ST]:

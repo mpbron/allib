@@ -7,6 +7,7 @@ import random
 
 import numpy as np # type: ignore
 import pandas as pd # type: ignore
+import matplotlib.pyplot as plt
 
 from allib.instances import  Instance, DataPoint
 from allib.module.factory import MainFactory
@@ -172,13 +173,13 @@ def al_loop(learner: ActiveLearner, start_env: AbstractEnvironment, label_dict, 
         sample = itertools.islice(learner, batch_size)
         for instance in sample:
             oracle_labels = id_oracle(instance)
-            if pos_label in oracle_labels:
-                count = learner.env.labels.document_count(pos_label)
-                print(f"Found document {count} after reading {it} documents")
             learner.env.labels.set_labels(instance, *oracle_labels)
             learner.set_as_labeled(instance)
-            it = it + 1
         learner.retrain()
+    df = al.env.logger.get_label_cumsum_table() # type: ignore
+    plt.plot(df.index, df[pos_label], label=f"Recall {al.name}")
+    plt.plot(df.index, df.index / len(al.env.dataset) * len(label_dict[pos_label]), label = "Recall (Random Sampling)")
+    plt.legend()
 # %%
 al_loop(al, environment, label_idx, "Relevant", "Irrelevant", 10)
 

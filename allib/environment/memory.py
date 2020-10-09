@@ -43,9 +43,9 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
         dataset = DataPointProvider[KT, DT, VT].from_data_and_indices(indices, data, vectors)
         unlabeled = DataBucketProvider[KT, DT, VT](dataset, dataset.key_list)
         labeled = DataBucketProvider[KT, DT, VT](dataset, [])
-        labelprovider = MemoryLabelProvider.from_data(target_labels, indices, [])
-        logger = MemoryLogger[KT, LT, Any]()
-        return cls(dataset, unlabeled, labeled, labelprovider, logger)
+        labels = MemoryLabelProvider.from_data(target_labels, indices, [])
+        logger = MemoryLogger[KT, LT, Any](labels)
+        return cls(dataset, unlabeled, labeled, labels, logger)
 
     @classmethod
     def from_environment(cls, environment: AbstractEnvironment[KT, DT, VT, DT, LT], shared_labels: bool = True) -> MemoryEnvironment[KT, DT, VT, LT]:
@@ -62,7 +62,7 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
         if isinstance(environment.logger, MemoryLogger):
             logger: MemoryLogger[KT, LT, Any] = environment.logger
         else:
-            logger = MemoryLogger[KT, LT, Any]()
+            logger = MemoryLogger[KT, LT, Any](labels)
         return cls(dataset, unlabeled, labeled, labels, logger)
 
     def create_named_provider(self, name: str) -> DataPointProvider[KT, DT, VT]:

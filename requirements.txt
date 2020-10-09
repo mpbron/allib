@@ -6,3 +6,4 @@ scipy
 gensim
 mypy
 pylint
+matplotlib

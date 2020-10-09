@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import itertools
-
-from typing import Optional, Iterator, Generic, TypeVar, Sequence, Iterable, Any
+from typing import (Any, Generic, Iterable, Iterator, Optional, Sequence,
+                    TypeVar)
 
 from .base import Instance, InstanceProvider
 
@@ -12,6 +12,7 @@ VT = TypeVar("VT")
 RT = TypeVar("RT")
 LT = TypeVar("LT")
 LVT = TypeVar("LVT")
+
 
 class DataPoint(Instance[KT, DT, VT, DT], Generic[KT, DT, VT]):
 
@@ -37,29 +38,32 @@ class DataPoint(Instance[KT, DT, VT, DT], Generic[KT, DT, VT]):
         return self._vector
 
     @vector.setter
-    def vector(self, value: Optional[VT]) -> None: # type: ignore
+    def vector(self, value: Optional[VT]) -> None:  # type: ignore
         self._vector = value
+
 
 class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
 
-    def __init__(self, datapoints: Iterable[DataPoint[KT,DT, VT]]) -> None:
+    def __init__(self, datapoints: Iterable[DataPoint[KT, DT, VT]]) -> None:
         self.dictionary = {data.identifier: data for data in datapoints}
 
     @classmethod
-    def from_data_and_indices(cls, 
-                  indices: Sequence[KT], 
-                  raw_data: Sequence[DT], 
-                  vectors: Optional[Sequence[Optional[VT]]] = None):
+    def from_data_and_indices(cls,
+                              indices: Sequence[KT],
+                              raw_data: Sequence[DT],
+                              vectors: Optional[Sequence[Optional[VT]]] = None):
         if vectors is None or len(vectors) != len(indices):
             vectors = [None] * len(indices)
-        datapoints = itertools.starmap(DataPoint[KT, DT, VT], zip(indices, raw_data, vectors))
+        datapoints = itertools.starmap(
+            DataPoint[KT, DT, VT], zip(indices, raw_data, vectors))
         return cls(datapoints)
 
     @classmethod
     def from_data(cls, raw_data: Sequence[DT]) -> DataPointProvider[KT, DT, VT]:
         indices = range(len(raw_data))
         vectors = [None] * len(raw_data)
-        datapoints = itertools.starmap(DataPoint[KT, DT, VT], zip(indices, raw_data, vectors))
+        datapoints = itertools.starmap(
+            DataPoint[KT, DT, VT], zip(indices, raw_data, vectors))
         return cls(datapoints)
 
     @classmethod
@@ -67,22 +71,23 @@ class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
         if isinstance(provider, DataPointProvider):
             return cls.copy(provider)
         instances = provider.bulk_get_all()
-        datapoints = [DataPoint[KT, DT, VT](ins.identifier, ins.data, ins.vector) for ins in instances]
+        datapoints = [DataPoint[KT, DT, VT](
+            ins.identifier, ins.data, ins.vector) for ins in instances]
         return cls(datapoints)
 
     @classmethod
     def copy(cls, provider: DataPointProvider[KT, DT, VT]) -> DataPointProvider[KT, DT, VT]:
         instances = provider.bulk_get_all()
-        return cls(instances) # type: ignore
-        
+        return cls(instances)  # type: ignore
+
     def __iter__(self) -> Iterator[KT]:
         yield from self.dictionary.keys()
 
     def __getitem__(self, key: KT) -> DataPoint[KT, DT, VT]:
         return self.dictionary[key]
-    
+
     def __setitem__(self, key: KT, value: Instance[KT, DT, VT, Any]) -> None:
-        self.dictionary[key] = value # type: ignore
+        self.dictionary[key] = value  # type: ignore
 
     def __delitem__(self, key: KT) -> None:
         del self.dictionary[key]
@@ -115,11 +120,12 @@ class DataBucketProvider(DataPointProvider[KT, DT, VT], Generic[KT, DT, VT]):
     def __getitem__(self, key: KT) -> DataPoint[KT, DT, VT]:
         if key in self._elements:
             return self.dataset[key]
-        raise KeyError(f"This datapoint with key {key} does not exist in this provider")
+        raise KeyError(
+            f"This datapoint with key {key} does not exist in this provider")
 
     def __setitem__(self, key: KT, value: Instance[KT, DT, VT, Any]) -> None:
         self._elements.add(key)
-        self.dataset[key] = value # type: ignore
+        self.dataset[key] = value  # type: ignore
 
     def __delitem__(self, key: KT) -> None:
         self._elements.discard(key)

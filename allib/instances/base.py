@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import MutableMapping
-from typing import Generic, Iterator, Sequence, List, Optional, TypeVar, Any, Mapping
+from typing import Generic, Iterator, Sequence, List, Optional, TypeVar, Any, Mapping, MutableMapping
 
 import numpy as np #type: ignore
 
@@ -70,6 +69,14 @@ class Instance(ABC, Generic[KT, DT, VT, RT]):
         """
         raise NotImplementedError
 
+    def __str__(self) -> str:
+        str_rep = f"Instance:\n Identifier => {self.identifier} \n Data => {self.data} \n Vector present => {self.vector is not None}"
+        return str_rep
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
 class ContextInstance(Instance[KT, DT, VT, RT], ABC, Generic[KT, DT, VT, RT, CT]):
     @property
     @abstractmethod
@@ -91,7 +98,7 @@ class ParentInstance(Instance[KT, DT, VT, RT], ABC, Generic[KT, DT, VT, RT]):
         raise NotImplementedError
 
 
-class InstanceProvider(ABC, MutableMapping, Mapping[KT, Instance[KT, DT, VT, RT]], Generic[KT, DT, VT, RT]):
+class InstanceProvider(MutableMapping[KT, Instance[KT, DT, VT, RT]], ABC , Generic[KT, DT, VT, RT]):
     @abstractmethod
     def __contains__(self, item: object) -> bool:
         raise NotImplementedError
@@ -132,3 +139,4 @@ class InstanceProvider(ABC, MutableMapping, Mapping[KT, Instance[KT, DT, VT, RT]
 
     def bulk_get_all(self) -> List[Instance[KT, DT, VT, RT]]:
         return list(self.get_all())
+        
