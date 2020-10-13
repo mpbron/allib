@@ -47,6 +47,18 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
         self.innermodel.fit(x_resampled, y_resampled) # type: ignore
         self._fitted = True
 
+    def encode_xy(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]], labelings: Sequence[Iterable[str]]):
+        def yield_xy():
+            for ins, lbl in zip(instances, labelings):
+                if ins.vector is not None:
+                    yield ins.vector, self.encode_labels(lbl)
+        x_data, y_data = zip(*list(yield_xy()))
+        x_fm = np.vstack(x_data)
+        y_lm = np.vstack(y_data)
+        if y_lm.shape[1] == 1:
+            y_lm = np.reshape(y_lm, (y_lm.shape[0],))
+        return x_fm, y_lm
+
     def encode_x(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]]) -> np.ndarray:
         # TODO Maybe convert to staticmethod
         x_data = [
@@ -88,8 +100,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
 
     def fit_instances(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]], labels: Sequence[Set[str]]):
         assert len(instances) == len(labels)
-        x_train_vec = self.encode_x(instances)
-        y_train_vec = self.encode_y(labels)
+        x_train_vec, y_train_vec = self.encode_xy(instances, labels)
         self.fit(x_train_vec, y_train_vec)
 
     @property
