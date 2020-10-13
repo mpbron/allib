@@ -16,7 +16,7 @@ class BaseLogger(ABC, Generic[KT, LT, ST]):
         raise NotImplementedError
 
     @abstractmethod
-    def log_label(self, x: Instance[KT, Any, Any, Any], *labels: LT) -> None:
+    def log_label(self, x: Instance[KT, Any, Any, Any], sample_method: ST,  *labels: LT) -> None:
         raise NotImplementedError
     
     @abstractmethod

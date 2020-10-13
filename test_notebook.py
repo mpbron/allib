@@ -57,19 +57,19 @@ al_config = {
                 }
             }
         },
-        # {
-        #     "paradigm": Cat.AL.Paradigm.POOLBASED,
-        #     "query_type": Cat.AL.QueryType.MAX_ENTROPY,
-        #     "machinelearning": {
-        #         "sklearn_model": Cat.ML.SklearnModel.RANDOM_FOREST,
-        #         "model_configuration": {},
-        #         "task": Cat.ML.Task.BINARY,
-        #         "balancer": {
-        #             "type": Cat.BL.Type.DOUBLE,
-        #             "config": {}
-        #         }
-        #     }
-        # }
+        {
+            "paradigm": Cat.AL.Paradigm.POOLBASED,
+            "query_type": Cat.AL.QueryType.MAX_ENTROPY,
+            "machinelearning": {
+                "sklearn_model": Cat.ML.SklearnModel.RANDOM_FOREST,
+                "model_configuration": {},
+                "task": Cat.ML.Task.BINARY,
+                "balancer": {
+                    "type": Cat.BL.Type.DOUBLE,
+                    "config": {}
+                }
+            }
+        }
     ],
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.NAIVE_BAYES,
@@ -153,7 +153,7 @@ def add_doc(learner: ActiveLearner, id):
     else:
         logger.debug("Already labeled")
 # %%
-def al_loop(learner: ActiveLearner, start_env: AbstractEnvironment, label_dict, pos_label, neg_label, batch_size):
+def simulate(learner: ActiveLearner, start_env: AbstractEnvironment, label_dict, pos_label, neg_label, batch_size, percentage: float = 0.50):
     ## Initialize new environment
     learner = learner(MemoryEnvironment.from_environment(start_env, shared_labels=False))
     
@@ -166,10 +166,10 @@ def al_loop(learner: ActiveLearner, start_env: AbstractEnvironment, label_dict, 
     
     # Train the model
     learner.retrain()
-    
+    target = round(percentage * len(label_dict[pos_label]))
     # Start the active learning loop
-    it = 1
-    while learner.env.labels.document_count(pos_label) < len(label_dict[pos_label]):
+    
+    while learner.env.labels.document_count(pos_label) < target:
         sample = itertools.islice(learner, batch_size)
         for instance in sample:
             oracle_labels = id_oracle(instance)
@@ -181,7 +181,7 @@ def al_loop(learner: ActiveLearner, start_env: AbstractEnvironment, label_dict, 
     plt.plot(df.index, df.index / len(al.env.dataset) * len(label_dict[pos_label]), label = "Recall (Random Sampling)")
     plt.legend()
 # %%
-al_loop(al, environment, label_idx, "Relevant", "Irrelevant", 10)
+simulate(al, environment, label_idx, "Relevant", "Irrelevant", 10)
 
 
 # %%

@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import (Dict, Generic, List, Optional,
                     TypeVar, Any)
+
+import logging
 import numpy as np  # type: ignore
 
 from ..environment import AbstractEnvironment
@@ -20,8 +22,11 @@ RT = TypeVar("RT")
 LVT = TypeVar("LVT")
 PVT = TypeVar("PVT")
 
+LOGGER = logging.getLogger(__name__)
 
 class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+    _name = "Estimator"
+
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
                  learners: List[PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]],
@@ -53,8 +58,11 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
         al_idx = self._rng.choice(indices, size=1, p=self._probabilities)[0]
         learner = self._learners[al_idx]
         ins = next(learner)
-        while ins.identifier in self._labeled:
+        while ins.identifier in self.env.labeled:
+            # This method has already been labeled my another learner. S
+            # Skip it and mark as labeled
             learner.set_as_labeled(ins)
+            LOGGER.info("The document with key %s was already labeled. Skipping", ins.identifier)
             ins = next(learner)
         self._sample_dict[ins.identifier] = al_idx
         return ins

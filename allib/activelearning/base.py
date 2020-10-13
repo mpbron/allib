@@ -94,7 +94,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
             self: ActiveLearner[KT, DT, VT, RT, LT], 
             instance: Instance[KT, DT, VT, RT], *args: Any, **kwargs: Any):
             labels = self.env.labels.get_labels(instance)
-            self.env.logger.log_label(instance, *labels)
+            self.env.logger.log_label(instance, self.name,  *labels)
             return func(self, instance, *args, **kwargs)
         return wrapper
 

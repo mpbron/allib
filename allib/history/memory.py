@@ -4,7 +4,7 @@ import collections
 import itertools
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import (Any, Deque, Dict, Generic, List, Optional, Set, Tuple,
+from typing import (Any, Deque, Dict, Generator, Generic, List, Optional, Set, Tuple,
                     TypeVar, Union)
 
 import pandas as pd
@@ -26,6 +26,7 @@ class Event(ABC, Generic[KT, LT, ST]):
 
     def __init__(self):
         self.taboo = ["timestamp", "name", "__orig_class__", "taboo"]
+        self.timestamp = datetime.now()
     
     def __str__(self) -> str:
         def kvpair(x: Any, y: Any) -> str:
@@ -42,21 +43,19 @@ class Event(ABC, Generic[KT, LT, ST]):
 class SampleEvent(Event[KT, LT, ST], Generic[KT, LT, ST]):
     name = "Sampling"
 
-    def __init__(self, key: KT, method: SampleMethod):
+    def __init__(self, key: KT, method: SampleMethod[ST, LT]):
         super(SampleEvent, self).__init__()
         self.key = key
         self.method = method[0]
-        self.label = method[1]
-        self.timestamp = datetime.now()
+        self.method_label = method[1]
+        
 
 
-class LabelEvent(Event[KT, LT, Any], Generic[KT, LT]):
+class LabelEvent(SampleEvent[KT, LT, ST], Generic[KT, LT, ST]):
     name = "Label"
-    def __init__(self, key: KT, *labels: LT):
-        super(LabelEvent, self).__init__()
-        self.key = key
+    def __init__(self, key: KT, method: SampleMethod[ST, LT], *labels: LT):
+        super().__init__(key, method)
         self.labels = frozenset(labels)
-        self.timestamp = datetime.now()
         self.taboo.append("labels")
 
     def __str__(self):
@@ -67,14 +66,18 @@ class LabelEvent(Event[KT, LT, Any], Generic[KT, LT]):
     def __repr__(self):
         return str(self)
 
-class MemoryLogger(BaseLogger[KT, LT, SampleMethod], Generic[KT, LT, ST]):
+class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT, ST]):
     def __init__(self, label_provider: LabelProvider[KT, LT]):
-        self.sample_dict: Dict[KT, Set[SampleMethod]] = dict()
-        self.sample_dict_inv: Dict[SampleMethod, Set[KT]] = dict()
-        self.sample_history: Deque[SampleEvent[KT, LT, SampleMethod]] = collections.deque()
-        self.event_history: Deque[Event] = collections.deque()
-        self.label_history: Deque[LabelEvent[KT, LT]] = collections.deque()
         self.labels = label_provider
+
+        self.sample_dict: Dict[KT, Set[SampleMethod[ST, LT]]] = dict()
+        self.sample_dict_inv: Dict[SampleMethod[ST, LT], Set[KT]] = dict()
+        
+        self.sample_history: Deque[SampleEvent[KT, LT, ST]] = collections.deque()
+        self.event_history: Deque[Event[KT, LT, ST]] = collections.deque()
+        self.label_history: Deque[LabelEvent[KT, LT, ST]] = collections.deque()
+        
+        
 
     def log_sample(self, x: Instance[KT, Any, Any, Any], sample_method: SampleMethod) -> None:
         self.sample_dict.setdefault(x.identifier, set()).add(sample_method)
@@ -83,8 +86,8 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod], Generic[KT, LT, ST]):
         self.sample_history.append(event)
         self.event_history.append(event)
 
-    def log_label(self, x: Instance[KT, Any, Any, Any], *labels: LT):
-        event = LabelEvent[KT, LT](x.identifier, *labels)
+    def log_label(self, x: Instance[KT, Any, Any, Any], sample_method: SampleMethod, *labels: LT):
+        event = LabelEvent[KT, LT, ST](x.identifier, sample_method, *labels)
         self.event_history.append(event)
         self.label_history.append(event)
     
@@ -103,6 +106,8 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod], Generic[KT, LT, ST]):
                 event_dict = {
                     "timestamp": event.timestamp,
                     "instance_id": event.key,
+                    "method": event.method,
+                    "method_label": event.method_label,
                 }
                 yield {**event_dict, **label_dict}
         dataframe = pd.DataFrame(list(row_generator()))
