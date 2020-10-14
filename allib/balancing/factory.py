@@ -1,4 +1,4 @@
-from enum import Enum
+from aenum import Enum
 from typing import Dict
 
 from ..factory import AbstractBuilder, ObjectFactory
