@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Any, FrozenSet
+from typing import Generic, TypeVar, Any, FrozenSet, Union
 
 from abc import ABC, abstractmethod
 from ..instances import Instance
@@ -12,15 +12,15 @@ ST = TypeVar("ST")
 
 class BaseLogger(ABC, Generic[KT, LT, ST]):
     @abstractmethod
-    def log_sample(self, x: Instance[KT, Any, Any, Any], sample_method: ST) -> None:
+    def log_sample(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: ST) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def log_label(self, x: Instance[KT, Any, Any, Any], sample_method: ST,  *labels: LT) -> None:
+    def log_label(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: ST,  *labels: LT) -> None:
         raise NotImplementedError
     
     @abstractmethod
-    def get_sampled_info(self, x: Instance[KT, Any, Any, Any]) -> FrozenSet[ST]:
+    def get_sampled_info(self, x:Union[KT, Instance[KT, Any, Any, Any]]) -> FrozenSet[ST]:
         raise NotImplementedError
 
     @abstractmethod

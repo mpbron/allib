@@ -9,6 +9,7 @@ from typing import (Any, Deque, Dict, Generator, Generic, List, Optional, Set, T
 
 import pandas as pd
 
+from ..utils import to_key
 from ..instances import Instance
 from ..labels import LabelProvider
 from .base import BaseLogger
@@ -79,20 +80,23 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT, ST]
         
         
 
-    def log_sample(self, x: Instance[KT, Any, Any, Any], sample_method: SampleMethod) -> None:
-        self.sample_dict.setdefault(x.identifier, set()).add(sample_method)
-        self.sample_dict_inv.setdefault(sample_method, set()).add(x.identifier)
-        event = SampleEvent[KT, LT, ST](x.identifier, sample_method)
+    def log_sample(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: SampleMethod) -> None:
+        key = to_key(x)
+        self.sample_dict.setdefault(key, set()).add(sample_method)
+        self.sample_dict_inv.setdefault(sample_method, set()).add(key)
+        event = SampleEvent[KT, LT, ST](key, sample_method)
         self.sample_history.append(event)
         self.event_history.append(event)
 
-    def log_label(self, x: Instance[KT, Any, Any, Any], sample_method: SampleMethod, *labels: LT):
-        event = LabelEvent[KT, LT, ST](x.identifier, sample_method, *labels)
+    def log_label(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: SampleMethod, *labels: LT):
+        key = to_key(x)
+        event = LabelEvent[KT, LT, ST](key, sample_method, *labels)
         self.event_history.append(event)
         self.label_history.append(event)
     
-    def get_sampled_info(self, x: Instance[KT, Any, Any, Any]):
-        return frozenset(self.sample_dict.setdefault(x.identifier, set()))
+    def get_sampled_info(self, x: Union[KT, Instance[KT, Any, Any, Any]]):
+        key = to_key(x)
+        return frozenset(self.sample_dict.setdefault(key, set()))
 
     def get_instances_by_method(self, sample_method: SampleMethod):
         return frozenset(self.sample_dict_inv.setdefault(sample_method, set()))
