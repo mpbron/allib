@@ -2,7 +2,7 @@ from aenum import Enum
 from typing import Dict
 
 from ..factory import AbstractBuilder, ObjectFactory
-from allib import Component
+from ..module.component import Component
 
 from .base import BaseBalancer, IdentityBalancer
 from .catalog import BalancerCatalog as BL

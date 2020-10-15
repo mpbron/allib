@@ -2,7 +2,7 @@ from .catalog import EnvironmentCatalog as ENV
 from .memory import MemoryEnvironment
 
 from ..factory import AbstractBuilder, ObjectFactory
-from allib import Component
+from ..module.component import Component
 
 
 class EnvironmentBuilder(AbstractBuilder):

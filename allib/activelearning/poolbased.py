@@ -22,7 +22,8 @@ PVT = TypeVar("PVT")
 
 class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     def __init__(self,
-                 classifier: AbstractClassifier[KT, VT, LT, LVT, PVT]
+                 classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
+                 *_, **__
                  ) -> None:
         self.initialized = False
         self._env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]] = None

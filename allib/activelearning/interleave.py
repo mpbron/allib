@@ -18,7 +18,7 @@ KT = TypeVar("KT")
 
 class InterleaveAL(PoolbasedAL, Generic[KT]):
     _name = "InterleaveAL"
-    def __init__(self, classifier: AbstractClassifier) -> None:
+    def __init__(self, classifier: AbstractClassifier, *_, **__) -> None:
         super().__init__(classifier)
         self._learners: Dict[str, PoolbasedAL]= {
             "random": RandomSampling(self.classifier),

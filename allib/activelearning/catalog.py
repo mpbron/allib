@@ -6,7 +6,7 @@ class ALCatalog:
         ESTIMATOR = "Estimator"
         ENSEMBLE  = "Ensemble"
 
-    class QueryType(str, Enum):
+    class QueryType(Enum):
         RANDOM_SAMPLING = "RandomSampling"
         LEAST_CONFIDENCE = "LeastConfidence"
         NEAR_DECISION_BOUNDARY = "NearDecisionBoundary"

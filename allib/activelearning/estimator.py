@@ -30,7 +30,7 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
                  learners: List[PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]],
-                 probabilities: Optional[List[float]] = None, rng: Any = None) -> None:
+                 probabilities: Optional[List[float]] = None, rng: Any = None, *_, **__) -> None:
         super().__init__(classifier)
         self._environment = None
         self._learners: Dict[int, PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]] = {

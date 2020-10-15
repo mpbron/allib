@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Dict, List
 
-from allib import Component
+from ..module.component import Component
 from ..factory import AbstractBuilder, ObjectFactory
 from ..machinelearning import AbstractClassifier
 from ..machinelearning import MachineLearningFactory

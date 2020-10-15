@@ -14,7 +14,7 @@ from ..balancing.catalog import BalancerCatalog as BL
 from ..factory import AbstractBuilder, ObjectFactory
 from ..machinelearning import (MultilabelSkLearnClassifier,
                                    SkLearnClassifier)
-from allib import Component
+from ..module.component import Component
 
 from .catalog import MachineLearningCatalog as ML
 

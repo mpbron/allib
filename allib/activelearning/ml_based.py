@@ -50,7 +50,8 @@ class FeatureMatrix(Generic[KT]):
 class MLBased(RandomSampling[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
-                 fallback: Callable[..., PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]] = RandomSampling[KT, DT, VT, RT, LT, LVT, PVT]
+                 fallback: Callable[..., PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]] = RandomSampling[KT, DT, VT, RT, LT, LVT, PVT],
+                 *_, **__
                  ) -> None:
         super().__init__(classifier)
         self.fallback = fallback(classifier)
@@ -83,7 +84,7 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
                  fallback: Callable[..., PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]] = RandomSampling[KT, DT, VT, RT, LT, LVT, PVT],
-                 batch_size: int = 128) -> None:
+                 batch_size: int = 128, *_, **__) -> None:
         super().__init__(classifier, fallback)
         self.batch_size = batch_size
     
@@ -139,7 +140,7 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         return value
 
 class LabelProbabilityBased(ProbabiltyBased[KT, DT, RT, LT], ABC, Generic[KT, DT, RT, LT]):
-    def __init__(self, classifier: AbstractClassifier[KT, VT, LT, LVT, PVT], label: LT) -> None:
+    def __init__(self, classifier: AbstractClassifier[KT, VT, LT, LVT, PVT], label: LT, *_, **__) -> None:
         super().__init__(classifier)
         self.label = label
         self.labelposition: Optional[int] = None
@@ -169,7 +170,8 @@ class LabelEnsemble(PoolbasedAL[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarr
 
     def __init__(self, 
                  classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray],
-                 al_method: LabelProbabilityBased[KT, DT, RT, LT]
+                 al_method: LabelProbabilityBased[KT, DT, RT, LT],
+                 *_, **__
                  ) -> None:
         super().__init__(classifier)
         self._almethod: Callable[..., LabelProbabilityBased[KT, DT, RT, LT]] = al_method

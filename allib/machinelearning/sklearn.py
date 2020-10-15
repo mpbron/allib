@@ -111,5 +111,10 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
 
 
 class MultilabelSkLearnClassifier(SkLearnClassifier):
+    def __call__(self, environment: AbstractEnvironment[int, Any, np.ndarray, Any, str]) -> SkLearnClassifier:
+        self._target_labels = frozenset(environment.labels.labelset)
+        self.encoder.fit(list(map(lambda x: {x}, self._target_labels))) # type: ignore
+        return self
+
     def encode_labels(self, labels: Iterable[str]) -> np.ndarray:
         return self.encoder.transform([list(set(labels))])

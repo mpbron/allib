@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from allib.labels.base import LabelProvider
 import functools
 import itertools
 import logging
-
-
 from abc import ABC, abstractmethod
-from typing import (Callable, Dict, FrozenSet, Generic, List, Iterator,
-                    Optional, Sequence, Tuple, TypeVar, Deque, Any, Union)
+from typing import (Any, Callable, Deque, Dict, FrozenSet, Generic, Iterator,
+                    List, Optional, Sequence, Tuple, TypeVar, Union)
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
+from ..labels.base import LabelProvider
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")
