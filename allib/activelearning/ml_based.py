@@ -75,7 +75,7 @@ class MLBased(RandomSampling[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, 
                 try:
                     return func(self, *args, **kwargs)
                 except (NotFittedError, IndexError, ValueError) as ex:
-                    LOGGER.warning("[%s] Falling back to model %s, because of:", self.name, self.fallback.name, exc_info=ex)
+                    LOGGER.error("[%s] Falling back to model %s, because of: %s", self.name, self.fallback.name, ex, exc_info=ex)
             fallback_value = next(self.fallback)
             return fallback_value
         return wrapper
