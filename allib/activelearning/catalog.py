@@ -13,7 +13,6 @@ class ALCatalog:
         MARGIN_SAMPLING = "MarginSampling"
         MOST_CERTAIN = "MostCertain"
         MAX_ENTROPY = "MaxEntropy"
-        VARIOUS = "VariousDjangoDefault"
         INTERLEAVE = "InterleaveAL"
         LABELMAXIMIZER = "LabelMaximizer"
         MIN_ENTROPY = "MinEntropy"
