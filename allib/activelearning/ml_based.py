@@ -71,7 +71,7 @@ class MLBased(RandomSampling[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, 
         def wrapper(self: MLBased[KT, DT, VT, RT, LT, LVT, PVT], 
                     *args: Any, 
                     **kwargs: Dict[str, Any]) -> Instance[KT, DT, VT, RT]:
-            if self.fitted:
+            if self.classifier.fitted:
                 try:
                     return func(self, *args, **kwargs)
                 except (NotFittedError, IndexError, ValueError) as ex:
