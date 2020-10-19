@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Sequence, Any
 
-import numpy as np
+import numpy as np # type: ignore
 
 from ..instances import Instance
 

@@ -55,7 +55,7 @@ class SaveableInnerModel(Generic[MT]):
     @staticmethod
     def load_model_fallback(func: F) -> F:
         @functools.wraps(func)
-        def wrapper(self: SaveableInnerModel[MT], *args: Any, **kwargs: Any):
+        def wrapper(self: SaveableInnerModel[MT], *args: Any, **kwargs: Any) -> Any:
             if not self.is_loaded and self.is_stored:
                 self.load()
             return func(self, *args, **kwargs)

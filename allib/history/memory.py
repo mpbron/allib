@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import (Any, Deque, Dict, Generator, Generic, List, Optional, Set, Tuple,
                     TypeVar, Union)
 
-import pandas as pd
+import pandas as pd # type: ignore
 
 from ..utils import to_key
 from ..instances import Instance
@@ -60,7 +60,7 @@ class LabelEvent(SampleEvent[KT, LT, ST], Generic[KT, LT, ST]):
         self.taboo.append("labels")
 
     def __str__(self):
-        label_str = ", ".join(self.labels)
+        label_str = ", ".join(map(str, self.labels))
         super_str = super(LabelEvent, self).__str__()
         return f"{super_str}, labels => [{label_str}]"
 
