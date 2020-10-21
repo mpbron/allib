@@ -2,6 +2,7 @@ from abc import ABC
 from dataclasses import dataclass
 import itertools
 from collections import Counter
+from numpy import int64
 import pandas as pd # type: ignore
 from typing import Generic, Optional, TypeVar, List, Sequence, Set
 from ..environment import AbstractEnvironment

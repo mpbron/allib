@@ -9,7 +9,7 @@ from typing import (Any, Deque, Dict, Generator, Generic, List, Optional, Set, T
 
 import pandas as pd # type: ignore
 
-from ..utils import to_key
+from ..utils.to_key import to_key
 from ..instances import Instance
 from ..labels import LabelProvider
 from .base import BaseLogger
@@ -77,7 +77,8 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT, ST]
         self.sample_history: Deque[SampleEvent[KT, LT, ST]] = collections.deque()
         self.event_history: Deque[Event[KT, LT, ST]] = collections.deque()
         self.label_history: Deque[LabelEvent[KT, LT, ST]] = collections.deque()
-        
+        self.label_order: Dict[KT, int] = dict()
+        self.label_it = 0
         
 
     def log_sample(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: SampleMethod) -> None:
@@ -93,6 +94,12 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT, ST]
         event = LabelEvent[KT, LT, ST](key, sample_method, *labels)
         self.event_history.append(event)
         self.label_history.append(event)
+        self.label_order[key] = self.label_it
+        self.label_it = self.label_it + 1
+
+    def get_label_order(self, x: Union[KT, Instance[KT, Any, Any, Any]]) -> int:
+        key = to_key(x)
+        return self.label_order[key]
     
     def get_sampled_info(self, x: Union[KT, Instance[KT, Any, Any, Any]]):
         key = to_key(x)

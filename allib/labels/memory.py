@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import (Dict, FrozenSet, Generic, Iterable, Optional,
-                    Sequence, Set, TypeVar, Union, Any)
+from typing import (Any, Dict, FrozenSet, Generic, Iterable, Optional,
+                    Sequence, Set, TypeVar, Union)
 
 from ..instances import Instance
-from .base import LabelProvider, to_key
+from ..utils.to_key import to_key
+from .base import LabelProvider
 
 LT = TypeVar("LT")
 KT = TypeVar("KT")

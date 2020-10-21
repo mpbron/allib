@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Generic, Iterator, Sequence, List, Optional, TypeVar, Any, Mapping, MutableMapping
+from ..utils.chunks import divide_iterable_in_lists
+from typing import Generic, Iterator, Sequence, List, Optional, TypeVar, Any, Mapping, MutableMapping, Tuple
 
 import numpy as np #type: ignore
 
@@ -136,6 +137,11 @@ class InstanceProvider(MutableMapping[KT, Instance[KT, DT, VT, RT]], ABC , Gener
     def bulk_get_vectors(self, keys: Sequence[KT]) -> Sequence[Optional[VT]]:
         vectors = [self[key].vector  for key in keys]
         return vectors
+
+    def vector_chunker(self, batch_size) -> Iterator[Sequence[Tuple[KT, Optional[VT]]]]:
+        id_vecs = ((elem.identifier, elem.vector) for elem in self.values())
+        chunks = divide_iterable_in_lists(id_vecs, batch_size)
+        return chunks
 
     def bulk_get_all(self) -> List[Instance[KT, DT, VT, RT]]:
         return list(self.get_all())

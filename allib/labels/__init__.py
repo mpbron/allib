@@ -1,2 +1,2 @@
-from .base import LabelProvider, to_key
+from .base import LabelProvider
 from .memory import MemoryLabelProvider
