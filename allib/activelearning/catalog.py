@@ -1,4 +1,4 @@
-from aenum import Enum
+from enum import Enum
 
 class ALCatalog:
     class Paradigm(Enum):
@@ -6,7 +6,7 @@ class ALCatalog:
         ESTIMATOR = "Estimator"
         ENSEMBLE  = "Ensemble"
 
-    class QueryType(Enum):
+    class QueryType(str, Enum):
         RANDOM_SAMPLING = "RandomSampling"
         LEAST_CONFIDENCE = "LeastConfidence"
         NEAR_DECISION_BOUNDARY = "NearDecisionBoundary"

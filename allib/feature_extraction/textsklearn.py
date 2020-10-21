@@ -20,7 +20,7 @@ class SklearnVectorizer(BaseVectorizer[str], SaveableInnerModel[BaseEstimator]):
         storage_location: Optional[str] = None,
         filename: Optional[str] = None
         ) -> None:
-        BaseVectorizer.__init__(self)
+        BaseVectorizer.__init__(self) #type: ignore
         SaveableInnerModel.__init__(self, vectorizer, storage_location, filename)
 
     @SaveableInnerModel.load_model_fallback

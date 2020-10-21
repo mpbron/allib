@@ -43,11 +43,11 @@ class AbstractClassifier(ABC, Generic[KT, VT, LT, LVT, PVT]):
         pass
 
     @abstractmethod
-    def predict_proba(self, x_data: Sequence[VT]) -> PVT:
+    def predict_proba(self, x_data: VT) -> PVT:
         pass
 
     @abstractmethod
-    def predict(self, x_data: Sequence[VT]) -> Sequence[LVT]:
+    def predict(self, x_data: VT) -> LVT:
         pass
 
     @abstractmethod

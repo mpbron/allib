@@ -41,7 +41,7 @@ class Doc2VecVectorizer(BaseVectorizer[str], SaveableInnerModel[Doc2Vec]):
         storage_location: Optional[str]=None,
         filename: Optional[str] = None
     ) -> None:
-        BaseVectorizer.__init__(self)
+        BaseVectorizer.__init__(self) # type: ignore
         self.tokenizer = tokenizer # type: ignore
         self.d2v_params = d2v_params
         self.innermodel = None

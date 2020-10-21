@@ -1,4 +1,4 @@
-from aenum import Enum
+from enum import Enum
 
 class MachineLearningCatalog:
     class Task(Enum):
@@ -15,4 +15,5 @@ class MachineLearningCatalog:
         RANDOM_FOREST = "RandomForest"
         NAIVE_BAYES = "NaiveBayes"
         SVM = "SVM"
+        SVC = "SVC"
         LOGISTIC = "LogisticRegression"
