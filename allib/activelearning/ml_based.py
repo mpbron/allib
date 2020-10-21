@@ -40,12 +40,22 @@ class FeatureMatrix(Generic[KT]):
     def get_instance_id(self, row_idx: int) -> KT:
         return self.indices[row_idx]
 
+    # @classmethod
+    # def generator_from_provider(cls, provider: InstanceProvider[KT, Any, np.ndarray, Any], batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
+    #     for key_batch in divide_sequence(provider.key_list, batch_size):
+    #         vectors = provider.bulk_get_vectors(key_batch)
+    #         matrix = cls(key_batch, vectors)
+    #         yield matrix
+
     @classmethod
-    def generator_from_provider(cls, provider: InstanceProvider[KT, Any, np.ndarray, Any], batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
-        for key_batch in divide_sequence(provider.key_list, batch_size):
-            vectors = provider.bulk_get_vectors(key_batch)
-            matrix = cls(key_batch, vectors)
+    def generator_from_provider(cls, 
+                                        provider: InstanceProvider[KT, Any, np.ndarray, Any], 
+                                        batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
+        for tuple_batch in provider.vector_chunker(batch_size):
+            keys, vectors = map(list, zip(*tuple_batch))
+            matrix = cls(keys, vectors)
             yield matrix
+
 
 class MLBased(RandomSampling[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     def __init__(self,
