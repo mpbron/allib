@@ -4,8 +4,9 @@ from allib.instances.base import InstanceProvider
 import functools
 import itertools
 import logging
+from multiprocessing import Pool
 from abc import ABC, abstractmethod
-from typing import Dict, Generic, Optional, TypeVar, Callable, Any, Sequence, Tuple, Iterator
+from typing import Dict, Generic, Optional, TypeVar, Callable, Any, Sequence, Tuple, Iterator, Iterable
 
 import numpy as np # type: ignore
 from sklearn.exceptions import NotFittedError# type: ignore
@@ -40,17 +41,17 @@ class FeatureMatrix(Generic[KT]):
     def get_instance_id(self, row_idx: int) -> KT:
         return self.indices[row_idx]
 
-    # @classmethod
-    # def generator_from_provider(cls, provider: InstanceProvider[KT, Any, np.ndarray, Any], batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
-    #     for key_batch in divide_sequence(provider.key_list, batch_size):
-    #         vectors = provider.bulk_get_vectors(key_batch)
-    #         matrix = cls(key_batch, vectors)
-    #         yield matrix
+    @classmethod
+    def generator_from_provider_mp(cls, provider: InstanceProvider[KT, Any, np.ndarray, Any], batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
+        for key_batch in divide_sequence(provider.key_list, batch_size):
+            vectors = provider.bulk_get_vectors(key_batch)
+            matrix = cls(key_batch, vectors)
+            yield matrix
 
     @classmethod
     def generator_from_provider(cls, 
-                                        provider: InstanceProvider[KT, Any, np.ndarray, Any], 
-                                        batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
+                                provider: InstanceProvider[KT, Any, np.ndarray, Any], 
+                                batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
         for tuple_batch in provider.vector_chunker(batch_size):
             keys, vectors = map(list, zip(*tuple_batch))
             matrix = cls(keys, vectors)
@@ -94,9 +95,10 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
                  fallback: Callable[..., PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]] = RandomSampling[KT, DT, VT, RT, LT, LVT, PVT],
-                 batch_size: int = 128, *_, **__) -> None:
+                 batch_size: int = 128, n_cores = 4, *_, **__) -> None:
         super().__init__(classifier, fallback)
         self.batch_size = batch_size
+        self.n_cores = n_cores
     
     @staticmethod
     @abstractmethod
@@ -121,9 +123,16 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
             floats: Sequence[float] = vec.tolist()
             return list(zip(keys, floats))
         # Get a generator with that generates feature matrices from data
-        matrices = FeatureMatrix[KT].generator_from_provider(self.env.unlabeled, self.batch_size)
-        # Get the predictions for each matrix
-        predictions = map(self._get_predictions, matrices)
+        predictions: Iterable[Tuple[Sequence[KT], np.ndarray]] = []
+        if self.n_cores > 1:
+            matrices = FeatureMatrix[KT].generator_from_provider_mp(self.env.unlabeled, self.batch_size)
+            with Pool(self.n_cores) as p:
+                # Get the predictions for each matrix
+                predictions = p.map_async(self._get_predictions, matrices).get()
+        else:
+            # Get the predictions for each matrix
+            matrices = FeatureMatrix[KT].generator_from_provider(self.env.unlabeled, self.batch_size)
+            predictions = map(self._get_predictions, matrices)
         # Transfrorm the selection criterion function into a function that works on tuples and
         # applies the id :: a -> a function on the first element of the tuple and selection_criterion
         # on the second
