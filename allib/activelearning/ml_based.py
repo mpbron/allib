@@ -3,7 +3,9 @@ from allib.instances.base import InstanceProvider
 
 import functools
 import itertools
+import threading
 import logging
+from queue import Queue
 from multiprocessing import Pool
 from abc import ABC, abstractmethod
 from typing import Dict, Generic, Optional, TypeVar, Callable, Any, Sequence, Tuple, Iterator, Iterable
@@ -15,6 +17,7 @@ from ..environment import AbstractEnvironment
 from ..instances.base import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
 from ..utils import mapsnd, divide_sequence
+from ..utils.producer_consumer import ProducerConsumer
 
 
 from .poolbased import PoolbasedAL
@@ -99,7 +102,7 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         super().__init__(classifier, fallback)
         self.batch_size = batch_size
         self.n_cores = n_cores
-    
+
     @staticmethod
     @abstractmethod
     def selection_criterion(prob_vec: np.ndarray) -> np.ndarray:
@@ -124,15 +127,10 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
             return list(zip(keys, floats))
         # Get a generator with that generates feature matrices from data
         predictions: Iterable[Tuple[Sequence[KT], np.ndarray]] = []
-        if self.n_cores > 1:
+        # Get the predictions for each matrix
+        with Pool(self.n_cores) as p:
             matrices = FeatureMatrix[KT].generator_from_provider_mp(self.env.unlabeled, self.batch_size)
-            with Pool(self.n_cores) as p:
-                # Get the predictions for each matrix
-                predictions = p.map_async(self._get_predictions, matrices).get()
-        else:
-            # Get the predictions for each matrix
-            matrices = FeatureMatrix[KT].generator_from_provider(self.env.unlabeled, self.batch_size)
-            predictions = map(self._get_predictions, matrices)
+            predictions = p.map_async(self._get_predictions, matrices).get()
         # Transfrorm the selection criterion function into a function that works on tuples and
         # applies the id :: a -> a function on the first element of the tuple and selection_criterion
         # on the second
