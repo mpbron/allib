@@ -128,9 +128,8 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         # Get a generator with that generates feature matrices from data
         predictions: Iterable[Tuple[Sequence[KT], np.ndarray]] = []
         # Get the predictions for each matrix
-        with Pool(self.n_cores) as p:
-            matrices = FeatureMatrix[KT].generator_from_provider_mp(self.env.unlabeled, self.batch_size)
-            predictions = p.map_async(self._get_predictions, matrices).get()
+        matrices = FeatureMatrix[KT].generator_from_provider(self.env.unlabeled, self.batch_size)
+        predictions = map(self._get_predictions, matrices)
         # Transfrorm the selection criterion function into a function that works on tuples and
         # applies the id :: a -> a function on the first element of the tuple and selection_criterion
         # on the second
