@@ -12,7 +12,7 @@ from .base import BaseVectorizer
 
 class SklearnVectorizer(BaseVectorizer[str], SaveableInnerModel[BaseEstimator]):
     innermodel: BaseEstimator
-    name = "SklearnVectorizer"
+    _name = "SklearnVectorizer"
 
     def __init__(
         self,

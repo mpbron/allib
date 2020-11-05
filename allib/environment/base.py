@@ -42,6 +42,23 @@ class AbstractEnvironment(ABC, Generic[KT, DT, VT, RT, LT]):
     def labels(self) -> LabelProvider[KT, LT]:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def truth(self) -> LabelProvider[KT, LT]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def store(self, key: str, value: Any) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def storage_exists(self, key: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def retrieve(self, key: str) -> Any:
+        raise NotImplementedError
+
     @abstractclassmethod
     def from_environment(cls, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> AbstractEnvironment[KT, DT, VT, RT, LT]:
         raise NotImplementedError

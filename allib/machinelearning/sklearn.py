@@ -14,6 +14,8 @@ from ..utils import SaveableInnerModel
 from .base import AbstractClassifier
 
 class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, str, np.ndarray, np.ndarray]):
+    _name = "Sklearn"
+
     def __init__(
             self,
             estimator: ClassifierMixin, encoder: TransformerMixin, balancer: BaseBalancer = IdentityBalancer(),
@@ -97,6 +99,11 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
             for y_vec in y_pred
         ]
         return y_labels
+    
+    @property
+    def name(self) -> str:
+        return f"{self._name} :: {self.innermodel.__class__}"
+        
 
     def fit_instances(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]], labels: Sequence[Set[str]]):
         assert len(instances) == len(labels)
@@ -111,10 +118,11 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
 
 
 class MultilabelSkLearnClassifier(SkLearnClassifier):
+    _name = "Multilabel Sklearn"
     def __call__(self, environment: AbstractEnvironment[int, Any, np.ndarray, Any, str]) -> SkLearnClassifier:
         self._target_labels = frozenset(environment.labels.labelset)
         self.encoder.fit(list(map(lambda x: {x}, self._target_labels))) # type: ignore
         return self
 
     def encode_labels(self, labels: Iterable[str]) -> np.ndarray:
-        return self.encoder.transform([list(set(labels))])
+        return self.encoder.transform([list(set(labels))]) # type: ignore

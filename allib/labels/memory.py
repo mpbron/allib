@@ -11,7 +11,6 @@ LT = TypeVar("LT")
 KT = TypeVar("KT")
 
 
-
 class MemoryLabelProvider(LabelProvider[KT, LT], Generic[KT, LT]):
     """A Memory based implementation to test and benchmark AL algorithms
     """

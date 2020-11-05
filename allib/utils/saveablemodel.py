@@ -13,7 +13,7 @@ MT = TypeVar("MT")
 F = TypeVar('F', bound=Callable[..., Any])
 
 class SaveableInnerModel(Generic[MT]):
-    name = "AbstractSaveableInnerModel"
+    _name = "SaveableInnerModel"
 
     def __init__(self, innermodel: Optional[MT], storage_location: Optional[str], filename: Optional[str] = None, taboo_fields: Optional[List[str]] = None):
         self.storage_location = storage_location
@@ -35,7 +35,7 @@ class SaveableInnerModel(Generic[MT]):
             A random file name
         """
         gen_uuid = uuid.uuid4()
-        filename = f"classifier_{self.name}_{gen_uuid}.data"
+        filename = f"classifier_{self._name}_{gen_uuid}.data"
         return filename
 
     @property

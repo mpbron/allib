@@ -12,7 +12,7 @@ LT = TypeVar("LT")
 
 class BaseVectorizer(ABC, Generic[DT]):
     fitted: bool
-    name = "BaseVectorizer"
+    _name = "BaseVectorizer"
     
     def __init__(self):
         self.fitted = False
@@ -31,7 +31,7 @@ class BaseVectorizer(ABC, Generic[DT]):
 
 class SeparateContextVectorizer(ABC, Generic[DT, CT]):
     fitted: bool
-    name = "SeparateContextVectorizer"
+    _name = "SeparateContextVectorizer"
     
     def __init__(
             self,
@@ -75,7 +75,7 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
 
 class StackVectorizer(BaseVectorizer[DT], Generic[DT]):
     vectorizers: List[BaseVectorizer[DT]]
-    name = "StackVectorizer"
+    _name = "StackVectorizer"
 
     def __init__(self,
                  vectorizer: BaseVectorizer[DT],

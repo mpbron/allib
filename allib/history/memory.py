@@ -1,11 +1,12 @@
 from __future__ import annotations
+from allib.labels.memory import MemoryLabelProvider
 
 import collections
 import itertools
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import (Any, Deque, Dict, Generator, Generic, List, Optional, Set, Tuple,
-                    TypeVar, Union)
+                    TypeVar, Union, Sequence, Iterable, FrozenSet)
 
 import pandas as pd # type: ignore
 
@@ -67,19 +68,34 @@ class LabelEvent(SampleEvent[KT, LT, ST], Generic[KT, LT, ST]):
     def __repr__(self):
         return str(self)
 
-class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT, ST]):
+class Snapshot(Generic[KT, LT]):
+    def __init__(self, ordering: Sequence[KT], probabilities: Sequence[float], labeled: Iterable[KT], labels: LabelProvider[KT, LT]):
+        self.ordering = ordering
+        self.probabilities = probabilities
+        self.labeldata = MemoryLabelProvider[KT, LT].from_provider(labels)
+
+
+
+class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT,ST]):
     def __init__(self, label_provider: LabelProvider[KT, LT]):
         self.labels = label_provider
 
         self.sample_dict: Dict[KT, Set[SampleMethod[ST, LT]]] = dict()
         self.sample_dict_inv: Dict[SampleMethod[ST, LT], Set[KT]] = dict()
         
+        self.snapshots: Deque[Snapshot[KT, LT]] = collections.deque()
         self.sample_history: Deque[SampleEvent[KT, LT, ST]] = collections.deque()
         self.event_history: Deque[Event[KT, LT, ST]] = collections.deque()
         self.label_history: Deque[LabelEvent[KT, LT, ST]] = collections.deque()
         self.label_order: Dict[KT, int] = dict()
         self.label_it = 0
+
+    @property
+    def labelset(self) -> FrozenSet[LT]: 
+        return self.labels.labelset
         
+    def log_iteration(self, ordering: Sequence[KT], probabilities: Sequence[float], labeled: Iterable[KT]):
+        self.snapshots.append(Snapshot[KT, LT](ordering, probabilities, labeled, self.labels))
 
     def log_sample(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: SampleMethod) -> None:
         key = to_key(x)
@@ -126,10 +142,12 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT, ST]
 
     def get_label_cumsum_table(self) -> pd.DataFrame:
         def row_generator():
-            label_sum_dict = {label: 0 for label in self.labels.labelset}
+            label_sum_dict: Dict[Tuple[LT, ST, Optional[LT]], int] = dict()
             for event in self.label_history:
                 for label in event.labels:
-                    label_sum_dict[label] += 1
+                    dict_key = (label, event.method, event.method_label)
+                    label_sum_dict.setdefault(dict_key, 0)
+                    label_sum_dict[dict_key] += 1
                 event_dict = {
                     "timestamp": event.timestamp,
                     "instance_id": event.key,

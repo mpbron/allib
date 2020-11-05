@@ -1,9 +1,16 @@
 from __future__ import annotations
 from typing import (Dict, Generic, List, Optional,
-                    TypeVar, Any)
+                    TypeVar, Any, Tuple)
 
 import logging
+import os
 import numpy as np  # type: ignore
+import pandas as pd  # type: ignore
+
+import rpy2.robjects as ro # type: ignore
+from rpy2.robjects.packages import importr #type: ignore
+from rpy2.robjects import pandas2ri # type: ignore
+from rpy2.robjects.conversion import localconverter # type: ignore
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance
@@ -24,6 +31,7 @@ PVT = TypeVar("PVT")
 
 LOGGER = logging.getLogger(__name__)
 
+
 class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     _name = "Estimator"
 
@@ -39,6 +47,11 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
             1.0 / len(learners)] * len(learners) if probabilities is None else probabilities
         self._sample_dict: Dict[KT, int] = {}
         self._rng: Any = get_random_generator(rng)
+        R = ro.r
+        filedir = os.path.dirname(os.path.realpath(__file__))
+        r_script_file = os.path.join(filedir, "estimate.R")
+        R["source"](r_script_file)
+        
 
     def __call__(self,
                  environment: AbstractEnvironment[KT, DT, VT, RT, LT]
@@ -54,16 +67,24 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
         raise NotImplementedError
 
     def __next__(self) -> Instance[KT, DT, VT, RT]:
+        # Choose the next random learners
         indices = np.arange(len(self._learners))
         al_idx = self._rng.choice(indices, size=1, p=self._probabilities)[0]
         learner = self._learners[al_idx]
+        
+        # Select the next instance from the learner
         ins = next(learner)
+        
+        # Check if the instance identifier has not been labeled already
         while ins.identifier in self.env.labeled:
-            # This method has already been labeled my another learner. S
+            # This instance has already been labeled my another learner.
             # Skip it and mark as labeled
             learner.set_as_labeled(ins)
-            LOGGER.info("The document with key %s was already labeled. Skipping", ins.identifier)
+            LOGGER.info(
+                "The document with key %s was already labeled. Skipping", ins.identifier)
             ins = next(learner)
+
+        # Set the instances as sampled by learner with key al_idx and return the instance
         self._sample_dict[ins.identifier] = al_idx
         return ins
 
@@ -88,3 +109,31 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
         self.classifier.fit_instances(instances, labelings)
         self.fitted = True
         self.ordering = None
+
+    def get_label_matrix(self, label: LT) -> pd.DataFrame:
+        rows = {ins_key: {
+            l_key: ins_key in learner.env.labeled
+            for l_key, learner in self._learners.items()}
+            for ins_key in self.env.labels.get_instances_by_label(label)
+        }
+        dataframe = pd.DataFrame.from_dict( # type: ignore
+            rows, orient="index")  
+        return dataframe
+
+    def get_abundance(self, label: LT) -> Optional[Tuple[float, float]]:
+        df = self.get_label_matrix(label)
+        with localconverter(ro.default_converter + pandas2ri.converter):
+            df_r = ro.conversion.py2rpy(df)
+            abundance_r = ro.globalenv["get_abundance"]
+            r_df = abundance_r(df_r)
+            res_df = ro.conversion.rpy2py(r_df)
+        ok_fit = res_df[res_df.infoFit == 1]
+        if len(ok_fit) == 0:
+            ok_fit = res_df
+        best_result = ok_fit[ok_fit.stderr == ok_fit.stderr.min()]
+        best_result = best_result[["abundance", "stderr"]]
+        best_np = best_result.values
+        return best_np[0,0], best_np[0,1]
+        
+
+    

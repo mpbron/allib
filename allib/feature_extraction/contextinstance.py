@@ -12,7 +12,7 @@ DT = TypeVar("DT")
 InstanceList = Sequence[ContextInstance[Any, DT, np.ndarray, Any, DT]] # type: ignore
 
 class ContextVectorizer(BaseVectorizer[ContextInstance[Any, DT, np.ndarray, Any, DT]], Generic[DT]):
-    name = "ContextVectorizer"
+    _name = "ContextVectorizer"
     def __init__(self,
                  vectorizer: SeparateContextVectorizer[DT, DT]) -> None:
         super().__init__()

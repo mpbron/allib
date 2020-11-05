@@ -17,3 +17,4 @@ class ALCatalog:
         LABELMAXIMIZER = "LabelMaximizer"
         MIN_ENTROPY = "MinEntropy"
         MOST_CONFIDENCE = "MostConfidence"
+        PRELABELED = "Prelabeled"

@@ -30,7 +30,7 @@ DocTokenizer = Callable[..., List[str]]
 
 
 class Doc2VecVectorizer(BaseVectorizer[str], SaveableInnerModel[Doc2Vec]):
-    name = "Doc2Vec"
+    _name = "Doc2Vec"
     innermodel: Optional[Doc2Vec]
     tokenizer: DocTokenizer
 

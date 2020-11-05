@@ -11,7 +11,7 @@ from .base import BaseVectorizer
 InstanceList = Sequence[Instance[Any, str, np.ndarray, Any]] # type: ignore
 
 class TextInstanceVectorizer(BaseVectorizer[Instance[Any, str, np.ndarray, Any]]): 
-    name = "TextInstanceVectorizer"
+    _name = "TextInstanceVectorizer"
     def __init__(self,
                  vectorizer: BaseVectorizer[str],
                  ) -> None:
