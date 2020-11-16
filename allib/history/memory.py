@@ -73,6 +73,7 @@ class Snapshot(Generic[KT, LT]):
         self.ordering = ordering
         self.probabilities = probabilities
         self.labeldata = MemoryLabelProvider[KT, LT].from_provider(labels)
+        self.labeled = frozenset(labeled)
 
 
 

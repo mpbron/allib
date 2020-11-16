@@ -52,7 +52,7 @@ class MemoryLabelProvider(LabelProvider[KT, LT], Generic[KT, LT]):
     @classmethod
     def from_provider(cls, provider: LabelProvider[KT, LT]) -> MemoryLabelProvider[KT, LT]:
         labelset = provider.labelset
-        labeldict_inv = {label: provider.get_instances_by_label(label) for label in labelset}
+        labeldict_inv = {label: set(provider.get_instances_by_label(label)) for label in labelset}
         labeldict: Dict[KT, Set[LT]]= {}
         for label, key_list in labeldict_inv.items():
             for key in key_list:
@@ -77,12 +77,12 @@ class MemoryLabelProvider(LabelProvider[KT, LT], Generic[KT, LT]):
             self._labeldict.setdefault(key, set()).add(label)
             self._labeldict_inv.setdefault(label, set()).add(key)
 
-    def get_labels(self, instance: Union[KT, Instance[KT, Any, Any, Any]]) -> Set[LT]:
+    def get_labels(self, instance: Union[KT, Instance[KT, Any, Any, Any]]) -> FrozenSet[LT]:
         key = to_key(instance)
-        return self._labeldict.setdefault(key, set())
+        return frozenset(self._labeldict.setdefault(key, set()))
 
-    def get_instances_by_label(self, label: LT) -> Set[KT]:
-        return self._labeldict_inv.setdefault(label, set())
+    def get_instances_by_label(self, label: LT) -> FrozenSet[KT]:
+        return frozenset(self._labeldict_inv.setdefault(label, set()))
 
     def document_count(self, label: LT) -> int:
         return len(self.get_instances_by_label(label))

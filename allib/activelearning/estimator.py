@@ -1,9 +1,11 @@
 from __future__ import annotations
-from typing import (Dict, Generic, List, Optional,
+from typing import (Dict, FrozenSet, Generic, List, Optional, Iterable,
                     TypeVar, Any, Tuple)
 
 import logging
 import os
+import math
+import itertools
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 
@@ -28,9 +30,18 @@ LT = TypeVar("LT")
 RT = TypeVar("RT")
 LVT = TypeVar("LVT")
 PVT = TypeVar("PVT")
-
+_T = TypeVar("_T")
 LOGGER = logging.getLogger(__name__)
 
+def intersection(first: FrozenSet[_T], *others: FrozenSet[_T]) -> FrozenSet[_T]:
+    return first.intersection(*others)
+
+def powerset(iterable: Iterable[_T]) -> FrozenSet[FrozenSet[_T]]:
+    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    s = list(iterable)
+    result = itertools.chain.from_iterable(
+        itertools.combinations(s, r) for r in range(len(s)+1))
+    return frozenset(map(frozenset, result)) # type: ignore
 
 class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     _name = "Estimator"
@@ -120,6 +131,38 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
             rows, orient="index")  
         return dataframe
 
+
+
+    def get_contingency_list(self, label : LT) -> Dict[FrozenSet[int], int]:
+        learner_sets ={
+            learner_key: learner.env.labels.get_instances_by_label(label).intersection(learner.env.labeled)
+            for learner_key, learner in self._learners.items()
+        }
+        key_combinations = powerset(self._learners.keys())
+        result = {
+            combination: len(intersection(*[learner_sets[key] for key in combination]))
+            for combination in key_combinations
+            if len(combination) >= 1
+        }
+        return result
+
+    def get_matrix(self, label : LT) -> np.ndarray:
+        learner_sets ={
+            learner_key: learner.env.labels.get_instances_by_label(label).intersection(learner.env.labeled)
+            for learner_key, learner in self._learners.items()
+        }
+        n_learners = len(learner_sets)
+        matrix = np.zeros(shape=(n_learners, n_learners))
+        for i, key_a in enumerate(learner_sets):
+            instances_a = learner_sets[key_a]
+            for j, key_b in enumerate(learner_sets):
+                if i != j:
+                    instances_b = learner_sets[key_b]
+                    intersection = instances_a.intersection(instances_b)
+                    matrix[i,j] = len(intersection)
+        return matrix
+                
+
     def get_abundance(self, label: LT) -> Optional[Tuple[float, float]]:
         df = self.get_label_matrix(label)
         with localconverter(ro.default_converter + pandas2ri.converter):
@@ -130,7 +173,7 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
         ok_fit = res_df[res_df.infoFit == 1]
         if len(ok_fit) == 0:
             ok_fit = res_df
-        best_result = ok_fit[ok_fit.stderr == ok_fit.stderr.min()]
+        best_result = ok_fit[ok_fit.AIC == ok_fit.AIC.min()]
         best_result = best_result[["abundance", "stderr"]]
         best_np = best_result.values
         return best_np[0,0], best_np[0,1]

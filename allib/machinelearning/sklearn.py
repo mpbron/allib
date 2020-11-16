@@ -36,7 +36,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
 
     def decode_vector(self, vector: np.ndarray) -> Sequence[FrozenSet[str]]:
         labelings = self.encoder.inverse_transform(vector).tolist() # type: ignore
-        return [frozenset(labeling) for labeling in labelings]
+        return [frozenset([labeling]) for labeling in labelings]
 
     def get_label_column_index(self, label: str) -> int:
         label_list = self.encoder.classes_.tolist() # type: ignore
@@ -126,3 +126,7 @@ class MultilabelSkLearnClassifier(SkLearnClassifier):
 
     def encode_labels(self, labels: Iterable[str]) -> np.ndarray:
         return self.encoder.transform([list(set(labels))]) # type: ignore
+
+    def decode_vector(self, vector: np.ndarray) -> Sequence[FrozenSet[str]]:
+        labelings = self.encoder.inverse_transform(vector).tolist() # type: ignore
+        return [frozenset(labeling) for labeling in labelings]

@@ -34,7 +34,7 @@ def _find_inclusions(history: MemoryLogger, labels, remove_initial=True):
         labeled = snap.labeldata
 
         try:
-            label_methods = snapshots.
+            label_methods = 
             label_idx = snapshot.get("label_idx", query_i)
         except KeyError:
             continue
