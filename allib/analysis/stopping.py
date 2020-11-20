@@ -41,7 +41,7 @@ class RecallStopCriterion(AbstractStopCriterion, Generic[LT]):
 
 
 
-class StopCriterion(AbstractStopCriterion, Generic[LT]):
+class CaptureRecaptureCriterion(AbstractStopCriterion, Generic[LT]):
     def __init__(self, label: LT, same_state_count: int):
         self.label = label
         self.same_state_count = same_state_count

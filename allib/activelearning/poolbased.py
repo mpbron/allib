@@ -44,7 +44,8 @@ class PoolbasedAL(ActiveLearner[KT, DT, VT, RT, LT], ABC, Generic[KT, DT, VT, RT
     @ActiveLearner.iterator_log
     def __next__(self) -> Instance[KT, DT, VT, RT]:
         if self.ordering is None:
-            self.ordering = deque(self.calculate_ordering())
+            ordering, _ = self.calculate_ordering()
+            self.ordering = deque(ordering)
         try:
             key = self.ordering.popleft()
             while key not in self.env.unlabeled or key in self.sampled:

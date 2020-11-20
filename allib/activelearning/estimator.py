@@ -1,27 +1,27 @@
 from __future__ import annotations
-from typing import (Dict, FrozenSet, Generic, List, Optional, Iterable,
-                    TypeVar, Any, Tuple)
 
-import logging
-import os
-import math
+import collections
 import itertools
+import logging
+import math
+import os
+import random
+from typing import (Any, Deque, Dict, FrozenSet, Generic, Iterable, List,
+                    Optional, Tuple, TypeVar)
+
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
-
-import rpy2.robjects as ro # type: ignore
-from rpy2.robjects.packages import importr #type: ignore
-from rpy2.robjects import pandas2ri # type: ignore
-from rpy2.robjects.conversion import localconverter # type: ignore
+import rpy2.robjects as ro  # type: ignore
+from rpy2.robjects import pandas2ri  # type: ignore
+from rpy2.robjects.conversion import localconverter  # type: ignore
+from rpy2.robjects.packages import importr  # type: ignore
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance
 from ..machinelearning import AbstractClassifier
-
-from .base import NotInitializedException
-from .poolbased import PoolbasedAL
-
 from ..utils import get_random_generator
+from .base import ActiveLearner, NotInitializedException
+from .poolbased import PoolbasedAL
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")
@@ -43,6 +43,12 @@ def powerset(iterable: Iterable[_T]) -> FrozenSet[FrozenSet[_T]]:
         itertools.combinations(s, r) for r in range(len(s)+1))
     return frozenset(map(frozenset, result)) # type: ignore
 
+def _add_doc(learner: ActiveLearner[KT, DT, VT, RT, LT], key: KT):
+    doc = learner.env.dataset[key]
+    labels = learner.env.truth.get_labels(doc)
+    learner.env.labels.set_labels(doc, *labels)
+    learner.set_as_labeled(doc)
+
 class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     _name = "Estimator"
 
@@ -57,6 +63,8 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
         self._probabilities = [
             1.0 / len(learners)] * len(learners) if probabilities is None else probabilities
         self._sample_dict: Dict[KT, int] = {}
+        self.matrix_history: Deque[pd.DataFrame] = collections.deque()
+        self.contingency_history: Deque[Dict[FrozenSet[int], int]] = collections.deque()
         self._rng: Any = get_random_generator(rng)
         R = ro.r
         filedir = os.path.dirname(os.path.realpath(__file__))
@@ -105,10 +113,26 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
         if instance.identifier in self._sample_dict:
             learner = self._learners[self._sample_dict[instance.identifier]]
             learner.set_as_labeled(instance)
-        else:
-            for learner in self._learners.values():
-                learner.set_as_labeled(instance)
+        
+    def initialize_uniform(self, pos_label: LT, neg_label: LT) -> None:
+        pos_docs = random.sample(self.env.truth.get_instances_by_label(pos_label), 1)
+        neg_docs = random.sample(self.env.truth.get_instances_by_label(neg_label), 1)
+        docs = pos_docs + neg_docs
+        for learner in self._learners.values():
+            for doc in docs:
+                _add_doc(learner, doc)
+                _add_doc(self, doc)
 
+    def initialize_separate(self, pos_label: LT, neg_label: LT) -> None:
+        n = len(self._learners)
+        pos_docs = random.sample(self.env.truth.get_instances_by_label(pos_label), n)
+        neg_docs = random.sample(self.env.truth.get_instances_by_label(neg_label), n)
+        for i, learner in self._learners.items():
+            docs = [pos_docs[i], neg_docs[i]]
+            for doc in docs:
+                _add_doc(learner, doc)
+                _add_doc(self, doc)
+    
     def retrain(self) -> None:
         if not self.initialized or self.env is None:
             raise NotInitializedException
@@ -128,10 +152,9 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
             for ins_key in self.env.labels.get_instances_by_label(label)
         }
         dataframe = pd.DataFrame.from_dict( # type: ignore
-            rows, orient="index")  
+            rows, orient="index")
+        self.matrix_history.append(dataframe)  
         return dataframe
-
-
 
     def get_contingency_list(self, label : LT) -> Dict[FrozenSet[int], int]:
         learner_sets ={
@@ -144,6 +167,7 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
             for combination in key_combinations
             if len(combination) >= 1
         }
+        self.contingency_history.append(result)
         return result
 
     def get_matrix(self, label : LT) -> np.ndarray:
@@ -170,13 +194,33 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
             abundance_r = ro.globalenv["get_abundance"]
             r_df = abundance_r(df_r)
             res_df = ro.conversion.rpy2py(r_df)
-        ok_fit = res_df[res_df.infoFit == 1]
+        ok_fit = res_df[res_df.infoFit == 0]
         if len(ok_fit) == 0:
             ok_fit = res_df
-        best_result = ok_fit[ok_fit.AIC == ok_fit.AIC.min()]
+        best_result = ok_fit[ok_fit.BIC == ok_fit.BIC.min()]
         best_result = best_result[["abundance", "stderr"]]
         best_np = best_result.values
         return best_np[0,0], best_np[0,1]
         
 
-    
+class CycleEstimator(Estimator[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+    def __init__(self,
+                 classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
+                 learners: List[PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]],
+                 probabilities: Optional[List[float]] = None, rng: Any = None, *_, **__) -> None:
+            super().__init__(classifier, learners, probabilities, rng)
+            self.learnercycle = itertools.cycle(self._learners.items())
+
+    def __next__(self) -> Instance[KT, DT, VT, RT]:
+        idx, learner = next(self.learnercycle)
+        # Select the next instance from the learner
+        ins = next(learner)
+        # Check if the instance identifier has not been labeled already
+        while ins.identifier in self.env.labeled:
+            learner.set_as_labeled(ins)
+            LOGGER.info("The document with key %s was already labeled. Skipping", ins.identifier)
+            idx, learner = next(self.learnercycle)
+            ins = next(learner)
+        # Set the instances as sampled by learner with key al_idx and return the instance
+        self._sample_dict[ins.identifier] =  idx
+        return ins

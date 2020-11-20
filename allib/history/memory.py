@@ -1,11 +1,12 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from allib.labels.memory import MemoryLabelProvider
 
 import collections
 import itertools
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import (Any, Deque, Dict, Generator, Generic, List, Optional, Set, Tuple,
+from typing import (Any, Deque, Dict, Generic, Optional, Set, Tuple,
                     TypeVar, Union, Sequence, Iterable, FrozenSet)
 
 import pandas as pd # type: ignore
@@ -68,18 +69,16 @@ class LabelEvent(SampleEvent[KT, LT, ST], Generic[KT, LT, ST]):
     def __repr__(self):
         return str(self)
 
+@dataclass
 class Snapshot(Generic[KT, LT]):
-    def __init__(self, ordering: Sequence[KT], probabilities: Sequence[float], labeled: Iterable[KT], labels: LabelProvider[KT, LT]):
-        self.ordering = ordering
-        self.probabilities = probabilities
-        self.labeldata = MemoryLabelProvider[KT, LT].from_provider(labels)
-        self.labeled = frozenset(labeled)
-
-
+    ordering: Sequence[KT]
+    metrics: Sequence[float]
+    labeled: FrozenSet[KT]
+    labels: LabelProvider[KT, LT]
 
 class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT,ST]):
     def __init__(self, label_provider: LabelProvider[KT, LT]):
-        self.labels = label_provider
+        self._labelset = label_provider.labelset
 
         self.sample_dict: Dict[KT, Set[SampleMethod[ST, LT]]] = dict()
         self.sample_dict_inv: Dict[SampleMethod[ST, LT], Set[KT]] = dict()
@@ -93,10 +92,12 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT,ST])
 
     @property
     def labelset(self) -> FrozenSet[LT]: 
-        return self.labels.labelset
+        return self._labelset
         
-    def log_iteration(self, ordering: Sequence[KT], probabilities: Sequence[float], labeled: Iterable[KT]):
-        self.snapshots.append(Snapshot[KT, LT](ordering, probabilities, labeled, self.labels))
+    def log_ordering(self, ordering: Sequence[KT], metrics: Sequence[float], labeled: Iterable[KT], labels: LabelProvider[KT, LT]):
+        labeled = frozenset(labeled)
+        labels_copy = MemoryLabelProvider[KT, LT].from_provider(labels)
+        self.snapshots.append(Snapshot[KT, LT](ordering, metrics, labeled, labels_copy))
 
     def log_sample(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: SampleMethod) -> None:
         key = to_key(x)
@@ -130,7 +131,7 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT,ST])
             for event in self.label_history:
                 doc_labels = event.labels
                 label_dict = {
-                    label: (label in doc_labels) for label in self.labels.labelset}
+                    label: (label in doc_labels) for label in self.labelset}
                 event_dict = {
                     "timestamp": event.timestamp,
                     "instance_id": event.key,

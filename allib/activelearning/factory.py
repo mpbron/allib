@@ -7,7 +7,7 @@ from ..machinelearning import AbstractClassifier
 from ..machinelearning import MachineLearningFactory
 
 from .catalog import ALCatalog as AL
-from .estimator import Estimator
+from .estimator import CycleEstimator, Estimator
 from .ensemble import Ensemble
 from .random import RandomSampling
 from .uncertainty import MarginSampling, NearDecisionBoundary, EntropySampling, LeastConfidence
@@ -41,6 +41,17 @@ class EstimatorBuilder(AbstractBuilder):
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
         return Estimator(classifier, configured_learners)
 
+class CycleEstimatorBuilder(AbstractBuilder):
+    def __call__( # type: ignore
+            self, learners: List[Dict], 
+            machinelearning: Dict, **kwargs) -> Estimator:
+        configured_learners = [
+            self._factory.create(Component.ACTIVELEARNER, **learner_config)
+            for learner_config in learners
+        ]
+        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
+        return CycleEstimator(classifier, configured_learners)
+
 class EnsembleBuilder(AbstractBuilder):
     def __call__( # type: ignore
             self, learners: List[Dict], 
@@ -59,6 +70,7 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_builder(Component.ACTIVELEARNER, ALBuilder())
         self.register_builder(AL.Paradigm.POOLBASED, PoolbasedBuilder())
         self.register_builder(AL.Paradigm.ESTIMATOR, EstimatorBuilder())
+        self.register_builder(AL.Paradigm.CYCLE, CycleEstimatorBuilder())
         self.register_builder(AL.Paradigm.ENSEMBLE, EnsembleBuilder())
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)

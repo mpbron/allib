@@ -4,6 +4,7 @@ class ALCatalog:
     class Paradigm(Enum):
         POOLBASED = "Poolbased"
         ESTIMATOR = "Estimator"
+        CYCLE = "CycleEstimator"
         ENSEMBLE  = "Ensemble"
 
     class QueryType(str, Enum):

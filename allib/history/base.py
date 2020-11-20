@@ -1,3 +1,4 @@
+from allib.labels.base import LabelProvider
 from typing import Generic, TypeVar, Any, FrozenSet, Union, Deque, Iterable, Sequence
 
 from abc import ABC, abstractmethod
@@ -12,8 +13,8 @@ ST = TypeVar("ST")
 
 class BaseLogger(ABC, Generic[KT, LT, ST]):
     @abstractmethod
-    def log_iteration(self, ordering: Sequence[KT], probabilities: Sequence[float], labeled: Iterable[KT]) -> None:
-        pass
+    def log_ordering(self, ordering: Sequence[KT], metrics: Sequence[float], labeled: Iterable[KT], labels: LabelProvider[KT, LT]) -> None:
+        raise NotImplementedError
 
     @abstractmethod
     def log_sample(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: ST) -> None:

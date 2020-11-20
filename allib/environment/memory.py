@@ -27,7 +27,6 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
             logger: MemoryLogger[KT, LT, Any],
             truth: MemoryLabelProvider[KT, LT]
         ):
-        super().__init__()
         self._dataset = dataset
         self._unlabeled = unlabeled
         self._labeled = labeled

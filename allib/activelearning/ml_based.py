@@ -124,7 +124,7 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         keys = matrix.indices
         return keys, prob_vec
 
-    def calculate_ordering(self) -> Sequence[KT]:
+    def calculate_ordering(self) -> Tuple[Sequence[KT], Sequence[float]]:
         def get_metric_tuples(keys: Sequence[KT], vec: np.ndarray) -> Sequence[Tuple[KT, float]]:
             floats: Sequence[float] = vec.tolist()
             return list(zip(keys, floats))
@@ -150,8 +150,8 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         # is on the first position of the list
         sorted_tuples = sorted(metric_tuples, key=lambda x: x[1], reverse=True)
         # Retrieve the keys from the tuples
-        ordered_keys, _ = zip(*sorted_tuples)
-        return list(ordered_keys)
+        ordered_keys, ordered_metrics = map(list, zip(*sorted_tuples))
+        return ordered_keys, ordered_metrics
 
     @MLBased.iterator_fallback
     def __next__(self) -> Instance[KT, DT, np.ndarray, RT]:

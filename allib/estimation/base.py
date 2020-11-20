@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import itertools
 from collections import Counter
 import pandas as pd # type: ignore
-from typing import Generic, Optional, Tuple, TypeVar, List, Sequence, Set
+from typing import FrozenSet, Generic, Optional, Tuple, TypeVar, List, Sequence, Set
 from ..environment import AbstractEnvironment
 from ..activelearning import PoolbasedAL
 from ..machinelearning import AbstractClassifier
@@ -34,7 +34,7 @@ class DecisionRow(Generic[KT]):
     labeled: bool
     pos_labeled: bool
     order: Optional[int]
-    
+
 class SemiEstimator(AbstractEstimator[KT, DT, np.ndarray, RT, LT]):
     @abstractmethod
     def semi(self, learner: PoolbasedAL[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], pos_label: LT) -> Tuple[float, Optional[float]]:
@@ -55,7 +55,7 @@ class SemiEstimator(AbstractEstimator[KT, DT, np.ndarray, RT, LT]):
             return sample
         env = learner.env
         classifier = learner.classifier
-        def get_decision_values(pos_labeled: Set[KT], proba = True):
+        def get_decision_values(pos_labeled: FrozenSet[KT], proba = True):
             pos_col_idx = classifier.get_label_column_index(pos_label)
             for mat in FeatureMatrix[KT].generator_from_provider(env.dataset, 100):
                 decision_keys = mat.indices
@@ -132,7 +132,7 @@ def semi(learner: PoolbasedAL[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         return sample
     env = learner.env
     classifier = learner.classifier
-    def get_decision_values(pos_labeled: Set[KT], neg_labeled: Set[KT], proba = True):
+    def get_decision_values(pos_labeled: FrozenSet[KT], proba = True):
         pos_col_idx = classifier.get_label_column_index(pos_label)
         for mat in FeatureMatrix[KT].generator_from_provider(env.dataset, 100):
             decision_keys = mat.indices
@@ -158,7 +158,7 @@ def semi(learner: PoolbasedAL[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
     pos_label_count = env.labels.document_count(pos_label)
     neg_label_count = env.labels.document_count(neg_label)
     
-    decision_df = pd.DataFrame(list(get_decision_values(pos_labeled, neg_labeled)))
+    decision_df = pd.DataFrame(list(get_decision_values(pos_labeled)))
     
     # all_idx = decision_df.index.values
     pos_idx: List[int] = decision_df.index[decision_df.pos_labeled] # type: ignore

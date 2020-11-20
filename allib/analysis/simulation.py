@@ -1,13 +1,20 @@
 
 
 
-from allib.module.component import Component
-from ..instances.base import Instance
+import itertools
+import random
+import numpy as np
+from typing import Any, Dict, List, Sequence, Tuple, TypeVar
+
+from ..activelearning.base import ActiveLearner
+from ..analysis.analysis import process_performance
 from ..analysis.stopping import AbstractStopCriterion
 from ..environment.base import AbstractEnvironment
+from ..environment.memory import MemoryEnvironment
 from ..feature_extraction.base import BaseVectorizer
-from ..activelearning.base import ActiveLearner
-from typing import Any, Dict, List, Tuple, TypeVar
+from ..instances.base import Instance
+from ..module.component import Component
+from ..utils.chunks import divide_sequence
 
 KT = TypeVar("KT")
 DT = TypeVar("DT")
@@ -15,13 +22,30 @@ VT = TypeVar("VT")
 RT = TypeVar("RT")
 LT = TypeVar("LT")
 
+def add_doc_from_truth(learner: ActiveLearner[KT, DT, VT, RT, LT], id: KT):
+    doc = learner.env.unlabeled[id]
+    labels = learner.env.truth.get_labels(doc)
+    learner.env.labels.set_labels(doc, *labels)
+    learner.set_as_labeled(doc)
 
+def vectorize(vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, DT]], 
+              environment: MemoryEnvironment[KT, DT, np.ndarray, LT]) -> None:
+    instances = environment.dataset.bulk_get_all()
+    vectorizer.fit(instances)
+    def set_vectors(instances: Sequence[Instance[KT, DT, np.ndarray, DT]], batch_size = 400) -> None:
+        instance_chunks = divide_sequence(instances, batch_size)
+        for instance_chunk in instance_chunks:
+            matrix = vectorizer.transform(instance_chunk)
+            for i, instance in enumerate(instance_chunk):
+                instance.vector = matrix[i,:]
+    set_vectors(instances)
 
 SimulationResult = Tuple[ActiveLearner[KT, DT, VT, RT, LT],
                          BaseVectorizer[Instance[KT, DT, VT, RT]],
                          List[float],
                          List[int],
                          List[int]]
+
 def simulate(learner: ActiveLearner[KT, DT, VT, RT, LT], 
              vectorizer: BaseVectorizer[Instance[KT, DT, VT, RT]], 
              start_env: AbstractEnvironment[KT, DT, VT, RT, LT], 
@@ -30,12 +54,6 @@ def simulate(learner: ActiveLearner[KT, DT, VT, RT, LT],
              batch_size: int, 
              target_recall: float = 0.95) -> SimulationResult:
 
-    # Build the active learners and feature extraction models
-    learner: ActiveLearner[KT, DT, VT, RT, LT] = factory.create(
-        Component.ACTIVELEARNER, **al_config)
-    vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, DT]] = factory.create(
-        Component.FEATURE_EXTRACTION, **fe_config)
-    
     ## Copy the data to memory
     env = MemoryEnvironment.from_environment_only_data(start_env)
 
@@ -81,10 +99,6 @@ def simulate(learner: ActiveLearner[KT, DT, VT, RT, LT],
         neg_count = learner.env.labels.document_count(neg_label)
         stop_crit.update(learner)
         estimate = 0.0
-        if isinstance(learner, Estimator):
-            abd = learner.get_abundance(pos_label)
-            if abd is not None:
-                estimate, _ = abd
         estimates.append(estimate)
         poses.append(pos_count)
         neges.append(neg_count)

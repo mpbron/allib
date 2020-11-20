@@ -1,6 +1,7 @@
 # Created by https://www.gitignore.io/api/django,python
 test_notebook.py
-
+h5test.py
+testfile.h5
 ### Django ###
 *.log
 *.pot

@@ -95,7 +95,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
         y_pred = self.predict_proba(x_vec).tolist()
         label_list = self.encoder.classes_.tolist() # type: ignore
         y_labels = [
-            frozenset(zip(y_vec, label_list))
+            frozenset(zip(y_vec, label_list)) # type: ignore
             for y_vec in y_pred
         ]
         return y_labels
@@ -105,7 +105,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
         return f"{self._name} :: {self.innermodel.__class__}"
         
 
-    def fit_instances(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]], labels: Sequence[Set[str]]):
+    def fit_instances(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]], labels: Sequence[FrozenSet[str]]):
         assert len(instances) == len(labels)
         x_train_vec, y_train_vec = self.encode_xy(instances, labels)
         self.fit(x_train_vec, y_train_vec)
