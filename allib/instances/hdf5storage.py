@@ -52,11 +52,11 @@ class VectorStorage(MutableMapping[KT, VT], Generic[KT, VT]):
         raise NotImplementedError
 
     @abstractmethod
-    def get_bulk(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], VT]:
+    def get_matrix(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], VT]:
         raise NotImplementedError
 
     @abstractmethod
-    def vector_chunker(self) -> Iterator[Tuple[KT, VT]]:
+    def matrices_chunker(self) -> Iterator[Tuple[KT, VT]]:
         raise NotImplementedError
 
     @abstractmethod
@@ -211,8 +211,12 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
     def _update_vectors(self, keys: Sequence[KT], values: Sequence[np.ndarray]) -> None:
         assert self.__mode in self.__writemodes
         assert len(keys) == len(values)
-        for key, value in values:
-            self[key] = value
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            dataset = hfile["vectors"]
+            assert isinstance(dataset, Dataset)
+            for key, value in values:
+                h5_idx = self.key_dict[key]
+                dataset[h5_idx] = value # type: ignore
             
     def add_bulk(self, keys: Sequence[KT], values: Sequence[np.ndarray]) -> None:
         assert self.__mode in self.__writemodes
@@ -245,44 +249,33 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         matrix = np.vstack(new_vectors)
         self.add_bulk_matrix(new_keys, matrix)
 
-    def get_bulk(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], np.ndarray]:
+    def _get_matrix(self, h5_idxs: Sequence[int]) -> Tuple[Sequence[KT], np.ndarray]:
+        with h5py.File(self.h5path, self.__mode) as dfile:
+            dataset = dfile["vectors"]
+            assert isinstance(dataset, Dataset)
+            slices = get_range(h5_idxs)
+            result_matrix = slicer(dataset, slices)
+            included_keys = list(map(lambda idx: self.inv_key_dict[idx], h5_idxs))
+        return included_keys, result_matrix
+
+    def get_matrix(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], np.ndarray]:
         assert self.datasets_exist
         in_storage = frozenset(self.key_dict).intersection(keys)
         h5py_idxs = map(lambda k: self.key_dict[k], in_storage)
         sorted_keys = sorted(h5py_idxs)
-        slices = get_range(sorted_keys)
-        with h5py.File(self.h5path, self.__mode) as hfile:
-            dataset = hfile["vectors"]
-            assert isinstance(dataset, Dataset)
-            result_matrix = slicer(dataset, slices)
-            included_keys = list(map(lambda hk: self.inv_key_dict[hk], sorted_keys))
-        return included_keys, result_matrix # type: ignore
+        return self._get_matrix(sorted_keys)
 
-    def get_bulk_chunked(self, keys: Sequence[KT], chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
+    def get_matrix_chunked(self, keys: Sequence[KT], chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
         assert self.datasets_exist
         in_storage = frozenset(self.key_dict).intersection(keys)
         h5py_idxs = map(lambda k: self.key_dict[k], in_storage)
         sorted_keys = sorted(h5py_idxs)
         chunks = divide_iterable_in_lists(sorted_keys, chunk_size)
-        for chunk in chunks:
-            with h5py.File(self.h5path, self.__mode) as dfile:
-                dataset = dfile["vectors"]
-                assert isinstance(dataset, Dataset)
-                slices = get_range(chunk)
-                result_matrix = slicer(dataset, slices)
-            included_keys = list(map(lambda idx: self.inv_key_dict[idx], chunk))
-            yield included_keys, result_matrix
-
-    def vector_chunker(self, chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
+        yield from map(self._get_matrix, chunks)
+           
+    def matrices_chunker(self, chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
         assert self.datasets_exist
         h5py_idxs = self.inv_key_dict.keys()
         sorted_keys = sorted(h5py_idxs)
         chunks = divide_iterable_in_lists(sorted_keys, chunk_size)
-        for chunk in chunks:
-            with h5py.File(self.h5path, self.__mode) as dfile:
-                dataset = dfile["vectors"]
-                assert isinstance(dataset, Dataset)
-                slices = get_range(chunk)
-                result_matrix = slicer(dataset, slices)
-            included_keys = list(map(lambda idx: self.inv_key_dict[idx], chunk))
-            yield included_keys, result_matrix
+        yield from map(self._get_matrix, chunks)
