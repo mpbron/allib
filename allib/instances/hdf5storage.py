@@ -1,8 +1,9 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import (Dict, Generic, Iterable, Iterator, MutableMapping,
                     Optional, Sequence, Tuple, TypeVar, Union)
 
 import h5py
+import pickle
 import numpy as np  # type: ignore
 from h5py._hl.dataset import Dataset
 
@@ -11,7 +12,7 @@ from ..utils.chunks import divide_iterable_in_lists, get_range
 KT = TypeVar("KT")
 VT = TypeVar("VT")
 
-def slicer(matrix: Union[Dataset, np.ndarray], slices: Iterable[Tuple[int, Optional[int]]]) -> Union[np.ndarray, Dataset]:
+def slicer(matrix: Union[Dataset, np.ndarray], slices: Iterable[Tuple[int, Optional[int]]]) -> np.ndarray:
         def get_slices_1d():
             for slice_min, slice_max in slices:
                 if slice_max is not None:
@@ -65,98 +66,124 @@ class VectorStorage(MutableMapping[KT, VT], Generic[KT, VT]):
     def __exit__(self, type, value, traceback):
         raise NotImplementedError
 
-class H5PYVectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
+class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
     __writemodes = ["a", "r+", "w", "w-", "x"]
     def __init__(self, h5path: str, mode="r") -> None:
         self.__mode = mode
         self.h5path = h5path
-        self.file = h5py.File(self.h5path, self.__mode)
         self.key_dict: Dict[KT, int] = dict()
         self.inv_key_dict: Dict[int, KT] = dict()
-        if "keys" in self.file:
-            keyset = self.file["keys"]
-            assert isinstance(keyset, Dataset)
-            keypairs = list(enumerate(keyset))
-            self.key_dict = { # type: ignore
-                key: i for i, key in keypairs
-            }
-            self.inv_key_dict = { # type: ignore
-                i: key for i, key in keypairs
-            }
-        
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            if "dicts" in hfile:
+                dicts = hfile["dicts"]
+                assert isinstance(dicts, Dataset)
+                self.key_dict = pickle.loads(dicts[0]) # type: ignore
+                self.inv_key_dict = pickle.loads(dicts[1]) # type: ignore
+            
     def __enter__(self):
         return self
-    
+
+    def __store_dicts(self) -> None:
+        assert self.__mode in self.__writemodes
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            if "dicts" not in hfile:
+                dt = h5py.special_dtype(vlen=np.dtype("uint8"))
+                hfile.create_dataset("dicts", (2,), dtype=dt)
+            dicts = hfile["dicts"]
+            assert isinstance(dicts, Dataset)
+            dicts[0] = np.fromstring(
+                pickle.dumps(self.key_dict), dtype="uint8") #type: ignore
+            dicts[1] = np.fromstring(
+                pickle.dumps(self.inv_key_dict), dtype="uint8") # type: ignore
+            
     def __exit__(self, type, value, traceback):
-        self.file.close()
+        if self.__mode in self.__writemodes:
+            self.__store_dicts()
+
+    @property
+    def datasets_exist(self) -> bool:
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            exist = "vectors" in hfile and "keys" in hfile
+        return exist
+
+    def close(self) -> None:
+        self.__exit__(None, None, None)
 
     def _create_matrix(self, first_slice: np.ndarray) -> None:
         assert self.__mode in self.__writemodes
         vector_dim = first_slice.shape[1]
-        if "vectors" not in self.file:
-            self.file.create_dataset(
-                "vectors", data=first_slice, maxshape=(None, vector_dim), dtype="f", chunks=True)
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            if "vectors" not in hfile:
+                hfile.create_dataset(
+                    "vectors", data=first_slice, 
+                    maxshape=(None, vector_dim), dtype="f", chunks=True)
 
     def _create_keys(self, keys: Sequence[KT]) -> None:
         assert self.__mode in self.__writemodes
-        if "keys" not in self.file:
-            self.file.create_dataset("keys", 
-                data = np.array(keys), maxshape=(None,)) # type: ignore
-        for i, key in enumerate(keys):
-            self.key_dict[key] = i
-            self.inv_key_dict[i] = key
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            if "keys" not in hfile:
+                hfile.create_dataset("keys", 
+                    data = np.array(keys), maxshape=(None,)) # type: ignore
+            for i, key in enumerate(keys):
+                self.key_dict[key] = i
+                self.inv_key_dict[i] = key
   
     def __len__(self) -> int:
-        if "keys" in self.file:
-            keyset = self.file["keys"]
-            assert isinstance(keyset, Dataset)
-            return len(keyset)
-        return 0
+        return len(self.key_dict)
     
     def _append_matrix(self, matrix: np.ndarray) -> bool:
         assert self.__mode in self.__writemodes
-        assert "vectors" in self.file
-        dataset = self.file["vectors"]
-        assert isinstance(dataset, Dataset)
-        old_shape = dataset.shape
-        mat_shape = matrix.shape
-        assert mat_shape[1] == old_shape[1]
-        new_shape = (dataset.shape[0] + mat_shape[0], mat_shape[1])
-        dataset.resize(size=new_shape)
-        dataset[-mat_shape[0]:,:] = matrix
-        self.file.flush()
+        assert self.datasets_exist
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            dataset = hfile["vectors"]
+            assert isinstance(dataset, Dataset)
+            old_shape = dataset.shape
+            mat_shape = matrix.shape
+            assert mat_shape[1] == old_shape[1]
+            new_shape = (dataset.shape[0] + mat_shape[0], mat_shape[1])
+            dataset.resize(size=new_shape)
+            dataset[-mat_shape[0]:,:] = matrix
         return True 
 
     def _append_keys(self, keys: Sequence[KT]) -> bool:
         assert self.__mode in self.__writemodes
+        assert self.datasets_exist
         assert all(map(lambda k: k not in self.key_dict, keys))
         new_keys = np.array(keys) # type: ignore
-        key_set = self.file["keys"]
-        assert isinstance(key_set, Dataset)
-        old_shape = key_set.shape
-        arr_shape = new_keys.shape
-        new_shape = (old_shape[0] + arr_shape[0],)
-        key_set.resize(size=new_shape)
-        key_set[-arr_shape[0]:] = new_keys
-        start_index = old_shape[0] + 1
-        for i, key in enumerate(keys):
-            hdf5_idx = start_index + i
-            self.key_dict[key] = hdf5_idx
-            self.inv_key_dict[hdf5_idx] = key
-        self.file.flush()
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            key_set = hfile["keys"]
+            assert isinstance(key_set, Dataset)
+            old_shape = key_set.shape
+            arr_shape = new_keys.shape
+            new_shape = (old_shape[0] + arr_shape[0],)
+            key_set.resize(size=new_shape)
+            key_set[-arr_shape[0]:] = new_keys
+            start_index = old_shape[0] + 1
+            for i, key in enumerate(keys):
+                hdf5_idx = start_index + i
+                self.key_dict[key] = hdf5_idx
+                self.inv_key_dict[hdf5_idx] = key
+        self.__store_dicts()
         return True
         
     def __getitem__(self, k: KT) -> np.ndarray:
-        if k in self:
-            h5_idx = self.key_dict[k]
-            return self.file["vectors"][h5_idx,:] # type: ignore
-        raise KeyError 
+        assert self.datasets_exist
+        h5_idx = self.key_dict[k]
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            dataset = hfile["vectors"]
+            assert isinstance(dataset, Dataset)
+            data = dataset[h5_idx,:]
+        return data # type: ignore
 
     def __setitem__(self, k: KT, value: np.ndarray) -> None:
         assert self.__mode in self.__writemodes
+        assert self.datasets_exist
         if k in self:
             h5_idx = self.key_dict[k]
-            self.file["vectors"][h5_idx] = value # type: ignore
+            with h5py.File(self.h5path, self.__mode) as hfile:
+                dataset = hfile["vectors"]
+                assert isinstance(dataset, Dataset)
+                dataset[h5_idx] = value # type: ignore
             return
         raise KeyError 
 
@@ -166,17 +193,15 @@ class H5PYVectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
     def __contains__(self, item: object) -> bool:
         return item in self.key_dict
         
-
-    
     def __iter__(self) -> Iterator[KT]:
         yield from self.key_dict
 
     def add_bulk_matrix(self, keys: Sequence[KT], matrix: np.ndarray) -> None:
         assert self.__mode in self.__writemodes
         assert len(keys) == matrix.shape[0]
-        if "vectors" not in self.file and "keys" not in self.file:
-            self._create_keys(keys)
+        if not self.datasets_exist:
             self._create_matrix(matrix)
+            self._create_keys(keys)
             return
         if all(map(lambda k: k not in self.key_dict, keys)):
             if self._append_keys(keys):
@@ -193,7 +218,7 @@ class H5PYVectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         assert self.__mode in self.__writemodes
         assert len(keys) == len(values) and len(keys) > 0
         # Check if the vector storage exists
-        if "vectors" not in self.file and "keys" not in self.file:
+        if not self.datasets_exist:
             matrix = np.vstack(values)
             self._create_keys(keys)
             self._create_matrix(matrix)
@@ -221,27 +246,43 @@ class H5PYVectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         self.add_bulk_matrix(new_keys, matrix)
 
     def get_bulk(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], np.ndarray]:
-        assert "vectors" in self.file and "keys" in self.file
+        assert self.datasets_exist
         in_storage = frozenset(self.key_dict).intersection(keys)
         h5py_idxs = map(lambda k: self.key_dict[k], in_storage)
         sorted_keys = sorted(h5py_idxs)
         slices = get_range(sorted_keys)
-        dataset = self.file["vectors"]
-        assert isinstance(dataset, Dataset)
-        result_matrix = slicer(dataset, slices)
-        included_keys = list(map(lambda hk: self.inv_key_dict[hk], sorted_keys))
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            dataset = hfile["vectors"]
+            assert isinstance(dataset, Dataset)
+            result_matrix = slicer(dataset, slices)
+            included_keys = list(map(lambda hk: self.inv_key_dict[hk], sorted_keys))
         return included_keys, result_matrix # type: ignore
 
-    def vector_chunker(self, chunksize: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
-        assert "vectors" in self.file and "keys" in self.file
-        dataset = self.file["vectors"]
-        keyset = self.file["keys"]
-        assert isinstance(dataset, Dataset) and  isinstance(keyset, Dataset)
-        assert len(dataset) == len(keyset)
-        hdf5_idxs = range(len(dataset))
-        chunks = divide_iterable_in_lists(hdf5_idxs, chunksize)
+    def get_bulk_chunked(self, keys: Sequence[KT], chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
+        assert self.datasets_exist
+        in_storage = frozenset(self.key_dict).intersection(keys)
+        h5py_idxs = map(lambda k: self.key_dict[k], in_storage)
+        sorted_keys = sorted(h5py_idxs)
+        chunks = divide_iterable_in_lists(sorted_keys, chunk_size)
         for chunk in chunks:
-            ranges = get_range(chunk)
-            keys: Sequence[KT] = slicer(keyset, ranges).tolist() # type: ignore
-            matrix = slicer(dataset, ranges)
-            yield keys, matrix # type: ignore
+            with h5py.File(self.h5path, self.__mode) as dfile:
+                dataset = dfile["vectors"]
+                assert isinstance(dataset, Dataset)
+                slices = get_range(chunk)
+                result_matrix = slicer(dataset, slices)
+            included_keys = list(map(lambda idx: self.inv_key_dict[idx], chunk))
+            yield included_keys, result_matrix
+
+    def vector_chunker(self, chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
+        assert self.datasets_exist
+        h5py_idxs = self.inv_key_dict.keys()
+        sorted_keys = sorted(h5py_idxs)
+        chunks = divide_iterable_in_lists(sorted_keys, chunk_size)
+        for chunk in chunks:
+            with h5py.File(self.h5path, self.__mode) as dfile:
+                dataset = dfile["vectors"]
+                assert isinstance(dataset, Dataset)
+                slices = get_range(chunk)
+                result_matrix = slicer(dataset, slices)
+            included_keys = list(map(lambda idx: self.inv_key_dict[idx], chunk))
+            yield included_keys, result_matrix

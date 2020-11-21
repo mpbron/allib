@@ -30,6 +30,6 @@ def get_range(iterable: Sequence[int]) -> Iterable[Tuple[int, Optional[int]]]:
         max_int = int_list[-1]
         if min_int == max_int:
             return min_int, None
-        return min_int, max_int
+        return min_int, max_int + 1
     map_result = map(minmax, get_consecutive(iterable))
     yield from map_result

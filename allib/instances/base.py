@@ -138,6 +138,10 @@ class InstanceProvider(MutableMapping[KT, Instance[KT, DT, VT, RT]], ABC , Gener
         vectors = [self[key].vector  for key in keys]
         return vectors
 
+    @abstractmethod
+    def matrix_chunker(self, batch_size) -> Iterator[Tuple[Sequence[KT], VT]]:
+        raise NotImplementedError
+
     def vector_chunker(self, batch_size) -> Iterator[Sequence[Tuple[KT, Optional[VT]]]]:
         id_vecs = ((elem.identifier, elem.vector) for elem in self.values())
         chunks = divide_iterable_in_lists(id_vecs, batch_size)
