@@ -7,11 +7,6 @@ import os
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 
-import rpy2.robjects as ro # type: ignore
-from rpy2.robjects.packages import importr #type: ignore
-from rpy2.robjects import pandas2ri # type: ignore
-from rpy2.robjects.conversion import localconverter # type: ignore
-
 from ..environment import AbstractEnvironment
 from ..instances import Instance
 from ..machinelearning import AbstractClassifier
