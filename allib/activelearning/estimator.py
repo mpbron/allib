@@ -11,10 +11,16 @@ from typing import (Any, Deque, Dict, FrozenSet, Generic, Iterable, List,
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
-import rpy2.robjects as ro  # type: ignore
-from rpy2.robjects import pandas2ri  # type: ignore
-from rpy2.robjects.conversion import localconverter  # type: ignore
-from rpy2.robjects.packages import importr  # type: ignore
+try:
+    import rpy2.robjects as ro  # type: ignore
+    from rpy2.robjects import pandas2ri  # type: ignore
+    from rpy2.robjects.conversion import localconverter  # type: ignore
+    from rpy2.robjects.packages import importr  # type: ignore
+except ImportError:
+    R_AVAILABLE = False
+else:
+    R_AVAILABLE = True
+
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance
@@ -31,6 +37,7 @@ RT = TypeVar("RT")
 LVT = TypeVar("LVT")
 PVT = TypeVar("PVT")
 _T = TypeVar("_T")
+
 LOGGER = logging.getLogger(__name__)
 
 def intersection(first: FrozenSet[_T], *others: FrozenSet[_T]) -> FrozenSet[_T]:
@@ -49,6 +56,10 @@ def _add_doc(learner: ActiveLearner[KT, DT, VT, RT, LT], key: KT):
     learner.env.labels.set_labels(doc, *labels)
     learner.set_as_labeled(doc)
 
+def _check_R():
+    if not R_AVAILABLE:
+        raise ImportError("Install rpy2 interop")
+
 class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     _name = "Estimator"
 
@@ -57,6 +68,7 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
                  learners: List[PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]],
                  probabilities: Optional[List[float]] = None, rng: Any = None, *_, **__) -> None:
         super().__init__(classifier)
+        _check_R()
         self._environment = None
         self._learners: Dict[int, PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]] = {
             i: learners for i, learners in enumerate(learners)}
@@ -66,10 +78,12 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
         self.matrix_history: Deque[pd.DataFrame] = collections.deque()
         self.contingency_history: Deque[Dict[FrozenSet[int], int]] = collections.deque()
         self._rng: Any = get_random_generator(rng)
+        
         R = ro.r
         filedir = os.path.dirname(os.path.realpath(__file__))
         r_script_file = os.path.join(filedir, "estimate.R")
         R["source"](r_script_file)
+
         
 
     def __call__(self,

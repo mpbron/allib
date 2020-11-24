@@ -1,11 +1,11 @@
 from __future__ import annotations
-from allib.instances.base import InstanceProvider
 
 import functools
 import itertools
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Generic, Optional, TypeVar, Callable, Any, Sequence, Tuple, Iterator
+from typing import (Any, Callable, Dict, Generic, Iterator, Optional, Sequence,
+                    Tuple, TypeVar)
 
 import numpy as np  # type: ignore
 from sklearn.exceptions import NotFittedError  # type: ignore
@@ -13,9 +13,8 @@ from sklearn.exceptions import NotFittedError  # type: ignore
 from ..environment import AbstractEnvironment
 from ..instances.base import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
-from ..utils import mapsnd, divide_sequence
-
-
+from ..utils import divide_sequence, mapsnd
+from ..utils.func import list_unzip, filter_snd_none
 from .poolbased import PoolbasedAL
 from .random import RandomSampling
 
@@ -33,27 +32,27 @@ LOGGER = logging.getLogger(__name__)
 
 class FeatureMatrix(Generic[KT]):
     def __init__(self, keys: Sequence[KT], vectors: Sequence[Optional[np.ndarray]]):
-        key_vecs = filter(lambda x: x[1] is not None, zip(keys, vectors))
-        filtered_keys, filtered_vecs = map(list, zip(*key_vecs))
+        # Filter all rows with None as Vector
+        filtered_keys, filtered_vecs = filter_snd_none(keys, vectors)
         self.matrix = np.vstack(filtered_vecs)
         self.indices: Sequence[KT] = filtered_keys
 
     def get_instance_id(self, row_idx: int) -> KT:
         return self.indices[row_idx]
 
-    # @classmethod
-    # def generator_from_provider(cls, provider: InstanceProvider[KT, Any, np.ndarray, Any], batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
-    #     for key_batch in divide_sequence(provider.key_list, batch_size):
-    #         vectors = provider.bulk_get_vectors(key_batch)
-    #         matrix = cls(key_batch, vectors)
-    #         yield matrix
+    @classmethod
+    def generator_from_provider_mp(cls, provider: InstanceProvider[KT, Any, np.ndarray, Any], batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
+        for key_batch in divide_sequence(provider.key_list, batch_size):
+            ret_keys, vectors = provider.bulk_get_vectors(key_batch)
+            matrix = cls(ret_keys, vectors)
+            yield matrix
 
     @classmethod
     def generator_from_provider(cls,
                                 provider: InstanceProvider[KT, Any, np.ndarray, Any],
                                 batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
         for tuple_batch in provider.vector_chunker(batch_size):
-            keys, vectors = map(list, zip(*tuple_batch))
+            keys, vectors = list_unzip(tuple_batch)
             matrix = cls(keys, vectors)
             yield matrix
 
@@ -150,7 +149,7 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         # is on the first position of the list
         sorted_tuples = sorted(metric_tuples, key=lambda x: x[1], reverse=True)
         # Retrieve the keys from the tuples
-        ordered_keys, ordered_metrics = map(list, zip(*sorted_tuples))
+        ordered_keys, ordered_metrics = list_unzip(sorted_tuples)
         return ordered_keys, ordered_metrics
 
     @MLBased.iterator_fallback

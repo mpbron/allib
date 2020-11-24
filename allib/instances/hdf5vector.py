@@ -1,78 +1,30 @@
 from abc import abstractmethod
-from typing import (Dict, Generic, Iterable, Iterator, MutableMapping,
-                    Optional, Sequence, Tuple, TypeVar, Union)
+from typing import Dict, Generic, Iterator, Optional, Sequence, Tuple, TypeVar
 
 import h5py
 import pickle
+import itertools
 import numpy as np  # type: ignore
 from h5py._hl.dataset import Dataset
 
+from .vectorstorage import VectorStorage
+
 from ..utils.chunks import divide_iterable_in_lists, get_range
+from ..utils.func import filter_snd_none, list_unzip
+from ..utils.numpy import slicer, matrix_to_vector_list, matrix_tuple_to_vectors, matrix_tuple_to_zipped
 
 KT = TypeVar("KT")
-VT = TypeVar("VT")
-
-def slicer(matrix: Union[Dataset, np.ndarray], slices: Iterable[Tuple[int, Optional[int]]]) -> np.ndarray:
-        def get_slices_1d():
-            for slice_min, slice_max in slices:
-                if slice_max is not None:
-                    yield matrix[slice_min:slice_max]
-                else:
-                    yield matrix[slice_min]
-        def get_slices_2d():
-            for slice_min, slice_max in slices:
-                if slice_max is not None:
-                    yield matrix[slice_min:slice_max,:]
-                else:
-                    yield matrix[slice_min,:]
-        dims = len(matrix.shape)
-        if dims == 1:
-            return np.hstack(list(get_slices_1d())) # type: ignore
-        return np.vstack(list(get_slices_2d())) # type: ignore
-
-class VectorStorage(MutableMapping[KT, VT], Generic[KT, VT]):
-    @abstractmethod
-    def __getitem__(self, k: KT) -> VT:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __setitem__(self, k: KT, value: VT) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __contains__(self, item: object) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __iter__(self) -> Iterator[KT]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_bulk(self, keys: Sequence[KT], values: Union[Sequence[VT]]) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_matrix(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], VT]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def matrices_chunker(self) -> Iterator[Tuple[KT, VT]]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __enter__(self):
-        raise NotImplementedError
-    @abstractmethod
-    def __exit__(self, type, value, traceback):
-        raise NotImplementedError
 
 class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
     __writemodes = ["a", "r+", "w", "w-", "x"]
-    def __init__(self, h5path: str, mode="r") -> None:
+    def __init__(self, h5path: str, mode: str = "r") -> None:
         self.__mode = mode
         self.h5path = h5path
         self.key_dict: Dict[KT, int] = dict()
         self.inv_key_dict: Dict[int, KT] = dict()
+        self.reload()
+
+    def reload(self) -> None:
         with h5py.File(self.h5path, self.__mode) as hfile:
             if "dicts" in hfile:
                 dicts = hfile["dicts"]
@@ -158,7 +110,7 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
             new_shape = (old_shape[0] + arr_shape[0],)
             key_set.resize(size=new_shape)
             key_set[-arr_shape[0]:] = new_keys
-            start_index = old_shape[0] + 1
+            start_index = old_shape[0]
             for i, key in enumerate(keys):
                 hdf5_idx = start_index + i
                 self.key_dict[key] = hdf5_idx
@@ -211,16 +163,23 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
     def _update_vectors(self, keys: Sequence[KT], values: Sequence[np.ndarray]) -> None:
         assert self.__mode in self.__writemodes
         assert len(keys) == len(values)
-        with h5py.File(self.h5path, self.__mode) as hfile:
-            dataset = hfile["vectors"]
-            assert isinstance(dataset, Dataset)
-            for key, value in values:
-                h5_idx = self.key_dict[key]
-                dataset[h5_idx] = value # type: ignore
+        if values:
+            with h5py.File(self.h5path, self.__mode) as hfile:
+                dataset = hfile["vectors"]
+                assert isinstance(dataset, Dataset)
+                for key, value in zip(keys, values):
+                    h5_idx = self.key_dict[key]
+                    dataset[h5_idx] = value # type: ignore
             
-    def add_bulk(self, keys: Sequence[KT], values: Sequence[np.ndarray]) -> None:
+    def add_bulk(self, input_keys: Sequence[KT], input_values: Sequence[Optional[np.ndarray]]) -> None:
         assert self.__mode in self.__writemodes
-        assert len(keys) == len(values) and len(keys) > 0
+        assert len(input_keys) == len(input_values) and len(input_keys) > 0
+
+        keys, values = filter_snd_none(input_keys, input_values)
+        
+        if not values:
+            return
+        
         # Check if the vector storage exists
         if not self.datasets_exist:
             matrix = np.vstack(values)
@@ -241,13 +200,16 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         in_storage = filter(lambda kv: kv[0] in self.key_dict, zip(keys, values))
         
         # Update the present key vector pairs
-        old_keys, updated_vectors = map(list, zip(*in_storage))
+        old_keys, updated_vectors = list_unzip(in_storage)
         self._update_vectors(old_keys, updated_vectors)
 
         # Append the new key vector pairs
-        new_keys, new_vectors = map(list, zip(*not_in_storage))
-        matrix = np.vstack(new_vectors)
-        self.add_bulk_matrix(new_keys, matrix)
+        new_keys, new_vectors = list_unzip(not_in_storage)
+        if new_vectors:
+            matrix = np.vstack(new_vectors)
+            self.add_bulk_matrix(new_keys, matrix)
+
+    
 
     def _get_matrix(self, h5_idxs: Sequence[int]) -> Tuple[Sequence[KT], np.ndarray]:
         with h5py.File(self.h5path, self.__mode) as dfile:
@@ -257,6 +219,11 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
             result_matrix = slicer(dataset, slices)
             included_keys = list(map(lambda idx: self.inv_key_dict[idx], h5_idxs))
         return included_keys, result_matrix
+
+    def get_vectors(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], Sequence[np.ndarray]]:
+        ret_keys, ret_matrix = self.get_matrix(keys)
+        ret_vectors = matrix_to_vector_list(ret_matrix)
+        return ret_keys, ret_vectors
 
     def get_matrix(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], np.ndarray]:
         assert self.datasets_exist
@@ -272,6 +239,18 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         sorted_keys = sorted(h5py_idxs)
         chunks = divide_iterable_in_lists(sorted_keys, chunk_size)
         yield from map(self._get_matrix, chunks)
+
+    def get_vectors_chunked(self, keys: Sequence[KT], chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], Sequence[np.ndarray]]]:
+        results = itertools.starmap(matrix_tuple_to_vectors, self.get_matrix_chunked(keys, chunk_size))
+        yield from results
+
+    def get_vectors_zipped(self, keys: Sequence[KT], chunk_size: int = 200) -> Iterator[Sequence[Tuple[KT, np.ndarray]]]:
+        results = itertools.starmap(matrix_tuple_to_zipped, self.get_matrix_chunked(keys, chunk_size))
+        yield from results
+
+    def vectors_chunker(self, chunk_size: int = 200) -> Iterator[Sequence[Tuple[KT, np.ndarray]]]:
+        results = itertools.starmap(matrix_tuple_to_zipped, self.matrices_chunker(chunk_size))
+        yield from results
            
     def matrices_chunker(self, chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
         assert self.datasets_exist

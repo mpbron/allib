@@ -1,7 +1,8 @@
 from __future__ import annotations
+from ..utils.chunks import divide_iterable_in_lists
 
 import itertools
-from typing import (Any, Generic, Iterable, Iterator, Optional, Sequence,
+from typing import (Any, Generic, Iterable, Iterator, List, Optional, Sequence, Tuple,
                     TypeVar)
 
 from .base import Instance, InstanceProvider
@@ -107,6 +108,20 @@ class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
 
     def clear(self) -> None:
         self.dictionary = {}
+       
+    def bulk_get_vectors(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], Sequence[Optional[VT]]]:
+        vectors = [self[key].vector  for key in keys]
+        return keys, vectors
+
+    def vector_chunker(self, batch_size) -> Iterator[Sequence[Tuple[KT, Optional[VT]]]]:
+        id_vecs = ((elem.identifier, elem.vector) for elem in self.values())
+        chunks = divide_iterable_in_lists(id_vecs, batch_size)
+        return chunks
+
+    def bulk_get_all(self) -> List[Instance[KT, DT, VT, RT]]:
+        return list(self.get_all())
+
+    
 
 
 class DataBucketProvider(DataPointProvider[KT, DT, VT], Generic[KT, DT, VT]):

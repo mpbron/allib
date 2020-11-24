@@ -18,6 +18,9 @@ class ContextVectorizer(BaseVectorizer[ContextInstance[Any, DT, np.ndarray, Any,
         super().__init__()
         self.innermodel = vectorizer
 
+    def fitted(self) -> bool:
+        return self.innermodel.fitted
+
     def fit(self, x_data: InstanceList, **kwargs: Any) -> ContextVectorizer[DT]: # type: ignore
         texts, contexts = zip(*((x.data, x.context) for x in x_data)) # type: ignore
         self.innermodel.fit(texts, contexts)

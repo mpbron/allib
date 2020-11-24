@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar, Any
+from typing import Generic, Sequence, TypeVar, Any
 from abc import ABC, abstractmethod, abstractclassmethod
 from ..history import BaseLogger
 from ..instances import InstanceProvider
@@ -59,7 +59,10 @@ class AbstractEnvironment(ABC, Generic[KT, DT, VT, RT, LT]):
     def retrieve(self, key: str) -> Any:
         raise NotImplementedError
 
+    def add_vectors(self, keys: Sequence[KT], vectors: Sequence[VT]) -> None:
+        self.dataset.bulk_add_vectors(keys, vectors)
+
     @abstractclassmethod
-    def from_environment(cls, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> AbstractEnvironment[KT, DT, VT, RT, LT]:
+    def from_environment(cls, environment: AbstractEnvironment[KT, DT, VT, RT, LT], *args, **kwargs) -> AbstractEnvironment[KT, DT, VT, RT, LT]:
         raise NotImplementedError
 

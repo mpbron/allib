@@ -18,6 +18,9 @@ class TextInstanceVectorizer(BaseVectorizer[Instance[Any, str, np.ndarray, Any]]
         super().__init__()
         self.innermodel = vectorizer
 
+    def fitted(self) -> bool:
+        return self.innermodel.fitted
+
     def fit(self, x_data: InstanceList, **kwargs: Any) -> TextInstanceVectorizer:
         texts = [x.data for x in x_data]
         self.innermodel.fit(texts)

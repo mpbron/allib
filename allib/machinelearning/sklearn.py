@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import pickle
-from typing import Iterable, List, Set, Tuple, FrozenSet, TypeVar, Sequence, Any
+from typing import (Any, FrozenSet, Iterable, List, Sequence, Set, Tuple,
+                    TypeVar)
 
-import numpy as np # type: ignore
-from sklearn.base import ClassifierMixin, TransformerMixin # type: ignore
+import numpy as np  # type: ignore
 
-from ..balancing import IdentityBalancer, BaseBalancer
-from ..instances import Instance
+from sklearn.base import ClassifierMixin, TransformerMixin  # type: ignore
+
+from ..balancing import BaseBalancer, IdentityBalancer
 from ..environment import AbstractEnvironment
+from ..instances import Instance
 from ..utils import SaveableInnerModel
-
+from ..utils.func import list_unzip
 from .base import AbstractClassifier
+
 
 class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, str, np.ndarray, np.ndarray]):
     _name = "Sklearn"
@@ -54,7 +57,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
             for ins, lbl in zip(instances, labelings):
                 if ins.vector is not None:
                     yield ins.vector, self.encode_labels(lbl)
-        x_data, y_data = zip(*list(yield_xy()))
+        x_data, y_data = list_unzip(yield_xy())
         x_fm = np.vstack(x_data)
         y_lm = np.vstack(y_data)
         if y_lm.shape[1] == 1:

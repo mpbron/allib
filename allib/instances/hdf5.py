@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+import functools
 import itertools
-from typing import (Any, Dict, Generic, Iterable, Iterator, Optional, Sequence, Tuple,
-                    TypeVar)
+from typing import (Any, Dict, Generic, Iterable, Iterator, List, Optional,
+                    Sequence, Tuple, TypeVar, Union)
 
+import numpy as np
+import pandas as pd
+import tables
+
+from ..utils.chunks import (divide_iterable, divide_iterable_in_lists,
+                            divide_sequence)
+from ..utils.func import list_unzip
 from .base import Instance, InstanceProvider
+from .hdf5vector import HDF5VectorStorage
 from .memory import DataPoint
-from .hdf5storage import HDF5VectorStorage
 
 KT = TypeVar("KT")
 DT = TypeVar("DT")
@@ -16,86 +24,162 @@ LT = TypeVar("LT")
 LVT = TypeVar("LVT")
 
 
+class HDF5Instance(Instance[int, str, np.ndarray, str]):
+    def __init__(self, identifier: int, data: str, vector: Optional[np.ndarray], 
+                 vector_storage: HDF5VectorStorage[int]) -> None:
+        self._identifier = identifier
+        self._data = data
+        self._vectorstorage = vector_storage
+        self._vector = vector
 
-class HDF5Provider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
+    @property
+    def data(self) -> str:
+        return self._data
 
-    def __init__(self, data_storage: Dict[KT, DT], vector_storage_location: str) -> None:
+    @property
+    def representation(self) -> str:
+        return self._data
+
+    @property
+    def identifier(self) -> int:
+        return int(self._identifier)
+
+    @property
+    def vector(self) -> Optional[np.ndarray]:
+        if self._vector is None:
+            if self._identifier in self._vectorstorage:
+                self._vector = self._vectorstorage[self._identifier]
+        return self._vector
+
+    @vector.setter
+    def vector(self, value: Optional[np.ndarray]) -> None:  # type: ignore
+        if value is not None:
+            self._vector = value
+            with HDF5VectorStorage[int](self._vectorstorage.h5path, "a") as writeable_storage:
+                writeable_storage[self.identifier] = value
+
+    @classmethod
+    def from_row(cls, vectorstorage: HDF5VectorStorage[int], 
+                 row: Sequence[Union[int, str]]) -> HDF5Instance:
+        return cls(row[0], row[1], None, vectorstorage)  # type: ignore
+
+
+class HDF5Provider(InstanceProvider[int, str, np.ndarray, str]):
+    def __init__(self, data_storage: str, vector_storage_location: str) -> None:
         self.data_storage = data_storage
         self.vector_storage_location = vector_storage_location
-        self.vectors = HDF5VectorStorage[KT](vector_storage_location)
+        self.vectors = HDF5VectorStorage[int](vector_storage_location)
+
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        return pd.read_hdf(self.data_storage, "datastorage")  # type: ignore
 
     @classmethod
     def from_data_and_indices(cls,
-                              indices: Sequence[KT],
-                              raw_data: Sequence[DT],
+                              indices: Sequence[int],
+                              raw_data: Sequence[str],
+                              data_storage: str,
                               vector_storage_location: str):
-        datapoints = {key: data for key, data in zip(indices, raw_data)}
-        return cls(datapoints, vector_storage_location)
+        assert len(indices) == len(raw_data)
+        datapoints = zip(indices, raw_data)
+        dataframe = pd.DataFrame(datapoints, columns=["key", "data"])  # type: ignore
+        dataframe.to_hdf(data_storage, "datastorage")  # type: ignore
+        return cls(data_storage, vector_storage_location)
 
     @classmethod
-    def from_data(cls, raw_data: Sequence[DT], vector_storage_location) -> HDF5Provider[KT, DT, VT]:
-        indices = range(len(raw_data))
-        return cls.from_data_and_indices(indices, raw_data, vector_storage_location)
+    def from_data(cls, raw_data: Sequence[str], data_storage_location, 
+                  vector_storage_location) -> HDF5Provider:
+        indices = list(range(len(raw_data)))
+        return cls.from_data_and_indices(indices, raw_data, data_storage_location, vector_storage_location)
+
     @classmethod
-    def from_provider(cls, provider: InstanceProvider[KT, DT, VT, Any]) -> DataPointProvider[KT, DT, VT]:
-        if isinstance(provider, DataPointProvider):
-            return cls.copy(provider)
+    def from_provider(cls, provider: InstanceProvider[int, str, np.ndarray, str], 
+                      data_storage: str, vector_storage_location: str) -> HDF5Provider:
         instances = provider.bulk_get_all()
-        datapoints = [DataPoint[KT, DT, VT](
-            ins.identifier, ins.data, ins.vector) for ins in instances]
-        return cls(datapoints)
+        datapoints = [(ins.identifier, ins.data) for ins in instances]
+        ins_vectors = [(ins.identifier, ins.vector) for ins in instances]
+        identifiers, vectors = list_unzip(ins_vectors)
+        dataframe = pd.DataFrame(datapoints, columns=["key", "data"])
+        dataframe.to_hdf(data_storage, "datastorage")  # type: ignore
+        with HDF5VectorStorage[int](vector_storage_location, "a") as storage:
+            storage.add_bulk(identifiers, vectors)
+        return cls(data_storage, vector_storage_location)
 
-    @classmethod
-    def copy(cls, provider: DataPointProvider[KT, DT, VT]) -> DataPointProvider[KT, DT, VT]:
-        instances = provider.bulk_get_all()
-        return cls(instances)  # type: ignore
+    def __iter__(self) -> Iterator[int]:
+        key_col = self.dataframe["key"]
+        for _, key in key_col.items():  # type: ignore
+            yield int(key)
 
-    def __iter__(self) -> Iterator[KT]:
-        yield from self.dictionary.keys()
+    def __getitem__(self, key: int) -> HDF5Instance:
+        df = self.dataframe
+        row = df[df.key == key]
+        vector: Optional[np.ndarray] = None
+        if key in self.vectors:
+            vector = self.vectors[key]
+        return HDF5Instance(key, row["data"].values[0], vector, self.vectors)
 
-    def __getitem__(self, key: KT) -> DataPoint[KT, DT, VT]:
-        return self.dictionary[key]
+    def __setitem__(self, key: int, value: HDF5Instance) -> None:
+        pass
 
-    def __setitem__(self, key: KT, value: Instance[KT, DT, VT, Any]) -> None:
-        self.dictionary[key] = value  # type: ignore
-
-    def __delitem__(self, key: KT) -> None:
-        del self.dictionary[key]
+    def __delitem__(self, key: int) -> None:
+        pass
 
     def __len__(self) -> int:
-        return len(self.dictionary)
+        return len(self.dataframe)
 
     def __contains__(self, key: object) -> bool:
-        return key in self.dictionary
+        df = self.dataframe
+        return len(df[df.key == key]) > 0
 
     @property
     def empty(self) -> bool:
-        return not self.dictionary
+        return not self.dataframe
 
-    def get_all(self) -> Iterator[Instance[KT, DT, VT, DT]]:
+    def get_all(self):
         yield from list(self.values())
 
     def clear(self) -> None:
-        self.dictionary = {}
+        pass
+
+    def data_chunker(self, batch_size: int) -> Iterable[Sequence[HDF5Instance]]:
+        constructor = functools.partial(HDF5Instance.from_row, self.vectors)
+        df = self.dataframe
+        instance_df = df.apply(constructor, axis=1)  # type: ignore
+        instance_list: List[HDF5Instance] = instance_df.tolist()
+        return divide_iterable_in_lists(instance_list, batch_size)
+
+    def bulk_add_vectors(self, keys: Sequence[int], values: Sequence[np.ndarray]) -> None:
+        with HDF5VectorStorage[int](self.vector_storage_location, "a") as writeable_storage:
+            writeable_storage.add_bulk(keys, values)
+        self.vectors.reload()
+
+    def bulk_get_vectors(self, keys: Sequence[int]):
+        ret_keys, vectors = self.vectors.get_vectors(keys)
+        return ret_keys, vectors
+
+    def vector_chunker(self, batch_size: int):
+        self.vectors.reload()
+        results = self.vectors.vectors_chunker(batch_size)
+        yield from results
 
 
-class HDF5BucketProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
-    def __init__(self, dataset: HDF5Provider[KT, DT, VT], instances: Iterable[KT]):
-        self._elements = set(instances)
+class HDF5BucketProvider(HDF5Provider):
+    def __init__(self, dataset: HDF5Provider, identifiers: Iterable[int]):
+        self._elements = set(identifiers)
         self.dataset = dataset
+        self.vectors = dataset.vectors
 
-    def __iter__(self) -> Iterator[KT]:
+    def __iter__(self):
         yield from self._elements
 
-    def __getitem__(self, key: KT) -> DataPoint[KT, DT, VT]:
+    def __getitem__(self, key: KT):
         if key in self._elements:
             return self.dataset[key]
         raise KeyError(
             f"This datapoint with key {key} does not exist in this provider")
 
-    def __setitem__(self, key: KT, value: Instance[KT, DT, VT, Any]) -> None:
+    def __setitem__(self, key: KT, _: Instance[KT, DT, VT, Any]) -> None:
         self._elements.add(key)
-        self.dataset[key] = value  # type: ignore
 
     def __delitem__(self, key: KT) -> None:
         self._elements.discard(key)
@@ -111,9 +195,21 @@ class HDF5BucketProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
         return not self._elements
 
     @classmethod
-    def from_provider(cls, dataset: DataPointProvider[KT, DT, VT], provider: InstanceProvider[KT, DT, VT, Any]) -> DataBucketProvider[KT, DT, VT]:
+    def from_provider(cls, dataset: HDF5Provider, provider: InstanceProvider[int, DT, VT, Any]) -> HDF5Provider:
         return cls(dataset, provider.key_list)
 
     @classmethod
-    def copy(cls, provider: DataBucketProvider[KT, DT, VT]) -> DataBucketProvider[KT, DT, VT]:
+    def copy(cls, provider: HDF5BucketProvider) -> HDF5BucketProvider:
         return cls(provider.dataset, provider.key_list)
+
+    def vector_chunker(self, batch_size: int):
+        self.vectors.reload()
+        results = self.vectors.get_vectors_zipped(self.key_list, batch_size)
+        yield from results
+
+    def data_chunker(self, batch_size: int) -> Iterable[Sequence[HDF5Instance]]:
+        results = super().data_chunker(batch_size)
+        in_set = functools.partial(
+            filter, lambda ins: ins.identifier in self._elements)
+        filtered = map(list, map(in_set, results))
+        return filtered

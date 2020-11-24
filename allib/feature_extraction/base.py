@@ -11,12 +11,15 @@ CT = TypeVar("CT")
 LT = TypeVar("LT")
 
 class BaseVectorizer(ABC, Generic[DT]):
-    fitted: bool
     _name = "BaseVectorizer"
     
     def __init__(self):
-        self.fitted = False
+        self._fitted = False
     
+    @property
+    def fitted(self) -> bool:
+        return self._fitted
+
     @abstractmethod
     def fit(self, x_data: Sequence[DT], **kwargs: Any) -> BaseVectorizer[DT]:
         pass
@@ -30,7 +33,6 @@ class BaseVectorizer(ABC, Generic[DT]):
         pass
 
 class SeparateContextVectorizer(ABC, Generic[DT, CT]):
-    fitted: bool
     _name = "SeparateContextVectorizer"
     
     def __init__(
@@ -38,9 +40,12 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
             data_vectorizer: BaseVectorizer[DT],
             context_vectorizer: BaseVectorizer[CT]
         ):
-        self.fitted = False
         self.data_vectorizer = data_vectorizer
         self.context_vectorizer = context_vectorizer
+
+    @property
+    def fitted(self) -> bool:
+        return self.data_vectorizer.fitted and self.context_vectorizer.fitted
 
     def fit(
             self,
@@ -49,7 +54,6 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
             **kwargs: Any) -> SeparateContextVectorizer[DT, CT]:
         self.data_vectorizer.fit(x_data, **kwargs)
         self.context_vectorizer.fit(context_data, **kwargs)
-        self.fitted = True
         return self
 
     def transform(
@@ -86,8 +90,10 @@ class StackVectorizer(BaseVectorizer[DT], Generic[DT]):
     def fit(self, x_data: Sequence[DT], **kwargs: Any) -> StackVectorizer[DT]:
         for vec in self.vectorizers:
             vec.fit(x_data, **kwargs)
-        self.fitted = True
         return self
+
+    def fitted(self) -> bool:
+        return all([vec.fitted for vec in self.vectorizers])
 
     def transform(self, x_data: Sequence[DT], **kwargs: Any) -> np.ndarray: # type: ignore
         if self.fitted:
