@@ -12,11 +12,14 @@ DT = TypeVar("DT")
 InstanceList = Sequence[ContextInstance[Any, DT, np.ndarray, Any, DT]] # type: ignore
 
 class ContextVectorizer(BaseVectorizer[ContextInstance[Any, DT, np.ndarray, Any, DT]], Generic[DT]):
-    name = "ContextVectorizer"
+    _name = "ContextVectorizer"
     def __init__(self,
                  vectorizer: SeparateContextVectorizer[DT, DT]) -> None:
         super().__init__()
         self.innermodel = vectorizer
+
+    def fitted(self) -> bool:
+        return self.innermodel.fitted
 
     def fit(self, x_data: InstanceList, **kwargs: Any) -> ContextVectorizer[DT]: # type: ignore
         texts, contexts = zip(*((x.data, x.context) for x in x_data)) # type: ignore

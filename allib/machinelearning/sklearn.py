@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 import pickle
-from typing import Iterable, List, Set, Tuple, FrozenSet, TypeVar, Sequence, Any
+from typing import (Any, FrozenSet, Iterable, List, Sequence, Set, Tuple,
+                    TypeVar)
 
-import numpy as np # type: ignore
-from sklearn.base import ClassifierMixin, TransformerMixin # type: ignore
+import numpy as np  # type: ignore
 
-from ..balancing import IdentityBalancer, BaseBalancer
-from ..instances import Instance
+from sklearn.base import ClassifierMixin, TransformerMixin  # type: ignore
+
+from ..balancing import BaseBalancer, IdentityBalancer
 from ..environment import AbstractEnvironment
+from ..instances import Instance
 from ..utils import SaveableInnerModel
-
+from ..utils.func import list_unzip
 from .base import AbstractClassifier
 
+
 class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, str, np.ndarray, np.ndarray]):
+    _name = "Sklearn"
+
     def __init__(
             self,
             estimator: ClassifierMixin, encoder: TransformerMixin, balancer: BaseBalancer = IdentityBalancer(),
@@ -34,7 +39,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
 
     def decode_vector(self, vector: np.ndarray) -> Sequence[FrozenSet[str]]:
         labelings = self.encoder.inverse_transform(vector).tolist() # type: ignore
-        return [frozenset(labeling) for labeling in labelings]
+        return [frozenset([labeling]) for labeling in labelings]
 
     def get_label_column_index(self, label: str) -> int:
         label_list = self.encoder.classes_.tolist() # type: ignore
@@ -52,7 +57,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
             for ins, lbl in zip(instances, labelings):
                 if ins.vector is not None:
                     yield ins.vector, self.encode_labels(lbl)
-        x_data, y_data = zip(*list(yield_xy()))
+        x_data, y_data = list_unzip(yield_xy())
         x_fm = np.vstack(x_data)
         y_lm = np.vstack(y_data)
         if y_lm.shape[1] == 1:
@@ -91,14 +96,19 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
     def predict_proba_instances(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]]) -> Sequence[FrozenSet[Tuple[str, float]]]:
         x_vec = self.encode_x(instances)
         y_pred = self.predict_proba(x_vec).tolist()
-        label_list = self.encoder.classes_.tolist() # type: ignore
-        y_labels = [
-            frozenset(zip(y_vec, label_list))
+        label_list: List[str] = self.encoder.classes_.tolist() # type: ignore
+        y_labels: List[FrozenSet[Tuple[str, float]]] = [
+            frozenset(zip(label_list, y_vec)) # type: ignore
             for y_vec in y_pred
         ]
         return y_labels
+    
+    @property
+    def name(self) -> str:
+        return f"{self._name} :: {self.innermodel.__class__}"
+        
 
-    def fit_instances(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]], labels: Sequence[Set[str]]):
+    def fit_instances(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]], labels: Sequence[FrozenSet[str]]):
         assert len(instances) == len(labels)
         x_train_vec, y_train_vec = self.encode_xy(instances, labels)
         self.fit(x_train_vec, y_train_vec)
@@ -111,10 +121,15 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
 
 
 class MultilabelSkLearnClassifier(SkLearnClassifier):
+    _name = "Multilabel Sklearn"
     def __call__(self, environment: AbstractEnvironment[int, Any, np.ndarray, Any, str]) -> SkLearnClassifier:
         self._target_labels = frozenset(environment.labels.labelset)
         self.encoder.fit(list(map(lambda x: {x}, self._target_labels))) # type: ignore
         return self
 
     def encode_labels(self, labels: Iterable[str]) -> np.ndarray:
-        return self.encoder.transform([list(set(labels))])
+        return self.encoder.transform([list(set(labels))]) # type: ignore
+
+    def decode_vector(self, vector: np.ndarray) -> Sequence[FrozenSet[str]]:
+        labelings = self.encoder.inverse_transform(vector).tolist() # type: ignore
+        return [frozenset(labeling) for labeling in labelings]

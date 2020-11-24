@@ -30,7 +30,7 @@ DocTokenizer = Callable[..., List[str]]
 
 
 class Doc2VecVectorizer(BaseVectorizer[str], SaveableInnerModel[Doc2Vec]):
-    name = "Doc2Vec"
+    _name = "Doc2Vec"
     innermodel: Optional[Doc2Vec]
     tokenizer: DocTokenizer
 
@@ -52,7 +52,7 @@ class Doc2VecVectorizer(BaseVectorizer[str], SaveableInnerModel[Doc2Vec]):
             documents=get_line_docs(x_data), **self.d2v_params)
         self.innermodel.delete_temporary_training_data( # type: ignore
             keep_doctags_vectors=True, keep_inference=True) 
-        self.fitted = True
+        self._fitted = True
         return self
 
     @SaveableInnerModel.load_model_fallback

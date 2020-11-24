@@ -12,7 +12,7 @@ from .base import BaseVectorizer
 
 class SklearnVectorizer(BaseVectorizer[str], SaveableInnerModel[BaseEstimator]):
     innermodel: BaseEstimator
-    name = "SklearnVectorizer"
+    _name = "SklearnVectorizer"
 
     def __init__(
         self,
@@ -26,7 +26,7 @@ class SklearnVectorizer(BaseVectorizer[str], SaveableInnerModel[BaseEstimator]):
     @SaveableInnerModel.load_model_fallback
     def fit(self, x_data: Sequence[str], **kwargs: Any) -> SklearnVectorizer:
         self.innermodel = self.innermodel.fit(x_data) # type: ignore
-        self.fitted = True
+        self._fitted = True
         return self
 
     @SaveableInnerModel.load_model_fallback

@@ -48,7 +48,7 @@ class LabelProvider(ABC, Generic[KT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def get_labels(self, instance: Union[KT, Instance[KT, Any, Any, Any]]) -> Set[LT]:
+    def get_labels(self, instance: Union[KT, Instance[KT, Any, Any, Any]]) -> FrozenSet[LT]:
         """Return the labels that are associated with the instance
 
         Parameters
@@ -64,7 +64,7 @@ class LabelProvider(ABC, Generic[KT, LT]):
         raise NotImplementedError
 
     @abstractmethod
-    def get_instances_by_label(self, label: LT) -> Set[KT]:
+    def get_instances_by_label(self, label: LT) -> FrozenSet[KT]:
         """Retrieve which instances are annotated with `label`
 
         Parameters

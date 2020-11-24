@@ -134,11 +134,19 @@ class InstanceProvider(MutableMapping[KT, Instance[KT, DT, VT, RT]], ABC , Gener
     def clear(self) -> None:
         raise NotImplementedError
 
-    def bulk_get_vectors(self, keys: Sequence[KT]) -> Sequence[Optional[VT]]:
-        vectors = [self[key].vector  for key in keys]
-        return vectors
+    def bulk_add_vectors(self, keys: Sequence[KT], values: Sequence[VT]) -> None:
+        for key, vec in zip(keys, values):
+            self[key].vector = vec
 
-    def vector_chunker(self, batch_size) -> Iterator[Sequence[Tuple[KT, Optional[VT]]]]:
+    def bulk_get_vectors(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], Sequence[Optional[VT]]]:
+        vectors = [self[key].vector  for key in keys]
+        return keys, vectors
+
+    def data_chunker(self, batch_size: int) -> Iterator[Sequence[Instance[KT, DT, VT, DT]]]:
+        chunks = divide_iterable_in_lists(self.values(), batch_size)
+        yield from chunks
+
+    def vector_chunker(self, batch_size: int) -> Iterator[Sequence[Tuple[KT, Optional[VT]]]]:
         id_vecs = ((elem.identifier, elem.vector) for elem in self.values())
         chunks = divide_iterable_in_lists(id_vecs, batch_size)
         return chunks

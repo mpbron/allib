@@ -4,6 +4,7 @@ class ALCatalog:
     class Paradigm(Enum):
         POOLBASED = "Poolbased"
         ESTIMATOR = "Estimator"
+        CYCLE = "CycleEstimator"
         ENSEMBLE  = "Ensemble"
 
     class QueryType(str, Enum):
@@ -17,3 +18,4 @@ class ALCatalog:
         LABELMAXIMIZER = "LabelMaximizer"
         MIN_ENTROPY = "MinEntropy"
         MOST_CONFIDENCE = "MostConfidence"
+        PRELABELED = "Prelabeled"

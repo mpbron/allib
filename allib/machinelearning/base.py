@@ -18,7 +18,7 @@ LT = TypeVar("LT")
 PVT = TypeVar("PVT")
 
 class AbstractClassifier(ABC, Generic[KT, VT, LT, LVT, PVT]):
-    name = "AbstractClassifier"
+    _name = "AbstractClassifier"
 
     @abstractmethod
     def __call__(self, 
@@ -59,13 +59,17 @@ class AbstractClassifier(ABC, Generic[KT, VT, LT, LVT, PVT]):
         pass
 
     @abstractmethod
-    def fit_instances(self, instances: Sequence[Instance[KT, Any, VT, Any]], labels: Sequence[Set[LT]]):
+    def fit_instances(self, instances: Sequence[Instance[KT, Any, VT, Any]], labels: Sequence[FrozenSet[LT]]):
         pass
 
     @abstractmethod
     def predict_proba_instances(self, instances: Sequence[Instance[KT, Any, VT, Any]]) -> Sequence[FrozenSet[Tuple[LT, float]]]:
         pass
 
+    @property
+    def name(self) -> str:
+        return self._name
+        
     @property
     @abstractmethod
     def fitted(self) -> bool:

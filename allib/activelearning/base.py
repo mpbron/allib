@@ -64,7 +64,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         return self.env.labels
     
     @abstractmethod
-    def calculate_ordering(self) -> Sequence[KT]:
+    def calculate_ordering(self) -> Tuple[Sequence[KT], Sequence[float]]:
         raise NotImplementedError
     
     @abstractmethod
@@ -88,12 +88,23 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
     @staticmethod
     def label_log(func: F) -> F:
         @functools.wraps(func)
-        def wrapper(
-            self: ActiveLearner[KT, DT, VT, RT, LT], 
-            instance: Instance[KT, DT, VT, RT], *args: Any, **kwargs: Any):
+        def wrapper(self: ActiveLearner[KT, DT, VT, RT, LT], 
+                    instance: Instance[KT, DT, VT, RT], 
+                    *args: Any, **kwargs: Any):
             labels = self.env.labels.get_labels(instance)
             self.env.logger.log_label(instance, self.name,  *labels)
             return func(self, instance, *args, **kwargs)
+        return wrapper
+
+    @staticmethod
+    def ordering_log(func: F) -> F:
+        @functools.wraps(func)
+        def wrapper(self: ActiveLearner, *args: Any, **kwargs: Dict[str, Any]) -> FT:
+            ordering, ordering_metric = func(self, *args, **kwargs)
+            self.env.logger.log_ordering(ordering, ordering_metric, 
+                                         self.env.labeled.key_list,
+                                         self.env.labels)
+            return ordering, ordering_metric
         return wrapper
 
     @abstractmethod
