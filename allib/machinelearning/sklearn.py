@@ -96,9 +96,9 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
     def predict_proba_instances(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]]) -> Sequence[FrozenSet[Tuple[str, float]]]:
         x_vec = self.encode_x(instances)
         y_pred = self.predict_proba(x_vec).tolist()
-        label_list = self.encoder.classes_.tolist() # type: ignore
-        y_labels = [
-            frozenset(zip(y_vec, label_list)) # type: ignore
+        label_list: List[str] = self.encoder.classes_.tolist() # type: ignore
+        y_labels: List[FrozenSet[Tuple[str, float]]] = [
+            frozenset(zip(label_list, y_vec)) # type: ignore
             for y_vec in y_pred
         ]
         return y_labels
