@@ -214,7 +214,7 @@ class LabelEnsemble(PoolbasedAL[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarr
         }
         return self
 
-    def calculate_ordering(self) -> Sequence[KT]:
+    def calculate_ordering(self) -> Tuple[Sequence[KT], Sequence[float]]:
         raise NotImplementedError
 
     def __next__(self) -> Instance[KT, DT, np.ndarray, RT]:

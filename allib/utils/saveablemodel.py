@@ -21,6 +21,8 @@ class SaveableInnerModel(Generic[MT]):
         self.innermodel = innermodel
         if filename is None:
             self.filename = self._generate_random_file_name()
+        else:
+            self.filename = filename
         self.taboo_fields = {"innermodel": None}
         if taboo_fields is not None:
             for field in taboo_fields:

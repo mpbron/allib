@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Sequence
+from typing import Generic, TypeVar, Sequence, Tuple
 
 import numpy as np # type: ignore
 
@@ -15,5 +15,8 @@ PVT = TypeVar("PVT")
 class RandomSampling(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     _name = "Random"
 
-    def calculate_ordering(self) -> Sequence[KT]:
-        return np.random.permutation(self._unlabeled.key_list).tolist()
+    def calculate_ordering(self) -> Tuple[Sequence[KT], Sequence[float]]:
+        keys = self.env.unlabeled.key_list
+        random_floats = [0.0] * len(keys)
+        shuffled_keys = np.random.permutation(keys).tolist()
+        return shuffled_keys, random_floats
