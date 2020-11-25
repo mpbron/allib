@@ -142,7 +142,7 @@ class InstanceProvider(MutableMapping[KT, Instance[KT, DT, VT, RT]], ABC , Gener
         vectors = [self[key].vector  for key in keys]
         return keys, vectors
 
-    def data_chunker(self, batch_size: int) -> Iterator[Sequence[Instance[KT, DT, VT, DT]]]:
+    def data_chunker(self, batch_size: int) -> Iterator[Sequence[Instance[KT, DT, VT, RT]]]:
         chunks = divide_iterable_in_lists(self.values(), batch_size)
         yield from chunks
 

@@ -17,14 +17,18 @@ RT = TypeVar("RT")
 VT = TypeVar("VT")
 
 def vectorize(vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, RT]], 
-              environment: AbstractEnvironment[KT, DT, np.ndarray, RT,  LT], chunk_size: int) -> None:
-    instances = list(itertools.chain.from_iterable(environment.dataset.data_chunker(chunk_size)))
-    vectorizer.fit(instances)
-    def set_vectors(instances: Sequence[Instance[KT, DT, np.ndarray, RT]], batch_size = chunk_size) -> None:
-        instance_chunks = divide_sequence(instances, batch_size)
+              environment: AbstractEnvironment[KT, DT, np.ndarray, RT,  LT], fit: bool = True, 
+              chunk_size: int = 200) -> None:
+    def fit_vector() -> None:
+        instances = list(itertools.chain.from_iterable(environment.dataset.data_chunker(chunk_size)))
+        vectorizer.fit(instances)
+    def set_vectors() -> None:
+        instance_chunks = environment.dataset.data_chunker(chunk_size)
         for instance_chunk in instance_chunks:
             matrix = vectorizer.transform(instance_chunk)
             keys: List[KT] = list(map(to_key, instance_chunk))
             ret_keys, vectors = matrix_tuple_to_vectors(keys, matrix)
             environment.add_vectors(ret_keys, vectors)
-    set_vectors(instances)
+    if fit:
+        fit_vector()
+    set_vectors()
