@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from ..utils.func import filter_snd_none, filter_snd_none_zipped
 from ..utils.chunks import divide_iterable_in_lists
 from typing import Generic, Iterator, Sequence, List, Optional, TypeVar, Any, Mapping, MutableMapping, Tuple
 
@@ -138,16 +139,17 @@ class InstanceProvider(MutableMapping[KT, Instance[KT, DT, VT, RT]], ABC , Gener
         for key, vec in zip(keys, values):
             self[key].vector = vec
 
-    def bulk_get_vectors(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], Sequence[Optional[VT]]]:
-        vectors = [self[key].vector  for key in keys]
-        return keys, vectors
+    def bulk_get_vectors(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], Sequence[VT]]:
+        vector_pairs = ((key, self[key].vector)  for key in keys)
+        ret_keys, ret_vectors = filter_snd_none_zipped(vector_pairs)
+        return ret_keys, ret_vectors # type: ignore
 
     def data_chunker(self, batch_size: int) -> Iterator[Sequence[Instance[KT, DT, VT, RT]]]:
         chunks = divide_iterable_in_lists(self.values(), batch_size)
         yield from chunks
 
-    def vector_chunker(self, batch_size: int) -> Iterator[Sequence[Tuple[KT, Optional[VT]]]]:
-        id_vecs = ((elem.identifier, elem.vector) for elem in self.values())
+    def vector_chunker(self, batch_size: int) -> Iterator[Sequence[Tuple[KT, VT]]]:
+        id_vecs = ((elem.identifier, elem.vector) for elem in self.values() if elem.vector is not None)
         chunks = divide_iterable_in_lists(id_vecs, batch_size)
         return chunks
 

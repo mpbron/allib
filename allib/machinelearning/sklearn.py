@@ -107,6 +107,10 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
     def name(self) -> str:
         return f"{self._name} :: {self.innermodel.__class__}"
         
+    def fit_vectors(self, x_data: Sequence[np.ndarray], labels: Sequence[FrozenSet[str]]):
+        x_mat = np.vstack(x_data)
+        y_vec = self.encode_y(labels)
+        self.fit(x_mat, y_vec)
 
     def fit_instances(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]], labels: Sequence[FrozenSet[str]]):
         assert len(instances) == len(labels)

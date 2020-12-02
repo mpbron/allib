@@ -1,4 +1,6 @@
 from __future__ import annotations
+from allib.activelearning.ensembles import ManualEnsemble
+from allib.activelearning.ml_based import MLBased
 
 import collections
 import itertools
@@ -7,7 +9,7 @@ import math
 import os
 import random
 from typing import (Any, Deque, Dict, FrozenSet, Generic, Iterable, List,
-                    Optional, Tuple, TypeVar)
+                    Optional, Sequence, Tuple, TypeVar)
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
@@ -27,7 +29,6 @@ from ..instances import Instance
 from ..machinelearning import AbstractClassifier
 from ..utils import get_random_generator
 from .base import ActiveLearner, NotInitializedException
-from .poolbased import PoolbasedAL
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")
@@ -60,17 +61,17 @@ def _check_R():
     if not R_AVAILABLE:
         raise ImportError("Install rpy2 interop")
 
-class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+class Estimator(MLBased[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     _name = "Estimator"
 
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
-                 learners: List[PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]],
+                 learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
                  probabilities: Optional[List[float]] = None, rng: Any = None, *_, **__) -> None:
         super().__init__(classifier)
         _check_R()
         self._environment = None
-        self._learners: Dict[int, PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]] = {
+        self._learners: Dict[int, ActiveLearner[KT, DT, VT, RT, LT]] = {
             i: learners for i, learners in enumerate(learners)}
         self._probabilities = [
             1.0 / len(learners)] * len(learners) if probabilities is None else probabilities
@@ -96,8 +97,9 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
         self.initialized = True
         return self
 
-    def calculate_ordering(self) -> List[KT]:
-        raise NotImplementedError
+    def update_ordering(self) -> None:
+        for learner in self._learners.values():
+            learner.update_ordering()
 
     def __next__(self) -> Instance[KT, DT, VT, RT]:
         # Choose the next random learners
@@ -147,18 +149,6 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
                 _add_doc(learner, doc)
                 _add_doc(self, doc)
     
-    def retrain(self) -> None:
-        if not self.initialized or self.env is None:
-            raise NotInitializedException
-        for learner in self._learners.values():
-            learner.retrain()
-        instances = [instance for _, instance in self.env.labeled.items()]
-        labelings = [self.env.labels.get_labels(
-            instance) for instance in instances]
-        self.classifier.fit_instances(instances, labelings)
-        self.fitted = True
-        self.ordering = None
-
     def get_label_matrix(self, label: LT) -> pd.DataFrame:
         rows = {ins_key: {
             l_key: ins_key in learner.env.labeled
@@ -216,11 +206,103 @@ class Estimator(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, R
         best_np = best_result.values
         return best_np[0,0], best_np[0,1]
         
+class NewEstimator(ManualEnsemble[KT,DT,VT,RT, LT], Generic[KT,DT,VT,RT,LT]):
+    def __init__(self,
+                 classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
+                 learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
+                 probabilities: Optional[List[float]] = None, rng: Any = None, *_, **__) -> None:
+        probs = [1.0 / len(learners)] * len(learners) if probabilities is None else probabilities
+        super().__init__(learners, probs, rng)
+        _check_R()
+        self.matrix_history: Deque[pd.DataFrame] = collections.deque()
+        self.contingency_history: Deque[Dict[FrozenSet[int], int]] = collections.deque()
+                
+        R = ro.r
+        filedir = os.path.dirname(os.path.realpath(__file__))
+        r_script_file = os.path.join(filedir, "estimate.R")
+        R["source"](r_script_file)
+
+    def initialize_uniform(self, pos_label: LT, neg_label: LT) -> None:
+        pos_docs = random.sample(self.env.truth.get_instances_by_label(pos_label), 1)
+        neg_docs = random.sample(self.env.truth.get_instances_by_label(neg_label), 1)
+        docs = pos_docs + neg_docs
+        for learner in self.learners:
+            for doc in docs:
+                _add_doc(learner, doc)
+                _add_doc(self, doc)
+
+    def initialize_separate(self, pos_label: LT, neg_label: LT) -> None:
+        n = len(self.learners)
+        pos_docs = random.sample(self.env.truth.get_instances_by_label(pos_label), n)
+        neg_docs = random.sample(self.env.truth.get_instances_by_label(neg_label), n)
+        for i, learner in enumerate(self.learners):
+            docs = [pos_docs[i], neg_docs[i]]
+            for doc in docs:
+                _add_doc(learner, doc)
+                _add_doc(self, doc)
+    
+    def get_label_matrix(self, label: LT) -> pd.DataFrame:
+        rows = {ins_key: {
+            l_key: ins_key in learner.env.labeled
+            for l_key, learner in enumerate(self.learners)}
+            for ins_key in self.env.labels.get_instances_by_label(label)
+        }
+        dataframe = pd.DataFrame.from_dict( # type: ignore
+            rows, orient="index")
+        self.matrix_history.append(dataframe)  
+        return dataframe
+
+    def get_contingency_list(self, label : LT) -> Dict[FrozenSet[int], int]:
+        learner_sets ={
+            learner_key: learner.env.labels.get_instances_by_label(label).intersection(learner.env.labeled)
+            for learner_key, learner in enumerate(self.learners)
+        }
+        key_combinations = powerset(range(len(self.learners)))
+        result = {
+            combination: len(intersection(*[learner_sets[key] for key in combination]))
+            for combination in key_combinations
+            if len(combination) >= 1
+        }
+        self.contingency_history.append(result)
+        return result
+
+    def get_matrix(self, label : LT) -> np.ndarray:
+        learner_sets ={
+            learner_key: learner.env.labels.get_instances_by_label(label).intersection(learner.env.labeled)
+            for learner_key, learner in enumerate(self.learners)
+        }
+        n_learners = len(learner_sets)
+        matrix = np.zeros(shape=(n_learners, n_learners))
+        for i, key_a in enumerate(learner_sets):
+            instances_a = learner_sets[key_a]
+            for j, key_b in enumerate(learner_sets):
+                if i != j:
+                    instances_b = learner_sets[key_b]
+                    intersection = instances_a.intersection(instances_b)
+                    matrix[i,j] = len(intersection)
+        return matrix
+                
+
+    def get_abundance(self, label: LT) -> Optional[Tuple[float, float]]:
+        df = self.get_label_matrix(label)
+        with localconverter(ro.default_converter + pandas2ri.converter):
+            df_r = ro.conversion.py2rpy(df)
+            abundance_r = ro.globalenv["get_abundance"]
+            r_df = abundance_r(df_r)
+            res_df = ro.conversion.rpy2py(r_df)
+        ok_fit = res_df[res_df.infoFit == 0]
+        if len(ok_fit) == 0:
+            ok_fit = res_df
+        best_result = ok_fit[ok_fit.BIC == ok_fit.BIC.min()]
+        best_result = best_result[["abundance", "stderr"]]
+        best_np = best_result.values
+        return best_np[0,0], best_np[0,1]
+
 
 class CycleEstimator(Estimator[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
-                 learners: List[PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT]],
+                 learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
                  probabilities: Optional[List[float]] = None, rng: Any = None, *_, **__) -> None:
             super().__init__(classifier, learners, probabilities, rng)
             self.learnercycle = itertools.cycle(self._learners.items())

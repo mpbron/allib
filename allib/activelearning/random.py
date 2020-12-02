@@ -1,22 +1,19 @@
+import collections
 from typing import Generic, TypeVar, Sequence, Tuple
 
-import numpy as np # type: ignore
+import random
 
-from .poolbased import PoolbasedAL
+from .poolbased import PoolBasedAL
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")
 KT = TypeVar("KT")
 LT = TypeVar("LT")
 RT = TypeVar("RT")
-LVT = TypeVar("LVT")
-PVT = TypeVar("PVT")
-
-class RandomSampling(PoolbasedAL[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+class RandomSampling(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     _name = "Random"
 
-    def calculate_ordering(self) -> Tuple[Sequence[KT], Sequence[float]]:
-        keys = self.env.unlabeled.key_list
-        random_floats = [0.0] * len(keys)
-        shuffled_keys = np.random.permutation(keys).tolist()
-        return shuffled_keys, random_floats
+    def update_ordering(self) -> None:
+        keys = list(self.env.unlabeled.key_list)
+        random.shuffle(list(keys))
+        self.ordering = collections.deque(keys)

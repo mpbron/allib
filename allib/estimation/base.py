@@ -6,9 +6,9 @@ from collections import Counter
 import pandas as pd # type: ignore
 from typing import FrozenSet, Generic, Optional, Tuple, TypeVar, List, Sequence, Set
 from ..environment import AbstractEnvironment
-from ..activelearning import PoolbasedAL
+from ..activelearning.ml_based import MLBased
 from ..machinelearning import AbstractClassifier
-from ..activelearning.ml_based import FeatureMatrix
+from ..activelearning.ml_based import FeatureMatrix, MLBased
 from sklearn.linear_model import LogisticRegression # type: ignore
 
 import numpy as np # type: ignore
@@ -37,7 +37,7 @@ class DecisionRow(Generic[KT]):
 
 class SemiEstimator(AbstractEstimator[KT, DT, np.ndarray, RT, LT]):
     @abstractmethod
-    def semi(self, learner: PoolbasedAL[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], pos_label: LT) -> Tuple[float, Optional[float]]:
+    def semi(self, learner: MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], pos_label: LT) -> Tuple[float, Optional[float]]:
         def temporary_label_indices(y_pred_proba: np.ndarray) -> List[int]:
             order = np.argsort(y_pred_proba)[::-1]
             print(f"{y_pred_proba[order[0]]}, {y_pred_proba[order[-1]]}")
@@ -114,7 +114,7 @@ class SemiEstimator(AbstractEstimator[KT, DT, np.ndarray, RT, LT]):
 
 
 
-def semi(learner: PoolbasedAL[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], pos_label: LT, neg_label: LT) -> int:
+def semi(learner: MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], pos_label: LT, neg_label: LT) -> int:
     def temporary_label_indices(y_pred_proba: np.ndarray) -> List[int]:
         order = np.argsort(y_pred_proba)[::-1]
         print(f"{y_pred_proba[order[0]]}, {y_pred_proba[order[-1]]}")

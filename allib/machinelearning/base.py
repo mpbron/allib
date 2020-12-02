@@ -59,6 +59,10 @@ class AbstractClassifier(ABC, Generic[KT, VT, LT, LVT, PVT]):
         pass
 
     @abstractmethod
+    def fit_vectors(self, x_data: Sequence[VT], labels: Sequence[FrozenSet[LT]]):
+        pass
+
+    @abstractmethod
     def fit_instances(self, instances: Sequence[Instance[KT, Any, VT, Any]], labels: Sequence[FrozenSet[LT]]):
         pass
 

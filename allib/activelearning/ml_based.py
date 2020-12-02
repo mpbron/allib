@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import collections
 import functools
 import itertools
-import threading
 import logging
-from queue import Queue
-from multiprocessing import Pool
 from abc import ABC, abstractmethod
+from multiprocessing import Pool
+from queue import Queue
 from typing import (Any, Callable, Dict, Generic, Iterator, Optional, Sequence,
                     Tuple, TypeVar)
 
@@ -17,8 +17,9 @@ from ..environment import AbstractEnvironment
 from ..instances.base import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
 from ..utils import divide_sequence, mapsnd
-from ..utils.func import list_unzip, filter_snd_none
-from .poolbased import PoolbasedAL
+from ..utils.func import filter_snd_none, list_unzip, sort_on
+from .base import ActiveLearner, NotInitializedException
+from .poolbased import PoolBasedAL
 from .random import RandomSampling
 
 DT = TypeVar("DT")
@@ -60,22 +61,45 @@ class FeatureMatrix(Generic[KT]):
             yield matrix
 
 
-class MLBased(RandomSampling[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
-                 fallback: Callable[..., PoolbasedAL[KT, DT, VT, RT, LT,
-                                                     LVT, PVT]] = RandomSampling[KT, DT, VT, RT, LT, LVT, PVT],
+                 fallback: PoolBasedAL[KT, DT, VT, RT, LT] = RandomSampling(),
+                 batch_size = 200,
                  *_, **__
                  ) -> None:
-        super().__init__(classifier)
-        self.fallback = fallback(classifier)
+        super().__init__()
+        self.fitted = False
+        self.classifier = classifier
+        self.fallback = fallback
+        self.batch_size = batch_size
 
-    def __call__(self,
-                 environment: AbstractEnvironment[KT, DT, VT, RT, LT]
-                 ) -> MLBased[KT, DT, VT, RT, LT, LVT, PVT]:
+    def __call__(self, 
+            environment: AbstractEnvironment[KT, DT, VT, RT, LT]
+        ) -> MLBased[KT, DT, VT, RT, LT, LVT, PVT]:
         super().__call__(environment)
-        self.fallback = self.fallback(environment)
+        self.fallback = self.fallback(self.env)
+        self.classifier = self.classifier(self.env)
         return self
+
+    def retrain(self) -> None:
+        if not self.initialized:
+            raise NotInitializedException
+        key_vector_pairs = itertools.chain.from_iterable(self.env.labeled.vector_chunker(self.batch_size))
+        keys, vectors = list_unzip(key_vector_pairs)
+        labelings = list(map(self.env.labels.get_labels, keys))
+        self.classifier.fit_vectors(vectors, labelings)
+        self.fitted = True
+
+    def predict(self, instances: Sequence[Instance[KT, DT, VT, RT]]):
+        if not self.initialized:
+            raise NotInitializedException
+        return self.classifier.predict_instances(instances)
+
+    def predict_proba(self, instances: Sequence[Instance[KT, DT, VT, RT]]):
+        if not self.initialized:
+            raise NotInitializedException
+        return self.classifier.predict_proba_instances(instances)
 
     @property
     def name(self) -> Tuple[str, Optional[LT]]:
@@ -93,20 +117,13 @@ class MLBased(RandomSampling[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, 
                 except (NotFittedError, IndexError, ValueError) as ex:
                     LOGGER.error("[%s] Falling back to model %s, because of: %s",
                                  self.name, self.fallback.name, ex, exc_info=ex)
+            LOGGER.warn("[%s] Falling back to model %s, because it is not fitted", self.name, self.fallback.name)
             fallback_value = next(self.fallback)
             return fallback_value
         return wrapper
 
 
 class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], ABC, Generic[KT, DT, RT, LT]):
-    def __init__(self,
-                 classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
-                 fallback: Callable[..., PoolbasedAL[KT, DT, VT, RT, LT,
-                                                     LVT, PVT]] = RandomSampling[KT, DT, VT, RT, LT, LVT, PVT],
-                 batch_size: int = 128, *_, **__) -> None:
-        super().__init__(classifier, fallback)
-        self.batch_size = batch_size
-
     @staticmethod
     @abstractmethod
     def selection_criterion(prob_vec: np.ndarray) -> np.ndarray:
@@ -126,6 +143,7 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         keys = matrix.indices
         return keys, prob_vec
 
+    @ActiveLearner.ordering_log
     def calculate_ordering(self) -> Tuple[Sequence[KT], Sequence[float]]:
         def get_metric_tuples(keys: Sequence[KT], vec: np.ndarray) -> Sequence[Tuple[KT, float]]:
             floats: Sequence[float] = vec.tolist()
@@ -150,75 +168,18 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
                     get_metric_tuples, metric_results)))
         # Sort the tuples in descending order, so that the key with the highest score
         # is on the first position of the list
-        sorted_tuples = sorted(metric_tuples, key=lambda x: x[1], reverse=True)
+        sorted_tuples = sort_on(1, metric_tuples)
         # Retrieve the keys from the tuples
         ordered_keys, ordered_metrics = list_unzip(sorted_tuples)
         return ordered_keys, ordered_metrics
+
+    def update_ordering(self) -> None:
+        self.retrain()
+        ordering, _ = self.calculate_ordering()
+        self.ordering = collections.deque(ordering)
 
     @MLBased.iterator_fallback
     def __next__(self) -> Instance[KT, DT, np.ndarray, RT]:
         value: Instance[KT, DT, np.ndarray, RT] = super(
             ProbabiltyBased, self).__next__()
         return value
-
-
-class LabelProbabilityBased(ProbabiltyBased[KT, DT, RT, LT], ABC, Generic[KT, DT, RT, LT]):
-    def __init__(self, classifier: AbstractClassifier[KT, VT, LT, LVT, PVT], label: LT, *_, **__) -> None:
-        super().__init__(classifier)
-        self.label = label
-        self.labelposition: Optional[int] = None
-
-    def __call__(self, environment: AbstractEnvironment[KT, DT, np.ndarray, RT, LT]) -> LabelProbabilityBased[KT, DT, RT, LT]:
-        super().__call__(environment)
-        self.labelposition = self.classifier.get_label_column_index(self.label)
-        return self
-
-    @property
-    def name(self) -> Tuple[str, LT]:
-        return f"{self._name} :: {self.classifier.name}", self.label
-
-    @staticmethod
-    @abstractmethod
-    def selection_criterion(prob_vec: np.ndarray) -> np.ndarray:
-        raise NotImplementedError
-
-    def _get_predictions(self, matrix: FeatureMatrix[KT]) -> Tuple[Sequence[KT], np.ndarray]:
-        prob_vec: np.ndarray = self.classifier.predict_proba(
-            matrix.matrix)  # type: ignore
-        # type: ignore
-        sliced_prob_vec: np.ndarray = prob_vec[:, self.labelposition] # type: ignore
-        keys = matrix.indices
-        return keys, sliced_prob_vec
-
-
-class LabelEnsemble(PoolbasedAL[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], Generic[KT, DT, RT, LT]):
-    _name = "LabelEnsemble"
-
-    def __init__(self,
-                 classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray],
-                 al_method: LabelProbabilityBased[KT, DT, RT, LT],
-                 *_, **__
-                 ) -> None:
-        super().__init__(classifier)
-        self._almethod: Callable[...,
-                                 LabelProbabilityBased[KT, DT, RT, LT]] = al_method
-        self._project = None
-        self._learners: Dict[LT,
-                             LabelProbabilityBased[KT, DT, RT, LT]] = dict()
-
-    def __call__(self, environment: AbstractEnvironment[KT, DT, np.ndarray, RT, LT]) -> LabelEnsemble[KT, DT, RT, LT]:
-        super().__call__(environment)
-        self._learners = {
-            label: self._almethod(self.classifier, label)(environment)
-            for label in self.env.labels.labelset
-        }
-        return self
-
-    def calculate_ordering(self) -> Tuple[Sequence[KT], Sequence[float]]:
-        raise NotImplementedError
-
-    def __next__(self) -> Instance[KT, DT, np.ndarray, RT]:
-        labelcounts = [(self.env.labels.document_count(label), label)
-                       for label in self.env.labels.labelset]
-        min_label = min(labelcounts)[1]
-        return next(self._learners[min_label])

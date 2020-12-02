@@ -1,11 +1,14 @@
 from __future__ import annotations
+import collections
+
+from allib.machinelearning.base import AbstractClassifier
 
 import functools
 import itertools
 import logging
 from abc import ABC, abstractmethod
 from typing import (Any, Callable, Deque, Dict, FrozenSet, Generic, Iterator,
-                    List, Optional, Sequence, Tuple, TypeVar, Union)
+                    List, Optional, Sequence, Tuple, TypeVar, Union, Set)
 
 from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
@@ -17,6 +20,7 @@ KT = TypeVar("KT")
 LT = TypeVar("LT")
 RT = TypeVar("RT")
 LVT = TypeVar("LVT")
+PVT = TypeVar("PVT")
 FT = TypeVar("FT")
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -47,28 +51,19 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
             raise NotInitializedException
         return self._env
 
-    @property
-    def _unlabeled(self) -> InstanceProvider[KT, DT, VT, RT]:
-        return self.env.unlabeled
-    
-    @property
-    def _labeled(self) -> InstanceProvider[KT, DT, VT, RT]:
-        return self.env.labeled
-    
-    @property
-    def _dataset(self) -> InstanceProvider[KT, DT, VT, RT]:
-        return self.env.dataset
-
-    @property
-    def _labelprovider(self) -> LabelProvider[KT, LT]:
-        return self.env.labels
-    
     @abstractmethod
-    def calculate_ordering(self) -> Tuple[Sequence[KT], Sequence[float]]:
+    def update_ordering(self) -> None:
+        """Update the ordering of the Active Learning method
+        """        
         raise NotImplementedError
-    
+
     @abstractmethod
     def __next__(self) -> Instance[KT, DT, VT, RT]:
+        """Return the next instance based on the ordering
+
+        Returns:
+            Instance[KT, DT, VT, RT]: [description]
+        """        
         raise NotImplementedError
        
     @staticmethod
@@ -158,48 +153,9 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         instance : Instance
             The now labeled instance
         """
-        raise NotImplementedError
-
-    @abstractmethod
-    def retrain(self) -> None:
-        """Retrain the model based on the current information
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def predict(self, instances: Sequence[Instance[KT, DT, VT, RT]]) -> Sequence[LabelPrediction]:
-        """Return the labeling of the instance
-
-        Parameters
-        ----------
-        instance : Instance
-            The Instance
-
-        Returns
-        -------
-        Prediction
-            The prediction for this instance
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def predict_proba(self, instances: Sequence[Instance[KT, DT, VT, RT]]) -> Sequence[ProbabilityPrediction]:
-        """Return the labeling of the instance
-
-        Parameters
-        ----------
-        instance : Instance
-            The Instance
-
-        Returns
-        -------
-        Prediction
-            The prediction for this instance
-        """
-        raise NotImplementedError
+        raise NotImplementedError    
 
     @property
-    @abstractmethod
     def len_unlabeled(self) -> int:
         """Return the number of unlabeled documents
 
@@ -208,10 +164,9 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         int
             The number of labeled documents
         """
-        raise NotImplementedError
-
+        return len(self.env.unlabeled)
+    
     @property
-    @abstractmethod
     def len_labeled(self) -> int:
         """Return the number of labeled documents
 
@@ -220,10 +175,9 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         int
             The number of labeled documents
         """
-        raise NotImplementedError
+        return len(self.env.labeled)
 
     @property
-    @abstractmethod
     def size(self) -> int:
         """The number of initial unlabeled documents
 
@@ -232,7 +186,8 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         int
             The number of unlabeled documents
         """
-        raise NotImplementedError
+        return self.len_labeled + self.len_unlabeled
+
 
     @property
     def ratio_learned(self) -> float:

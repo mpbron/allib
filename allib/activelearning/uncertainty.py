@@ -3,7 +3,8 @@ from typing import Generic, TypeVar, Any
 import numpy as np # type: ignore
 from scipy.stats import entropy #type: ignore
 
-from .ml_based import ProbabiltyBased, LabelProbabilityBased
+from .ml_based import ProbabiltyBased
+from .labelmethods import LabelProbabilityBased
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")

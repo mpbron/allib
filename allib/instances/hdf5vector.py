@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Dict, Generic, Iterator, Optional, Sequence, Tuple, TypeVar
+from typing import Dict, Generic, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar
 
 import h5py
 import pickle
