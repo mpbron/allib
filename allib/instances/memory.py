@@ -113,11 +113,6 @@ class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
         vectors = [self[key].vector  for key in keys]
         return keys, vectors
 
-    def vector_chunker(self, batch_size) -> Iterator[Sequence[Tuple[KT, Optional[VT]]]]:
-        id_vecs = ((elem.identifier, elem.vector) for elem in self.values())
-        chunks = divide_iterable_in_lists(id_vecs, batch_size)
-        return chunks
-
     def bulk_get_all(self) -> List[Instance[KT, DT, VT, RT]]:
         return list(self.get_all())
 

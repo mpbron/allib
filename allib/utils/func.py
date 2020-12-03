@@ -43,5 +43,5 @@ def filter_snd_none(fst_iter: Iterable[_T],
     return list_unzip(zipped) # type: ignore
 
 def sort_on(index: int, seq: Sequence[Tuple[_T, _U]]) -> Sequence[Tuple[_T, _U]]:
-    return sorted(seq, key=lambda k: k[index]) # type: ignore
+    return sorted(seq, key=lambda k: k[index], reverse=True) # type: ignore
 

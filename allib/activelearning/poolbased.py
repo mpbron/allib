@@ -43,10 +43,10 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
             self.update_ordering()
         try:
             key = self.ordering.popleft()
-            while key not in self.env.unlabeled or key in self.sampled:
+            while key in self.sampled:
                 key = self.ordering.popleft()
             self.sampled.add(key)
-            return self.env.unlabeled[key]
+            return self.env.dataset[key]
         except IndexError:
             raise StopIteration()
 

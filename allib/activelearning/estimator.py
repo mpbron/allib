@@ -208,7 +208,6 @@ class Estimator(MLBased[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, L
         
 class NewEstimator(ManualEnsemble[KT,DT,VT,RT, LT], Generic[KT,DT,VT,RT,LT]):
     def __init__(self,
-                 classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
                  learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
                  probabilities: Optional[List[float]] = None, rng: Any = None, *_, **__) -> None:
         probs = [1.0 / len(learners)] * len(learners) if probabilities is None else probabilities
@@ -298,7 +297,16 @@ class NewEstimator(ManualEnsemble[KT,DT,VT,RT, LT], Generic[KT,DT,VT,RT,LT]):
         best_np = best_result.values
         return best_np[0,0], best_np[0,1]
 
+class NewCycleEstimator(NewEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+    def __init__(self,
+                 learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
+                 probabilities: Optional[List[float]] = None, rng: Any = None, *_, **__) -> None:
+            super().__init__(learners, probabilities, rng)
+            self.learnercycle = itertools.cycle(self.learners)
 
+    def _choose_learner(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
+        return next(self.learnercycle)
+        
 class CycleEstimator(Estimator[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],

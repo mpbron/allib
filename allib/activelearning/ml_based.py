@@ -143,7 +143,7 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         keys = matrix.indices
         return keys, prob_vec
 
-    @ActiveLearner.ordering_log
+    #@ActiveLearner.ordering_log
     def calculate_ordering(self) -> Tuple[Sequence[KT], Sequence[float]]:
         def get_metric_tuples(keys: Sequence[KT], vec: np.ndarray) -> Sequence[Tuple[KT, float]]:
             floats: Sequence[float] = vec.tolist()
