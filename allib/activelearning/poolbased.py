@@ -42,6 +42,7 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
         if self.ordering is None:
             self.update_ordering()
         try:
+            assert self.ordering is not None
             key = self.ordering.popleft()
             while key in self.sampled:
                 key = self.ordering.popleft()

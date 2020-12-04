@@ -15,5 +15,5 @@ class RandomSampling(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT
 
     def update_ordering(self) -> None:
         keys = list(self.env.unlabeled.key_list)
-        random.shuffle(list(keys))
+        random.shuffle(keys)
         self.ordering = collections.deque(keys)
