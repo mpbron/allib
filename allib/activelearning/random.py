@@ -11,7 +11,8 @@ RT = TypeVar("RT")
 class RandomSampling(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     _name = "Random"
 
-    def update_ordering(self) -> None:
+    def update_ordering(self) -> bool:
         keys = list(self.env.unlabeled.key_list)
         random.shuffle(keys)
         self._set_ordering(keys)
+        return True

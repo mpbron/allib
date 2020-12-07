@@ -5,7 +5,7 @@ from allib.activelearning.random import RandomSampling
 import random
 from abc import ABC, abstractmethod
 from typing import (Any, Callable, Dict, Generic, Iterable, List, Optional,
-                    Sequence, Tuple, TypeVar, Union)
+                    Sequence, Tuple, TypeVar, Union, Set)
 
 import numpy as np  # type: ignore
 
@@ -32,6 +32,7 @@ class AbstractEnsemble(ABC, Generic[KT, DT, VT, RT, LT]):
     _name = "AbstractEnsemble"
     learners: List[ActiveLearner[KT, DT, VT, RT, LT]]
     env: AbstractEnvironment[KT, DT, VT, RT, LT]
+    __has_ordering: bool
     
     @abstractmethod
     def _choose_learner(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
@@ -42,11 +43,17 @@ class AbstractEnsemble(ABC, Generic[KT, DT, VT, RT, LT]):
         """        
         raise NotImplementedError
 
-    def update_ordering(self) -> None:
+    @property
+    def has_ordering(self) -> bool:
+        return self.__has_ordering
+
+    def update_ordering(self):
         """Updates the ordering for all learners of the ensemble
         """             
         for learner in self.learners:
             learner.update_ordering()
+        self.__has_ordering = True
+        return True
 
     def __next__(self) -> Instance[KT, DT, VT, RT]:
         learner = self._choose_learner()
@@ -149,6 +156,8 @@ class StrategyEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], MLBased[KT, DT, VT,
         self.learners = learners
         self.probabilities = probabilities
         self._rng: Any = get_random_generator(rng)
+        self.sampled: Set[KT] = set()
+        self.__has_ordering: bool = False 
     
     def __call__(self, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> StrategyEnsemble:
         """Initialize the learner with an environment
@@ -165,6 +174,12 @@ class StrategyEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], MLBased[KT, DT, VT,
         self.initialized = True
         return self
 
+    def update_ordering(self) -> bool:
+        successful = super().update_ordering()
+        if successful:
+            self.sampled = set()
+        return successful
+
     def _choose_learner(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
         """Internal functions that selects the next active learner for the next query
 
@@ -176,5 +191,9 @@ class StrategyEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], MLBased[KT, DT, VT,
         learner = self.learners[al_idx]
         return learner
     
-    
-    
+    def __next__(self) -> Instance[KT, DT, VT, RT]:
+        result = super().__next__()
+        while result.identifier in self.sampled:
+            result = super().__next__()
+        self.sampled.add(result.identifier)
+        return result

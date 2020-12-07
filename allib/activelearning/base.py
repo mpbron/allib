@@ -32,6 +32,9 @@ LOGGER = logging.getLogger(__name__)
 class NotInitializedException(Exception):
     pass
 
+class NoOrderingException(Exception):
+    pass
+
 
 class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT, RT, LT]):
     _name = "ActiveLearner"
@@ -52,9 +55,18 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         return self._env
 
     @abstractmethod
-    def update_ordering(self) -> None:
+    def update_ordering(self) -> bool:
         """Update the ordering of the Active Learning method
-        """        
+        
+        Returns:
+        ------
+            bool: True if updating the ordering succeeded
+        """             
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def has_ordering(self) -> bool:
         raise NotImplementedError
 
     @abstractmethod
@@ -62,7 +74,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         """Return the next instance based on the ordering
 
         Returns:
-            Instance[KT, DT, VT, RT]: [description]
+            Instance[KT, DT, VT, RT]: The most informative instance based on the learners ordering
         """        
         raise NotImplementedError
        

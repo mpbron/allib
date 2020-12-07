@@ -18,7 +18,7 @@ from ..instances.base import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
 from ..utils import divide_sequence, mapsnd
 from ..utils.func import filter_snd_none, list_unzip, sort_on
-from .base import ActiveLearner, NotInitializedException
+from .base import ActiveLearner, NotInitializedException, NoOrderingException
 from .poolbased import PoolBasedAL
 from .random import RandomSampling
 
@@ -73,6 +73,11 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         self.classifier = classifier
         self.fallback = fallback
         self.batch_size = batch_size
+        self.__uses_fallback = False
+
+    @property
+    def uses_fallback(self) -> bool:
+        return self.__uses_fallback
 
     def __call__(self, 
             environment: AbstractEnvironment[KT, DT, VT, RT, LT]
@@ -83,12 +88,18 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         return self
 
     def retrain(self) -> None:
+        LOGGER.info("[%s] Retraining the classifier", self.name)
         if not self.initialized:
             raise NotInitializedException
+        # Collect the feature matrix for the labeled subset
         key_vector_pairs = itertools.chain.from_iterable(self.env.labeled.vector_chunker(self.batch_size))
         keys, vectors = list_unzip(key_vector_pairs)
+        LOGGER.info("[%s] Gathered the feature matrix for all labeled documents", self.name)
+        # Get all labels for documents in the labeled set
         labelings = list(map(self.env.labels.get_labels, keys))
+        LOGGER.info("[%s] Gathered all labels", self.name)
         self.classifier.fit_vectors(vectors, labelings)
+        LOGGER.info("[%s] Fitted the classifier", self.name)
         self.fitted = True
 
     def predict(self, instances: Sequence[Instance[KT, DT, VT, RT]]):
@@ -111,10 +122,10 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         def wrapper(self: MLBased[KT, DT, VT, RT, LT, LVT, PVT],
                     *args: Any,
                     **kwargs: Dict[str, Any]) -> Instance[KT, DT, VT, RT]:
-            if self.classifier.fitted:
+            if not self.uses_fallback:
                 try:
                     return func(self, *args, **kwargs)
-                except (NotFittedError, IndexError, ValueError) as ex:
+                except (NotFittedError, IndexError, ValueError, StopIteration, NoOrderingException) as ex:
                     LOGGER.error("[%s] Falling back to model %s, because of: %s",
                                  self.name, self.fallback.name, ex, exc_info=ex)
             LOGGER.warn("[%s] Falling back to model %s, because it is not fitted", self.name, self.fallback.name)
@@ -148,6 +159,7 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         def get_metric_tuples(keys: Sequence[KT], vec: np.ndarray) -> Sequence[Tuple[KT, float]]:
             floats: Sequence[float] = vec.tolist()
             return list(zip(keys, floats))
+        LOGGER.info("[%s] Start calculating the prediction matrix for all unlabeled documents", self.name)
         # Get a generator with that generates feature matrices from data
         matrices = FeatureMatrix[KT].generator_from_provider(
             self.env.unlabeled, self.batch_size)
@@ -166,17 +178,36 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
             itertools.chain.from_iterable(
                 itertools.starmap(
                     get_metric_tuples, metric_results)))
+        LOGGER.info("[%s] Calculated all metrics", self.name)
         # Sort the tuples in descending order, so that the key with the highest score
         # is on the first position of the list
         sorted_tuples = sort_on(1, metric_tuples)
+        LOGGER.info("[%s] Sorted all metrics", self.name)
         # Retrieve the keys from the tuples
         ordered_keys, ordered_metrics = list_unzip(sorted_tuples)
         return ordered_keys, ordered_metrics
 
-    def update_ordering(self) -> None:
-        self.retrain()
-        ordering, _ = self.calculate_ordering()
-        self._set_ordering(ordering)
+    def update_ordering(self) -> bool:
+        """Calculates the ordering for Machine Learning based AL methods
+        
+        Returns
+        -------
+        bool
+            True if updating succeeded
+        """        
+        try:
+            self.retrain()
+            ordering, _ = self.calculate_ordering()
+        except (NotFittedError, IndexError, ValueError) as ex:
+            self.__uses_fallback = True
+            LOGGER.error("[%s] Falling back to model %s, because of: %s",
+                                 self.name, self.fallback.name, ex, exc_info=ex)
+            self._set_ordering([])
+            return False
+        else:
+            self.__uses_fallback = False
+            self._set_ordering(ordering)
+            return True
 
     @MLBased.iterator_fallback
     def __next__(self) -> Instance[KT, DT, np.ndarray, RT]:

@@ -62,14 +62,15 @@ class LabelEnsemble(AbstractEnsemble[KT, DT, np.ndarray, RT, LT], MLBased[KT,DT,
                  *_, **__
                  ) -> None:
         self._al_builder = al_method
-        self.label_dict: Dict[int, LT] = dict()
+        self.label_dict: Dict[LT, int] = dict()
         self.learners: List[LabelProbabilityBased[KT, DT, RT, LT]] = list()
         self.classifier = classifier
-
+        self.__has_ordering = False
+    
     def __call__(self, environment: AbstractEnvironment[KT, DT, np.ndarray, RT, LT]) -> LabelEnsemble[KT, DT, RT, LT]:
         super().__call__(environment)
         labelset = self.env.labels.labelset
-        self.label_dict = dict(enumerate(labelset))
+        self.label_dict = {label: idx for idx, label in enumerate(labelset)}
         self.learners = [
             self._al_builder(self.classifier, label)(environment) for label in labelset
         ]
@@ -79,5 +80,6 @@ class LabelEnsemble(AbstractEnsemble[KT, DT, np.ndarray, RT, LT], MLBased[KT,DT,
         labelcounts = [(self.env.labels.document_count(label), label)
                        for label in self.env.labels.labelset]
         min_label = min(labelcounts)[1]
-        learner = self.learners[min_label]
+        al_idx = self.label_dict[min_label]
+        learner = self.learners[al_idx]
         return learner

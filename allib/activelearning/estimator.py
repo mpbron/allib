@@ -97,9 +97,10 @@ class Estimator(MLBased[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, L
         self.initialized = True
         return self
 
-    def update_ordering(self) -> None:
+    def update_ordering(self) -> bool:
         for learner in self._learners.values():
             learner.update_ordering()
+        return True
 
     def __next__(self) -> Instance[KT, DT, VT, RT]:
         # Choose the next random learners

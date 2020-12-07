@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import (Any, Callable, Deque, Dict, FrozenSet, Generic, Iterator,
                     List, Optional, Sequence, Tuple, TypeVar, Union, Set)
 
-from .base import ActiveLearner
+from .base import ActiveLearner, NoOrderingException
 from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
 from ..labels.base import LabelProvider
@@ -22,6 +22,9 @@ LVT = TypeVar("LVT")
 PVT = TypeVar("PVT")
 FT = TypeVar("FT")
 F = TypeVar("F", bound=Callable[..., Any])
+
+LOGGER = logging.getLogger(__name__)
+
 class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     def __init__(self, *_, **__) -> None:
         self.initialized = False
@@ -55,14 +58,27 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
         ordering : Sequence[KT]
             The new ordering
         """        
-        self.ordering = collections.deque(self.env.unlabeled.key_list)
+        LOGGER.info("Setting a new ordering for %s", self.name)   
+        self.ordering = collections.deque(ordering)
         self.sampled.clear()
 
-    def update_ordering(self) -> None:
+    def update_ordering(self) -> bool:
         """Update the ordering of the active learner
-        """        
-        ordering = collections.deque(self.env.unlabeled.key_list)
+        """
+        ordering = self.env.unlabeled.key_list
         self._set_ordering(ordering)
+        return True
+
+    @property
+    def has_ordering(self) -> bool:
+        """Check if the learner has an ordering
+        
+        Returns
+        -------
+        bool
+            True if it has an ordering
+        """        
+        return self.ordering is not None
 
     @ActiveLearner.iterator_log
     def __next__(self) -> Instance[KT, DT, VT, RT]:
@@ -77,18 +93,28 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
         ------
         StopIteration
             If all instances are labeled, we throw a stop iteration
+        NoOrderingException
+            If the ordering cannot be determined
         """        
-        if self.ordering is None:
-            self.update_ordering()
-        try:
-            assert self.ordering is not None
-            key = self.ordering.popleft()
-            while key in self.sampled:
+        if self.ordering is not None:
+            try:
+                # Pop the most left item from the deque
                 key = self.ordering.popleft()
-            self.sampled.add(key)
-            return self.env.dataset[key]
-        except IndexError:
-            raise StopIteration()
+                # If it has already been sampled, repeat
+                while key in self.sampled:
+                    key = self.ordering.popleft()
+            except IndexError:
+                # There are no more items left, raise StopIteration so iterator knows it should stop
+                raise StopIteration()
+            else:
+                # Mark the instance as sampled
+                self.sampled.add(key)
+                # Retrieve the instance from the dataset
+                result = self.env.dataset[key]
+                return result
+        raise NoOrderingException()
+            
+
 
     @ActiveLearner.label_log
     def set_as_labeled(self, instance: Instance[KT, DT, VT, RT]) -> None:

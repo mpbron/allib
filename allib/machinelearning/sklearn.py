@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pickle
+import logging
 from typing import (Any, FrozenSet, Iterable, List, Sequence, Set, Tuple,
                     TypeVar)
 
@@ -15,6 +16,7 @@ from ..utils import SaveableInnerModel
 from ..utils.func import list_unzip
 from .base import AbstractClassifier
 
+LOGGER = logging.getLogger(__name__)
 
 class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, str, np.ndarray, np.ndarray]):
     _name = "Sklearn"
@@ -49,7 +51,9 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
     def fit(self, x_data: np.ndarray, y_data: np.ndarray):
         assert x_data.shape[0] == y_data.shape[0]
         x_resampled, y_resampled = self.balancer.resample(x_data, y_data)
+        LOGGER.info("[%s] Balanced / Resampled the data", self.name)
         self.innermodel.fit(x_resampled, y_resampled) # type: ignore
+        LOGGER.info("[%s] Fitted the model", self.name)
         self._fitted = True
 
     def encode_xy(self, instances: Sequence[Instance[int, Any, np.ndarray, Any]], labelings: Sequence[Iterable[str]]):
