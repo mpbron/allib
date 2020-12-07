@@ -176,7 +176,7 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
     def update_ordering(self) -> None:
         self.retrain()
         ordering, _ = self.calculate_ordering()
-        self.ordering = collections.deque(ordering)
+        self._set_ordering(ordering)
 
     @MLBased.iterator_fallback
     def __next__(self) -> Instance[KT, DT, np.ndarray, RT]:

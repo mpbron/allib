@@ -30,15 +30,54 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
         self.sampled: Set[KT] = set()
 
     def __call__(self, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> PoolBasedAL[KT, DT, VT, RT, LT]:
+        """Initialze the active learner with an environment. After the environment is attached, the learner is 
+        usable for sampling.
+        
+        Parameters
+        ----------
+        environment : AbstractEnvironment[KT, DT, VT, RT, LT]
+            The environment that should be attached
+        
+        Returns
+        -------
+        PoolBasedAL[KT, DT, VT, RT, LT]
+            A PoolBased Active Learning object with an attached environment
+        """        
         self._env = environment
         self.initialized = True
         return self
 
-    def update_ordering(self) -> None:
+    def _set_ordering(self, ordering: Sequence[KT]) -> None:
+        """Set the ordering of the learner and clear the sampled set
+        
+        Parameters
+        ----------
+        ordering : Sequence[KT]
+            The new ordering
+        """        
         self.ordering = collections.deque(self.env.unlabeled.key_list)
+        self.sampled.clear()
+
+    def update_ordering(self) -> None:
+        """Update the ordering of the active learner
+        """        
+        ordering = collections.deque(self.env.unlabeled.key_list)
+        self._set_ordering(ordering)
 
     @ActiveLearner.iterator_log
     def __next__(self) -> Instance[KT, DT, VT, RT]:
+        """Query the next instance according to the ordering
+        
+        Returns
+        -------
+        Instance[KT, DT, VT, RT]
+            The next instance that should be labeled
+        
+        Raises
+        ------
+        StopIteration
+            If all instances are labeled, we throw a stop iteration
+        """        
         if self.ordering is None:
             self.update_ordering()
         try:
@@ -53,6 +92,13 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
 
     @ActiveLearner.label_log
     def set_as_labeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
+        """Mark the instance as labeled
+        
+        Parameters
+        ----------
+        instance : Instance[KT, DT, VT, RT]
+            The instance that should be marked as labeled
+        """        
         self.env.unlabeled.discard(instance)
         self.env.labeled.add(instance)
 
@@ -61,8 +107,8 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
         
         Parameters
         ----------
-        instance : Instance
-            The now labeled instance
-        """
+        instance : Instance[KT, DT, VT, RT]
+            The instance that should be marked as unlabeled
+        """        
         self.env.labeled.discard(instance)
         self.env.unlabeled.add(instance)

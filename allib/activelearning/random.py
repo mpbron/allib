@@ -1,7 +1,5 @@
-import collections
-from typing import Generic, TypeVar, Sequence, Tuple
-
 import random
+from typing import Generic, Sequence, Tuple, TypeVar
 
 from .poolbased import PoolBasedAL
 
@@ -16,4 +14,4 @@ class RandomSampling(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT
     def update_ordering(self) -> None:
         keys = list(self.env.unlabeled.key_list)
         random.shuffle(keys)
-        self.ordering = collections.deque(keys)
+        self._set_ordering(keys)
