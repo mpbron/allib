@@ -202,6 +202,7 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
             self.__uses_fallback = True
             LOGGER.error("[%s] Falling back to model %s, because of: %s",
                                  self.name, self.fallback.name, ex, exc_info=ex)
+            self.fallback.update_ordering()
             self._set_ordering([])
             return False
         else:
