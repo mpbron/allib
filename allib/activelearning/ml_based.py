@@ -73,11 +73,11 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         self.classifier = classifier
         self.fallback = fallback
         self.batch_size = batch_size
-        self.__uses_fallback = False
+        self._uses_fallback = False
 
     @property
     def uses_fallback(self) -> bool:
-        return self.__uses_fallback
+        return self._uses_fallback
 
     def __call__(self, 
             environment: AbstractEnvironment[KT, DT, VT, RT, LT]
@@ -199,13 +199,14 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
             self.retrain()
             ordering, _ = self.calculate_ordering()
         except (NotFittedError, IndexError, ValueError) as ex:
-            self.__uses_fallback = True
+            self._uses_fallback = True
             LOGGER.error("[%s] Falling back to model %s, because of: %s",
                                  self.name, self.fallback.name, ex, exc_info=ex)
+            self.fallback.update_ordering()
             self._set_ordering([])
             return False
         else:
-            self.__uses_fallback = False
+            self._uses_fallback = False
             self._set_ordering(ordering)
             return True
 

@@ -32,7 +32,7 @@ class AbstractEnsemble(ABC, Generic[KT, DT, VT, RT, LT]):
     _name = "AbstractEnsemble"
     learners: List[ActiveLearner[KT, DT, VT, RT, LT]]
     env: AbstractEnvironment[KT, DT, VT, RT, LT]
-    __has_ordering: bool
+    _has_ordering: bool
     
     @abstractmethod
     def _choose_learner(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
@@ -45,14 +45,14 @@ class AbstractEnsemble(ABC, Generic[KT, DT, VT, RT, LT]):
 
     @property
     def has_ordering(self) -> bool:
-        return self.__has_ordering
+        return self._has_ordering
 
     def update_ordering(self):
         """Updates the ordering for all learners of the ensemble
         """             
         for learner in self.learners:
             learner.update_ordering()
-        self.__has_ordering = True
+        self._has_ordering = True
         return True
 
     def __next__(self) -> Instance[KT, DT, VT, RT]:
@@ -157,7 +157,7 @@ class StrategyEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], MLBased[KT, DT, VT,
         self.probabilities = probabilities
         self._rng: Any = get_random_generator(rng)
         self.sampled: Set[KT] = set()
-        self.__has_ordering: bool = False 
+        self._has_ordering: bool = False 
     
     def __call__(self, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> StrategyEnsemble:
         """Initialize the learner with an environment

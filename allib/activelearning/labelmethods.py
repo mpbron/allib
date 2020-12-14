@@ -66,7 +66,7 @@ class LabelEnsemble(AbstractEnsemble[KT, DT, np.ndarray, RT, LT], MLBased[KT,DT,
         self.label_dict: Dict[LT, int] = dict()
         self.learners: List[ActiveLearner[KT, DT, np.ndarray, RT, LT]] = list()
         self.classifier = classifier
-        self.__has_ordering = False
+        self._has_ordering = False
     
     def __call__(self, environment: AbstractEnvironment[KT, DT, np.ndarray, RT, LT]) -> LabelEnsemble[KT, DT, RT, LT]:
         super().__call__(environment)
