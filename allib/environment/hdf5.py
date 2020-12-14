@@ -51,7 +51,7 @@ class HDF5Environment(AbstractEnvironment[int, str, np.ndarray, str, str]):
     def from_environment(cls, 
                          environment: AbstractEnvironment[int, str, np.ndarray, str, str], 
                          data_location: str = "", vector_location: str = "", 
-                         shared_labels: bool = True) -> HDF5Environment:
+                         shared_labels: bool = True, *args, **kwargs) -> HDF5Environment:
         if isinstance(environment.dataset, HDF5Provider):
             dataset = environment.dataset
         else:

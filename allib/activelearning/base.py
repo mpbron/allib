@@ -90,7 +90,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
                             result.identifier, self.name) # type: ignore
                 self.env.logger.log_sample(result, self.name)
             return result # type: ignore
-        return wrapper
+        return wrapper # type: ignore
     
     @staticmethod
     def label_log(func: F) -> F:
@@ -101,7 +101,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
             labels = self.env.labels.get_labels(instance)
             self.env.logger.log_label(instance, self.name,  *labels)
             return func(self, instance, *args, **kwargs)
-        return wrapper
+        return wrapper # type: ignore
 
     @staticmethod
     def ordering_log(func: F) -> F:
@@ -111,8 +111,8 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
             self.env.logger.log_ordering(ordering, ordering_metric, 
                                          self.env.labeled.key_list,
                                          self.env.labels)
-            return ordering, ordering_metric
-        return wrapper
+            return ordering, ordering_metric # type: ignore
+        return wrapper # type: ignore
 
     @abstractmethod
     def __call__(

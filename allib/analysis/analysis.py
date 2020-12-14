@@ -19,10 +19,10 @@ from pathlib import Path
 from typing import Dict, FrozenSet, Generic, Sequence, TypeVar
 
 import numpy as np  # type: ignore
-from pampy import match, match_value
 from scipy import stats  # type: ignore
 
 from ..activelearning import ActiveLearner
+from ..activelearning.ml_based import MLBased
 from ..history import BaseLogger, MemoryLogger
 from ..instances.base import Instance
 from ..labels.base import LabelProvider
@@ -35,6 +35,8 @@ DT = TypeVar("DT")
 VT = TypeVar("VT")
 RT = TypeVar("RT")
 LT = TypeVar("LT")
+LVT = TypeVar("LVT")
+PVT = TypeVar("PVT")
 
 class ResultUnit(Enum):
     PERCENTAGE = "Percentage"
@@ -104,7 +106,7 @@ def label_metrics(truth: LabelProvider[KT, LT],
     true_neg = included_keys.difference(true_pos, false_pos, false_neg)
     return BinaryPerformance[KT](true_pos, true_neg, false_pos, false_neg)
 
-def classifier_performance(learner: ActiveLearner[KT, DT, VT, RT, LT], 
+def classifier_performance(learner: MLBased[KT, DT, VT, RT, LT, LVT, PVT], 
               ground_truth: LabelProvider[KT, LT],
               instances: Sequence[Instance[KT, DT, VT, RT]]) -> Dict[LT, BinaryPerformance[KT]]:
     keys = [ins.identifier for ins in instances]

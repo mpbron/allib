@@ -1,5 +1,5 @@
 import itertools
-from typing import TypeVar, Sequence, List
+from typing import TypeVar, Sequence, List, Any
 
 import numpy as np  # type: ignore
 
@@ -16,8 +16,8 @@ LT = TypeVar("LT")
 RT = TypeVar("RT")
 VT = TypeVar("VT")
 
-def vectorize(vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, RT]], 
-              environment: AbstractEnvironment[KT, DT, np.ndarray, RT,  LT], fit: bool = True, 
+def vectorize(vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, Any]], 
+              environment: AbstractEnvironment[KT, DT, np.ndarray, Any,  LT], fit: bool = True, 
               chunk_size: int = 200) -> None:
     def fit_vector() -> None:
         instances = list(itertools.chain.from_iterable(environment.dataset.data_chunker(chunk_size)))
@@ -26,7 +26,7 @@ def vectorize(vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, RT]],
         instance_chunks = environment.dataset.data_chunker(chunk_size)
         for instance_chunk in instance_chunks:
             matrix = vectorizer.transform(instance_chunk)
-            keys: List[KT] = list(map(to_key, instance_chunk))
+            keys: List[KT] = list(map(to_key, instance_chunk)) # type: ignore
             ret_keys, vectors = matrix_tuple_to_vectors(keys, matrix)
             environment.add_vectors(ret_keys, vectors)
     if fit:

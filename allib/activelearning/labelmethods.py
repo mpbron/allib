@@ -11,6 +11,7 @@ from ..instances.base import Instance
 from ..machinelearning import AbstractClassifier
 from .base import ActiveLearner
 from .ml_based import MLBased, ProbabiltyBased, FeatureMatrix
+from .random import RandomSampling
 from .ensembles import AbstractEnsemble
 
 DT = TypeVar("DT")
@@ -25,8 +26,8 @@ FT = TypeVar("FT")
 
 
 class LabelProbabilityBased(ProbabiltyBased[KT, DT, RT, LT], ABC, Generic[KT, DT, RT, LT]):
-    def __init__(self, classifier: AbstractClassifier[KT, VT, LT, LVT, PVT], label: LT, *_, **__) -> None:
-        super().__init__(classifier)
+    def __init__(self, classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray], label: LT, fallback = RandomSampling[KT, DT, np.ndarray, RT, LT],  *_, **__) -> None:
+        super().__init__(classifier, fallback)
         self.label = label
         self.labelposition: Optional[int] = None
 
@@ -63,7 +64,7 @@ class LabelEnsemble(AbstractEnsemble[KT, DT, np.ndarray, RT, LT], MLBased[KT,DT,
                  ) -> None:
         self._al_builder = al_method
         self.label_dict: Dict[LT, int] = dict()
-        self.learners: List[LabelProbabilityBased[KT, DT, RT, LT]] = list()
+        self.learners: List[ActiveLearner[KT, DT, np.ndarray, RT, LT]] = list()
         self.classifier = classifier
         self.__has_ordering = False
     
@@ -76,7 +77,7 @@ class LabelEnsemble(AbstractEnsemble[KT, DT, np.ndarray, RT, LT], MLBased[KT,DT,
         ]
         return self
 
-    def _choose_learner(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
+    def _choose_learner(self) -> ActiveLearner[KT, DT, np.ndarray, RT, LT]:
         labelcounts = [(self.env.labels.document_count(label), label)
                        for label in self.env.labels.labelset]
         min_label = min(labelcounts)[1]

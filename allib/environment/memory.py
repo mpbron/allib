@@ -52,7 +52,7 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
         return cls(dataset, unlabeled, labeled, labels, logger, truth)
 
     @classmethod
-    def from_environment(cls, environment: AbstractEnvironment[KT, DT, VT, DT, LT], shared_labels: bool = True) -> MemoryEnvironment[KT, DT, VT, LT]:
+    def from_environment(cls, environment: AbstractEnvironment[KT, DT, VT, Any, LT], shared_labels: bool = True, *args, **kwargs) -> MemoryEnvironment[KT, DT, VT, LT]:
         if isinstance(environment.dataset, DataPointProvider):
             dataset: DataPointProvider[KT, DT, VT] = environment.dataset
         else:
@@ -74,7 +74,7 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
         return cls(dataset, unlabeled, labeled, labels, logger, truth)
 
     @classmethod
-    def from_environment_only_data(cls, environment: AbstractEnvironment[KT, DT, VT, DT, LT]) -> MemoryEnvironment[KT, DT, VT, LT]:
+    def from_environment_only_data(cls, environment: AbstractEnvironment[KT, DT, VT, Any, LT]) -> MemoryEnvironment[KT, DT, VT, LT]:
         if isinstance(environment.dataset, DataPointProvider):
             dataset: DataPointProvider[KT, DT, VT] = environment.dataset
         else:

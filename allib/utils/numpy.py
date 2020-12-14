@@ -1,6 +1,6 @@
 from typing import Iterable, Optional, Sequence, Tuple, TypeVar, Union
 
-from h5py._hl.dataset import Dataset
+from h5py._hl.dataset import Dataset # type: ignore
 
 import numpy as np  # type: ignore
 

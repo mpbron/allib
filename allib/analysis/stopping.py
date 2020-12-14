@@ -1,7 +1,7 @@
 import collections
 import itertools
 from abc import ABC, abstractmethod
-from typing import Deque, Generic, TypeVar
+from typing import Deque, Generic, TypeVar, Any
 
 from ..activelearning import ActiveLearner
 from ..activelearning.estimator import Estimator
@@ -14,7 +14,7 @@ DT = TypeVar("DT")
 RT = TypeVar("RT")
 LT = TypeVar("LT")
 
-class AbstractStopCriterion(ABC):
+class AbstractStopCriterion(ABC, Generic[LT]):
     @abstractmethod
     def update(self, learner: ActiveLearner[KT, DT, VT, RT, LT]) -> None:
         pass
@@ -24,7 +24,7 @@ class AbstractStopCriterion(ABC):
     def stop_criterion(self) -> bool:
         pass
 
-class RecallStopCriterion(AbstractStopCriterion, Generic[LT]):
+class RecallStopCriterion(AbstractStopCriterion[LT], Generic[LT]):
     def __init__(self, label: LT, target_recall: float):
         self.label = label
         self.target_recall = target_recall
@@ -40,30 +40,54 @@ class RecallStopCriterion(AbstractStopCriterion, Generic[LT]):
         return False
 
 
-
-class CaptureRecaptureCriterion(AbstractStopCriterion, Generic[LT]):
+class SameStateCount(AbstractStopCriterion[LT], Generic[LT]):
     def __init__(self, label: LT, same_state_count: int):
         self.label = label
         self.same_state_count = same_state_count
         self.pos_history: Deque[int] = collections.deque()
-        self.estimate_history: Deque[float] = collections.deque()
+        self.has_been_different = False
 
-    def update(self, learner: Estimator):
-        self.add_count(learner.env.labels.document_count(self.label))
-        abd = learner.get_abundance(self.label)
-        if abd is not None:
-            estimate, error = abd
-            if estimate > 0 and error < estimate and error < 50:
-                self.add_estimate(estimate + error)
-        print(f"Found positive: {self.pos_history[0]} % with estimate "
-              f"{self.estimate_history[0]:.2f}")
-        
+    def update(self, learner: ActiveLearner[KT, DT, VT, RT, LT]):
+        performance = process_performance(learner, self.label)
+        self.add_count(len(performance.true_positives))
 
     def add_count(self, value: int) -> None:
         if len(self.pos_history) > self.same_state_count:
             self.pos_history.pop()
+        if self.pos_history and not self.has_been_different:
+            previous_value = self.pos_history[0]
+            if previous_value != value:
+                self.has_been_different = True
         self.pos_history.appendleft(value)
 
+
+    @property
+    def same_count(self) -> bool:
+        return all_equal(self.pos_history)
+
+    @property
+    def stop_criterion(self) -> bool:
+        if len(self.pos_history) < self.same_state_count:
+            return False 
+        return self.has_been_different and self.same_count
+
+
+class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
+    def __init__(self, label: LT, same_state_count: int):
+        super().__init__(label, same_state_count)
+        self.estimate_history: Deque[float] = collections.deque()
+
+    def update(self, learner: ActiveLearner[KT, DT, VT, RT, LT]):
+        super().update(learner)
+        if isinstance(learner, Estimator):
+            self.add_count(learner.env.labels.document_count(self.label))
+            abd = learner.get_abundance(self.label)
+            if abd is not None:
+                estimate, error = abd
+                self.add_estimate(estimate + error)
+            print(f"Found {self.pos_history[0]} positive documents. The current estimate is"
+                f"{self.estimate_history[0]:.2f}")
+        
     def add_estimate(self, value: float) -> None:
         if len(self.estimate_history) > self.same_state_count:
             self.estimate_history.pop()
@@ -79,6 +103,8 @@ class CaptureRecaptureCriterion(AbstractStopCriterion, Generic[LT]):
 
     @property
     def stop_criterion(self) -> bool:
-        if len(self.pos_history) < self.same_state_count:
-            return False 
-        return self.same_count and self.same_estimate
+        if len(self.estimate_history):
+            if len(self.pos_history) < self.same_state_count:
+                return False 
+            return self.has_been_different and self.same_count and self.same_estimate
+        return super().stop_criterion

@@ -61,7 +61,7 @@ class SaveableInnerModel(Generic[MT]):
             if not self.is_loaded and self.is_stored:
                 self.load()
             return func(self, *args, **kwargs)
-        return wrapper
+        return wrapper # type: ignore
 
     @property
     def is_loaded(self) -> bool:

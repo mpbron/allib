@@ -59,7 +59,7 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
             The new ordering
         """        
         LOGGER.info("Setting a new ordering for %s", self.name)   
-        self.ordering = collections.deque(ordering)
+        self.ordering = collections.deque(ordering) # type: ignore
         self.sampled.clear()
 
     def update_ordering(self) -> bool:

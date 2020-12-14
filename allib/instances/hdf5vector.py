@@ -1,11 +1,11 @@
 from abc import abstractmethod
 from typing import Dict, Generic, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar
 
-import h5py
+import h5py # type: ignore
 import pickle
 import itertools
 import numpy as np  # type: ignore
-from h5py._hl.dataset import Dataset
+from h5py._hl.dataset import Dataset # type: ignore
 
 from .vectorstorage import VectorStorage
 
@@ -175,7 +175,7 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         assert self.__mode in self.__writemodes
         assert len(input_keys) == len(input_values) and len(input_keys) > 0
 
-        keys, values = filter_snd_none(input_keys, input_values)
+        keys, values = filter_snd_none(input_keys, input_values) # type: ignore
         
         if not values:
             return
@@ -240,19 +240,19 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         chunks = divide_iterable_in_lists(sorted_keys, chunk_size)
         yield from map(self._get_matrix, chunks)
 
-    def get_vectors_chunked(self, keys: Sequence[KT], chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], Sequence[np.ndarray]]]:
+    def get_vectors_chunked(self, keys: Sequence[KT], chunk_size: int = 200):
         results = itertools.starmap(matrix_tuple_to_vectors, self.get_matrix_chunked(keys, chunk_size))
         yield from results
 
-    def get_vectors_zipped(self, keys: Sequence[KT], chunk_size: int = 200) -> Iterator[Sequence[Tuple[KT, np.ndarray]]]:
+    def get_vectors_zipped(self, keys: Sequence[KT], chunk_size: int = 200):
         results = itertools.starmap(matrix_tuple_to_zipped, self.get_matrix_chunked(keys, chunk_size))
         yield from results
 
-    def vectors_chunker(self, chunk_size: int = 200) -> Iterator[Sequence[Tuple[KT, np.ndarray]]]:
+    def vectors_chunker(self, chunk_size: int = 200):
         results = itertools.starmap(matrix_tuple_to_zipped, self.matrices_chunker(chunk_size))
         yield from results
            
-    def matrices_chunker(self, chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
+    def matrices_chunker(self, chunk_size: int = 200):
         assert self.datasets_exist
         h5py_idxs = self.inv_key_dict.keys()
         sorted_keys = sorted(h5py_idxs)

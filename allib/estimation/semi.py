@@ -2,11 +2,11 @@ from abc import ABC
 from dataclasses import dataclass
 import itertools
 from collections import Counter
-from numpy import int64
 import pandas as pd # type: ignore
-from typing import Generic, Optional, TypeVar, List, Sequence, Set
+from typing import FrozenSet, Generic, Optional, TypeVar, List, Sequence, Set
 from ..environment import AbstractEnvironment
-from ..activelearning import PoolbasedAL
+from ..activelearning import PoolBasedAL
+from ..activelearning.ml_based import MLBased
 from ..machinelearning import AbstractClassifier
 from ..activelearning.ml_based import FeatureMatrix
 from sklearn.linear_model import LogisticRegression # type: ignore
@@ -27,17 +27,17 @@ class DecisionRow(Generic[KT]):
     pos_labeled: bool
     order: Optional[int]
 
-def semi(learner: PoolbasedAL[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], pos_label: LT, neg_label: LT) -> int:
+def semi(learner: MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], pos_label: LT, neg_label: LT) -> int:
     def temporary_label_indices(y_pred_proba: np.ndarray) -> List[int]:
         order = np.argsort(y_pred_proba)[::-1]
-        print(f"{y_pred_proba[order[0]]}, {y_pred_proba[order[-1]]}")
+        print(f"{y_pred_proba[order[0]]}, {y_pred_proba[order[-1]]}") # type: ignore
         count = 0
         target = 1
         candidates: List[int] = []
         sample: List[int] = []
         for i, x in enumerate(y_pred_proba[order]):
             count = count + x
-            candidates.append(order[i])
+            candidates.append(order[i]) # type: ignore
             if count >= target:
                 sample.append(candidates[0])
                 target = target + 1
@@ -45,7 +45,7 @@ def semi(learner: PoolbasedAL[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         return sample
     env = learner.env
     classifier = learner.classifier
-    def get_decision_values(pos_labeled: Set[KT], neg_labeled: Set[KT], proba = True):
+    def get_decision_values(pos_labeled: FrozenSet[KT], neg_labeled: FrozenSet[KT], proba = True):
         pos_col_idx = classifier.get_label_column_index(pos_label)
         for mat in FeatureMatrix[KT].generator_from_provider(env.dataset, 100):
             decision_keys = mat.indices

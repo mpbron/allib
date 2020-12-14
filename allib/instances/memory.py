@@ -1,4 +1,5 @@
 from __future__ import annotations
+from allib.utils.func import filter_snd_none
 from ..utils.chunks import divide_iterable_in_lists
 
 import itertools
@@ -68,7 +69,7 @@ class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
         return cls(datapoints)
 
     @classmethod
-    def from_provider(cls, provider: InstanceProvider[KT, DT, VT, Any]) -> DataPointProvider[KT, DT, VT]:
+    def from_provider(cls, provider: InstanceProvider[KT, DT, VT, Any], *args, **kwargs) -> DataPointProvider[KT, DT, VT]:
         if isinstance(provider, DataPointProvider):
             return cls.copy(provider)
         instances = provider.bulk_get_all()
@@ -84,7 +85,7 @@ class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
     def __iter__(self) -> Iterator[KT]:
         yield from self.dictionary.keys()
 
-    def __getitem__(self, key: KT) -> DataPoint[KT, DT, VT]:
+    def __getitem__(self, key: KT):
         return self.dictionary[key]
 
     def __setitem__(self, key: KT, value: Instance[KT, DT, VT, Any]) -> None:
@@ -109,25 +110,26 @@ class DataPointProvider(InstanceProvider[KT, DT, VT, DT], Generic[KT, DT, VT]):
     def clear(self) -> None:
         self.dictionary = {}
        
-    def bulk_get_vectors(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], Sequence[Optional[VT]]]:
+    def bulk_get_vectors(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], Sequence[VT]]:
         vectors = [self[key].vector  for key in keys]
-        return keys, vectors
+        ret_keys, ret_vectors = filter_snd_none(keys, vectors) # type: ignore
+        return ret_keys, ret_vectors
 
-    def bulk_get_all(self) -> List[Instance[KT, DT, VT, RT]]:
+    def bulk_get_all(self) -> List[Instance[KT, DT, VT, DT]]:
         return list(self.get_all())
 
     
 
 
 class DataBucketProvider(DataPointProvider[KT, DT, VT], Generic[KT, DT, VT]):
-    def __init__(self, dataset: DataPointProvider[KT, DT, VT], instances: Iterable[KT]):
+    def __init__(self, dataset: InstanceProvider[KT, DT, VT, Any], instances: Iterable[KT]):
         self._elements = set(instances)
         self.dataset = dataset
 
     def __iter__(self) -> Iterator[KT]:
         yield from self._elements
 
-    def __getitem__(self, key: KT) -> DataPoint[KT, DT, VT]:
+    def __getitem__(self, key: KT):
         if key in self._elements:
             return self.dataset[key]
         raise KeyError(
@@ -151,9 +153,11 @@ class DataBucketProvider(DataPointProvider[KT, DT, VT], Generic[KT, DT, VT]):
         return not self._elements
 
     @classmethod
-    def from_provider(cls, dataset: DataPointProvider[KT, DT, VT], provider: InstanceProvider[KT, DT, VT, Any]) -> DataBucketProvider[KT, DT, VT]:
-        return cls(dataset, provider.key_list)
+    def from_provider(cls, provider: InstanceProvider[KT, DT, VT, Any], *args, **kwargs) -> DataBucketProvider[KT, DT, VT]:
+        return cls(provider, provider.key_list)
 
     @classmethod
-    def copy(cls, provider: DataBucketProvider[KT, DT, VT]) -> DataBucketProvider[KT, DT, VT]:
-        return cls(provider.dataset, provider.key_list)
+    def copy(cls, provider: DataPointProvider[KT, DT, VT]):
+        if isinstance(provider, DataBucketProvider):
+            return cls(provider.dataset, provider.key_list)
+        return cls(provider, provider.key_list)

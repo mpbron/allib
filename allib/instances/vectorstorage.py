@@ -30,7 +30,7 @@ class VectorStorage(MutableMapping[KT, VT], Generic[KT, VT]):
         raise NotImplementedError
 
     @abstractmethod
-    def matrices_chunker(self) -> Iterator[Tuple[KT, VT]]:
+    def matrices_chunker(self) -> Iterator[Tuple[Sequence[KT], VT]]:
         raise NotImplementedError
 
     @abstractmethod

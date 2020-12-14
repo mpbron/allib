@@ -37,7 +37,7 @@ LOGGER = logging.getLogger(__name__)
 class FeatureMatrix(Generic[KT]):
     def __init__(self, keys: Sequence[KT], vectors: Sequence[Optional[np.ndarray]]):
         # Filter all rows with None as Vector
-        filtered_keys, filtered_vecs = filter_snd_none(keys, vectors)
+        filtered_keys, filtered_vecs = filter_snd_none(keys, vectors) # type: ignore
         self.matrix = np.vstack(filtered_vecs)
         self.indices: Sequence[KT] = filtered_keys
 
@@ -64,7 +64,7 @@ class FeatureMatrix(Generic[KT]):
 class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
-                 fallback: PoolBasedAL[KT, DT, VT, RT, LT] = RandomSampling(),
+                 fallback: PoolBasedAL[KT, DT, VT, RT, LT] = RandomSampling[KT, DT, VT, RT, LT](),
                  batch_size = 200,
                  *_, **__
                  ) -> None:
@@ -209,8 +209,8 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
             self._set_ordering(ordering)
             return True
 
-    @MLBased.iterator_fallback
-    def __next__(self) -> Instance[KT, DT, np.ndarray, RT]:
+    @MLBased.iterator_fallback # type: ignore
+    def __next__(self):
         value: Instance[KT, DT, np.ndarray, RT] = super(
             ProbabiltyBased, self).__next__()
         return value
