@@ -7,3 +7,4 @@ class Component(Enum):
     ENVIRONMENT = "Environment"
     VECTORIZER = "Vectorizer"
     BALANCER = "Balancer"
+    SELECTION_CRITERION = "SelectionCriterion"

@@ -85,7 +85,7 @@ class ManualEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], PoolBasedAL[KT, DT, V
                  probabilities: List[float], 
                  rng: Any = None, *_, **__) -> None:
         super().__init__()
-        self.learners = learners
+        self.learners: List[ActiveLearner[KT, DT, VT, RT, LT]] = learners
         self.probabilities = probabilities
         self._sample_dict: Dict[KT, int] = {}
         self._rng: Any = get_random_generator(rng)
@@ -153,7 +153,7 @@ class StrategyEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], MLBased[KT, DT, VT,
                  learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
                  probabilities: List[float], rng: Any = None, *_, **__) -> None:
         super().__init__(classifier, RandomSampling())
-        self.learners = learners
+        self.learners: List[ActiveLearner[KT, DT, VT, RT, LT]] = learners
         self.probabilities = probabilities
         self._rng: Any = get_random_generator(rng)
         self.sampled: Set[KT] = set()

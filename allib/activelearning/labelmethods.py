@@ -10,7 +10,7 @@ from ..environment import AbstractEnvironment
 from ..instances.base import Instance
 from ..machinelearning import AbstractClassifier
 from .base import ActiveLearner
-from .ml_based import MLBased, ProbabiltyBased, FeatureMatrix
+from .ml_based import MLBased, ProbabiltyBased, FeatureMatrix, AbstractSelectionCriterion
 from .random import RandomSampling
 from .ensembles import AbstractEnsemble
 
@@ -26,8 +26,11 @@ FT = TypeVar("FT")
 
 
 class LabelProbabilityBased(ProbabiltyBased[KT, DT, RT, LT], ABC, Generic[KT, DT, RT, LT]):
-    def __init__(self, classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray], label: LT, fallback = RandomSampling[KT, DT, np.ndarray, RT, LT],  *_, **__) -> None:
-        super().__init__(classifier, fallback)
+    def __init__(self, 
+                 classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray], 
+                 selection_criterion: AbstractSelectionCriterion,
+                 label: LT, fallback = RandomSampling[KT, DT, np.ndarray, RT, LT],  *_, **__) -> None:
+        super().__init__(classifier, selection_criterion, fallback)
         self.label = label
         self.labelposition: Optional[int] = None
 
@@ -42,7 +45,7 @@ class LabelProbabilityBased(ProbabiltyBased[KT, DT, RT, LT], ABC, Generic[KT, DT
 
     @staticmethod
     @abstractmethod
-    def selection_criterion(prob_vec: np.ndarray) -> np.ndarray:
+    def selection_criterion(prob_mat: np.ndarray) -> np.ndarray:
         raise NotImplementedError
 
     def _get_predictions(self, matrix: FeatureMatrix[KT]) -> Tuple[Sequence[KT], np.ndarray]:

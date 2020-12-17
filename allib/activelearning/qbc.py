@@ -33,7 +33,7 @@
 #         return self
 
 #     @staticmethod
-#     def selection_criterion(prob_vec: np.ndarray) -> np.ndarray:
+#     def selection_criterion(prob_mat: np.ndarray) -> np.ndarray:
 #         return - entropy(prob_vec, axis=0)
 
 #     @MLBased.query_fallback

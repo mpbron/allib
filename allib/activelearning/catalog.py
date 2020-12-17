@@ -1,3 +1,4 @@
+from allib.activelearning.uncertainty import LabelUncertainty
 from enum import Enum
 
 class ALCatalog:
@@ -6,6 +7,8 @@ class ALCatalog:
         ESTIMATOR = "Estimator"
         CYCLE = "CycleEstimator"
         ENSEMBLE  = "Ensemble"
+        NEWESTIMATOR = "NewEstimator"
+        PROBABILITY_BASED = "ProbabilityBased"
 
     class QueryType(str, Enum):
         RANDOM_SAMPLING = "RandomSampling"
@@ -16,6 +19,7 @@ class ALCatalog:
         MAX_ENTROPY = "MaxEntropy"
         INTERLEAVE = "InterleaveAL"
         LABELMAXIMIZER = "LabelMaximizer"
+        LABELUNCERTAINTY = "LabelUncertainty"
         MIN_ENTROPY = "MinEntropy"
         MOST_CONFIDENCE = "MostConfidence"
         PRELABELED = "Prelabeled"

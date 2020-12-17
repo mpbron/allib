@@ -8,7 +8,7 @@ from ..machinelearning import AbstractClassifier
 from ..machinelearning import MachineLearningFactory
 
 from .catalog import ALCatalog as AL
-from .estimator import CycleEstimator, Estimator
+from .estimator import CycleEstimator, Estimator, NewEstimator
 from .random import RandomSampling
 from .uncertainty import MarginSampling, NearDecisionBoundary, EntropySampling, LeastConfidence
 from .ensembles import StrategyEnsemble
@@ -30,6 +30,16 @@ class PoolbasedBuilder(AbstractBuilder):
             classifier=classifier,
             **kwargs)
 
+class PoolbasedBuilder(AbstractBuilder):
+    def __call__( # type: ignore
+            self,
+            query_type: AL.QueryType,
+            machinelearning: Dict,
+            **kwargs):
+        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
+        return self._factory.create(query_type,
+            classifier=classifier,
+            **kwargs)
 class StrategyEnsembleBuilder(AbstractBuilder):
     def build_learner(self, classifier: AbstractClassifier, config):
         query_type = config["query_type"]
@@ -68,6 +78,16 @@ class CycleEstimatorBuilder(AbstractBuilder):
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
         return CycleEstimator(classifier, configured_learners)
 
+class NewEstimatorBuilder(AbstractBuilder):
+    def __call__( # type: ignore
+            self, learners: List[Dict], 
+            machinelearning: Dict, **kwargs) -> NewEstimator:
+        configured_learners = [
+            self._factory.create(Component.ACTIVELEARNER, **learner_config)
+            for learner_config in learners
+        ]
+        return NewEstimator(configured_learners)
+
 class ActiveLearningFactory(ObjectFactory):
     def __init__(self) -> None:
         super().__init__()
@@ -77,6 +97,7 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_builder(AL.Paradigm.ESTIMATOR, EstimatorBuilder())
         self.register_builder(AL.Paradigm.CYCLE, CycleEstimatorBuilder())
         self.register_builder(AL.Paradigm.ENSEMBLE, StrategyEnsembleBuilder())
+        self.register_builder(AL.Paradigm.NEWESTIMATOR, NewEstimatorBuilder())
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)
         self.register_constructor(AL.QueryType.MAX_ENTROPY, EntropySampling)

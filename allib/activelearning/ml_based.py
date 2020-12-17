@@ -134,11 +134,38 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         return wrapper
 
 
-class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], ABC, Generic[KT, DT, RT, LT]):
-    @staticmethod
+class AbstractSelectionCriterion(ABC):
+    name: str = "AbstractSelectionCriterion"
+
     @abstractmethod
-    def selection_criterion(prob_vec: np.ndarray) -> np.ndarray:
+    def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
+        """Calculates the selection metric given a probability matrix
+
+        Args:
+            prob_mat (np.ndarray): The probability matrix with 
+                rows of class probabilities. Shape should be 
+                (n_instances, n_classes)
+
+        Returns:
+            np.ndarray: The metric for each row in the matrix
+        """        
         raise NotImplementedError
+
+class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], ABC, Generic[KT, DT, RT, LT]):
+    _name  = "ProbabilityBased"
+    
+    def __init__(self,
+                 classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray],
+                 selection_criterion: AbstractSelectionCriterion,
+                 fallback: PoolBasedAL[KT, DT, np.ndarray, RT, LT] = RandomSampling[KT, DT, np.ndarray, RT, LT](),
+                 batch_size = 200,
+                 *_, **__
+                 ) -> None:
+        super().__init__(classifier, fallback, batch_size)
+        self._selection_criterion = selection_criterion
+
+    def selection_criterion(self, prob_mat: np.ndarray) -> np.ndarray:
+        return self._selection_criterion(prob_mat)
 
     def _get_predictions(self, matrix: FeatureMatrix[KT]) -> Tuple[Sequence[KT], np.ndarray]:
         """Calculate the probability matrix for the current feature matrix
@@ -215,3 +242,4 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
         value: Instance[KT, DT, np.ndarray, RT] = super(
             ProbabiltyBased, self).__next__()
         return value
+

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Deque, Generic, TypeVar, Any
 
 from ..activelearning import ActiveLearner
-from ..activelearning.estimator import Estimator
+from ..activelearning.estimator import Estimator, NewEstimator
 from .analysis import process_performance
 from ..utils.func import all_equal
 
@@ -60,6 +60,9 @@ class SameStateCount(AbstractStopCriterion[LT], Generic[LT]):
                 self.has_been_different = True
         self.pos_history.appendleft(value)
 
+    @property
+    def count(self) -> int:
+        return self.pos_history[0]
 
     @property
     def same_count(self) -> bool:
@@ -73,13 +76,14 @@ class SameStateCount(AbstractStopCriterion[LT], Generic[LT]):
 
 
 class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
-    def __init__(self, label: LT, same_state_count: int):
+    def __init__(self, label: LT, same_state_count: int, margin: float):
         super().__init__(label, same_state_count)
         self.estimate_history: Deque[float] = collections.deque()
+        self.margin: float = margin
 
     def update(self, learner: ActiveLearner[KT, DT, VT, RT, LT]):
         super().update(learner)
-        if isinstance(learner, Estimator):
+        if isinstance(learner, Estimator) or isinstance(learner, NewEstimator):
             self.add_count(learner.env.labels.document_count(self.label))
             abd = learner.get_abundance(self.label)
             if abd is not None:
@@ -92,6 +96,16 @@ class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
         if len(self.estimate_history) > self.same_state_count:
             self.estimate_history.pop()
         self.estimate_history.appendleft(value)
+
+    @property
+    def estimate(self) -> float:
+        return self.estimate_history[0]
+
+    @property
+    def estimate_match(self) -> bool:
+        difference = abs(self.estimate - self.count)
+        return difference < self.margin
+        
     
     @property
     def same_count(self) -> bool:
@@ -106,5 +120,5 @@ class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
         if len(self.estimate_history):
             if len(self.pos_history) < self.same_state_count:
                 return False 
-            return self.has_been_different and self.same_count and self.same_estimate
+            return self.has_been_different and self.same_count and self.estimate_match
         return super().stop_criterion
