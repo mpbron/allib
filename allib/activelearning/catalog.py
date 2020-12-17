@@ -1,4 +1,3 @@
-from allib.activelearning.uncertainty import LabelUncertainty
 from enum import Enum
 
 class ALCatalog:

@@ -137,6 +137,9 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
 class AbstractSelectionCriterion(ABC):
     name: str = "AbstractSelectionCriterion"
 
+    def __init__(self, *_, **__) -> None:
+        pass
+
     @abstractmethod
     def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
         """Calculates the selection metric given a probability matrix
@@ -151,7 +154,7 @@ class AbstractSelectionCriterion(ABC):
         """        
         raise NotImplementedError
 
-class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], ABC, Generic[KT, DT, RT, LT]):
+class ProbabilityBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], ABC, Generic[KT, DT, RT, LT]):
     _name  = "ProbabilityBased"
     
     def __init__(self,
@@ -240,6 +243,6 @@ class ProbabiltyBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray
     @MLBased.iterator_fallback # type: ignore
     def __next__(self):
         value: Instance[KT, DT, np.ndarray, RT] = super(
-            ProbabiltyBased, self).__next__()
+            ProbabilityBased, self).__next__()
         return value
 

@@ -10,7 +10,7 @@ from ..environment import AbstractEnvironment
 from ..instances.base import Instance
 from ..machinelearning import AbstractClassifier
 from .base import ActiveLearner
-from .ml_based import MLBased, ProbabiltyBased, FeatureMatrix, AbstractSelectionCriterion
+from .ml_based import MLBased, ProbabilityBased, FeatureMatrix, AbstractSelectionCriterion
 from .random import RandomSampling
 from .ensembles import AbstractEnsemble
 
@@ -25,7 +25,7 @@ FT = TypeVar("FT")
 
 
 
-class LabelProbabilityBased(ProbabiltyBased[KT, DT, RT, LT], ABC, Generic[KT, DT, RT, LT]):
+class LabelProbabilityBased(ProbabilityBased[KT, DT, RT, LT], ABC, Generic[KT, DT, RT, LT]):
     def __init__(self, 
                  classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray], 
                  selection_criterion: AbstractSelectionCriterion,

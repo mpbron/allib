@@ -1,6 +1,7 @@
 from abc import ABC
+from allib.activelearning.base import ActiveLearner
 import functools
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from ..module.component import Component
 from ..factory import AbstractBuilder, ObjectFactory
@@ -13,22 +14,29 @@ from .random import RandomSampling
 from .uncertainty import MarginSampling, NearDecisionBoundary, EntropySampling, LeastConfidence
 from .ensembles import StrategyEnsemble
 from .mostcertain import LabelMaximizer, MostCertainSampling
+from .ml_based import AbstractSelectionCriterion, ProbabilityBased
 
-
+class FallbackBuilder(AbstractBuilder):
+    def __call__(self, **kwargs) -> ActiveLearner:
+        if kwargs:
+            fallback = self._factory.create(Component.ACTIVELEARNER, **kwargs)
+            return fallback
+        return RandomSampling()
 class ALBuilder(AbstractBuilder):
     def __call__(self, paradigm, **kwargs):
         return self._factory.create(paradigm, **kwargs)
 
-class PoolbasedBuilder(AbstractBuilder):
+class ProbabilityBasedBuilder(AbstractBuilder):
     def __call__( # type: ignore
             self,
             query_type: AL.QueryType,
             machinelearning: Dict,
+            fallback: Dict = dict(),
             **kwargs):
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
-        return self._factory.create(query_type,
-            classifier=classifier,
-            **kwargs)
+        selection_criterion: AbstractSelectionCriterion = self._factory.create(query_type, **kwargs)
+        built_fallback = self._factory.create(Component.FALLBACK, **fallback)
+        return ProbabilityBased(classifier, selection_criterion, built_fallback)
 
 class PoolbasedBuilder(AbstractBuilder):
     def __call__( # type: ignore
@@ -80,8 +88,7 @@ class CycleEstimatorBuilder(AbstractBuilder):
 
 class NewEstimatorBuilder(AbstractBuilder):
     def __call__( # type: ignore
-            self, learners: List[Dict], 
-            machinelearning: Dict, **kwargs) -> NewEstimator:
+            self, learners: List[Dict], **kwargs) -> NewEstimator:
         configured_learners = [
             self._factory.create(Component.ACTIVELEARNER, **learner_config)
             for learner_config in learners
@@ -93,7 +100,9 @@ class ActiveLearningFactory(ObjectFactory):
         super().__init__()
         self.attach(MachineLearningFactory())
         self.register_builder(Component.ACTIVELEARNER, ALBuilder())
+        self.register_builder(Component.FALLBACK, FallbackBuilder())
         self.register_builder(AL.Paradigm.POOLBASED, PoolbasedBuilder())
+        self.register_builder(AL.Paradigm.PROBABILITY_BASED, ProbabilityBasedBuilder())
         self.register_builder(AL.Paradigm.ESTIMATOR, EstimatorBuilder())
         self.register_builder(AL.Paradigm.CYCLE, CycleEstimatorBuilder())
         self.register_builder(AL.Paradigm.ENSEMBLE, StrategyEnsembleBuilder())
