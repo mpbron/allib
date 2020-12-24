@@ -43,11 +43,6 @@ class LabelProbabilityBased(ProbabilityBased[KT, DT, RT, LT], ABC, Generic[KT, D
     def name(self) -> Tuple[str, LT]:
         return f"{self._name} :: {self.classifier.name}", self.label
 
-    @staticmethod
-    @abstractmethod
-    def selection_criterion(prob_mat: np.ndarray) -> np.ndarray:
-        raise NotImplementedError
-
     def _get_predictions(self, matrix: FeatureMatrix[KT]) -> Tuple[Sequence[KT], np.ndarray]:
         prob_vec: np.ndarray = self.classifier.predict_proba(
             matrix.matrix)  # type: ignore

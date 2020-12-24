@@ -8,6 +8,7 @@ class ALCatalog:
         ENSEMBLE  = "Ensemble"
         NEWESTIMATOR = "NewEstimator"
         PROBABILITY_BASED = "ProbabilityBased"
+        LABEL_PROBABILITY_BASED = "LabelProbabilityBased"
 
     class QueryType(str, Enum):
         RANDOM_SAMPLING = "RandomSampling"

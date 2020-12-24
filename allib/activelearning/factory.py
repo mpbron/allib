@@ -1,21 +1,23 @@
-from abc import ABC
-from allib.activelearning.base import ActiveLearner
 import functools
-from typing import Dict, List, Optional
+from abc import ABC
+from typing import Dict, List, Optional, TypeVar
 
-from ..module.component import Component
 from ..factory import AbstractBuilder, ObjectFactory
-from ..machinelearning import AbstractClassifier
-from ..machinelearning import MachineLearningFactory
+from ..machinelearning import AbstractClassifier, MachineLearningFactory
+from ..module.component import Component
 
+from .base import ActiveLearner
 from .catalog import ALCatalog as AL
-from .estimator import CycleEstimator, Estimator, NewEstimator
-from .random import RandomSampling
-from .uncertainty import MarginSampling, NearDecisionBoundary, EntropySampling, LeastConfidence
 from .ensembles import StrategyEnsemble
-from .mostcertain import LabelMaximizer, MostCertainSampling
+from .estimator import CycleEstimator, Estimator, NewEstimator
+from .labelmethods import LabelProbabilityBased
 from .ml_based import AbstractSelectionCriterion, ProbabilityBased
+from .mostcertain import LabelMaximizer, MostCertainSampling
+from .random import RandomSampling
+from .uncertainty import (EntropySampling, LabelUncertainty, LeastConfidence, MarginSampling,
+                          NearDecisionBoundary)
 
+LT = TypeVar("LT")
 class FallbackBuilder(AbstractBuilder):
     def __call__(self, **kwargs) -> ActiveLearner:
         if kwargs:
@@ -37,6 +39,20 @@ class ProbabilityBasedBuilder(AbstractBuilder):
         selection_criterion: AbstractSelectionCriterion = self._factory.create(query_type, **kwargs)
         built_fallback = self._factory.create(Component.FALLBACK, **fallback)
         return ProbabilityBased(classifier, selection_criterion, built_fallback)
+
+class LabelProbabilityBasedBuilder(AbstractBuilder):
+    def __call__( # type: ignore
+            self,
+            query_type: AL.QueryType,
+            machinelearning: Dict,
+            label: LT,
+            fallback: Dict = dict(),
+            **kwargs):
+        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
+        selection_criterion: AbstractSelectionCriterion = self._factory.create(query_type, **kwargs)
+        built_fallback = self._factory.create(Component.FALLBACK, **fallback)
+        return LabelProbabilityBased(classifier, selection_criterion, label, built_fallback)
+
 
 class PoolbasedBuilder(AbstractBuilder):
     def __call__( # type: ignore
@@ -107,10 +123,12 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_builder(AL.Paradigm.CYCLE, CycleEstimatorBuilder())
         self.register_builder(AL.Paradigm.ENSEMBLE, StrategyEnsembleBuilder())
         self.register_builder(AL.Paradigm.NEWESTIMATOR, NewEstimatorBuilder())
+        self.register_builder(AL.Paradigm.LABEL_PROBABILITY_BASED, LabelProbabilityBasedBuilder())
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)
         self.register_constructor(AL.QueryType.MAX_ENTROPY, EntropySampling)
         self.register_constructor(AL.QueryType.MARGIN_SAMPLING, MarginSampling)
         self.register_constructor(AL.QueryType.NEAR_DECISION_BOUNDARY, NearDecisionBoundary)
         self.register_constructor(AL.QueryType.LABELMAXIMIZER, LabelMaximizer)
+        self.register_constructor(AL.QueryType.LABELUNCERTAINTY, LabelUncertainty)
         self.register_constructor(AL.QueryType.MOST_CERTAIN, MostCertainSampling)
