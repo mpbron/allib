@@ -4,9 +4,9 @@ class ALCatalog:
     class Paradigm(Enum):
         POOLBASED = "Poolbased"
         ESTIMATOR = "Estimator"
-        CYCLE = "CycleEstimator"
+        CYCLE_ESTIMATOR = "CycleEstimator"
         ENSEMBLE  = "Ensemble"
-        NEWESTIMATOR = "NewEstimator"
+        RETRY_ESTIMATOR = "NewEstimator"
         PROBABILITY_BASED = "ProbabilityBased"
         LABEL_PROBABILITY_BASED = "LabelProbabilityBased"
 

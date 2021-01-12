@@ -17,3 +17,4 @@ class MachineLearningCatalog:
         SVM = "SVM"
         SVC = "SVC"
         LOGISTIC = "LogisticRegression"
+        LGBM = "LGBMClassifier"

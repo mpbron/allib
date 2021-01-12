@@ -9,7 +9,7 @@ from ..module.component import Component
 from .base import ActiveLearner
 from .catalog import ALCatalog as AL
 from .ensembles import StrategyEnsemble
-from .estimator import CycleEstimator, Estimator, NewEstimator
+from .estimator import CycleEstimator, Estimator, RetryEstimator
 from .labelmethods import LabelProbabilityBased
 from .ml_based import AbstractSelectionCriterion, ProbabilityBased
 from .mostcertain import LabelMaximizer, MostCertainSampling
@@ -80,36 +80,33 @@ class StrategyEnsembleBuilder(AbstractBuilder):
         config_function = functools.partial(self.build_learner, classifier)
         configured_learners = list(map(config_function, learners))
         return StrategyEnsemble(classifier, configured_learners, probabilities)
-class EstimatorBuilder(AbstractBuilder):
-    def __call__( # type: ignore
-            self, learners: List[Dict], 
-            machinelearning: Dict, **kwargs) -> Estimator:
-        configured_learners = [
-            self._factory.create(Component.ACTIVELEARNER, **learner_config)
-            for learner_config in learners
-        ]
-        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
-        return Estimator(classifier, configured_learners)
-
 class CycleEstimatorBuilder(AbstractBuilder):
     def __call__( # type: ignore
             self, learners: List[Dict], 
-            machinelearning: Dict, **kwargs) -> Estimator:
+            **kwargs) -> Estimator:
         configured_learners = [
             self._factory.create(Component.ACTIVELEARNER, **learner_config)
             for learner_config in learners
-        ]
-        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
-        return CycleEstimator(classifier, configured_learners)
+        ]       
+        return CycleEstimator(configured_learners)
 
-class NewEstimatorBuilder(AbstractBuilder):
+class EstimatorBuilder(AbstractBuilder):
     def __call__( # type: ignore
-            self, learners: List[Dict], **kwargs) -> NewEstimator:
+            self, learners: List[Dict], **kwargs) -> Estimator:
         configured_learners = [
             self._factory.create(Component.ACTIVELEARNER, **learner_config)
             for learner_config in learners
         ]
-        return NewEstimator(configured_learners)
+        return Estimator(configured_learners)
+
+class RetryEstimatorBuilder(AbstractBuilder):
+    def __call__( # type: ignore
+            self, learners: List[Dict], **kwargs) -> RetryEstimator:
+        configured_learners = [
+            self._factory.create(Component.ACTIVELEARNER, **learner_config)
+            for learner_config in learners
+        ]
+        return RetryEstimator(configured_learners)
 
 class ActiveLearningFactory(ObjectFactory):
     def __init__(self) -> None:
@@ -120,9 +117,8 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_builder(AL.Paradigm.POOLBASED, PoolbasedBuilder())
         self.register_builder(AL.Paradigm.PROBABILITY_BASED, ProbabilityBasedBuilder())
         self.register_builder(AL.Paradigm.ESTIMATOR, EstimatorBuilder())
-        self.register_builder(AL.Paradigm.CYCLE, CycleEstimatorBuilder())
+        self.register_builder(AL.Paradigm.CYCLE_ESTIMATOR, CycleEstimatorBuilder())
         self.register_builder(AL.Paradigm.ENSEMBLE, StrategyEnsembleBuilder())
-        self.register_builder(AL.Paradigm.NEWESTIMATOR, NewEstimatorBuilder())
         self.register_builder(AL.Paradigm.LABEL_PROBABILITY_BASED, LabelProbabilityBasedBuilder())
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)

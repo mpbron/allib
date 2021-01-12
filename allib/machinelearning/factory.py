@@ -9,6 +9,8 @@ from sklearn.pipeline import Pipeline # type: ignore
 from sklearn.preprocessing import LabelBinarizer, MultiLabelBinarizer # type: ignore
 from sklearn.svm import LinearSVC, SVC # type: ignore
 
+from lightgbm.sklearn import LGBMClassifier
+
 from ..balancing import BalancerFactory
 from ..balancing.catalog import BalancerCatalog as BL
 from ..factory import AbstractBuilder, ObjectFactory
@@ -68,3 +70,4 @@ class MachineLearningFactory(ObjectFactory):
         self.register_constructor(ML.SklearnModel.LOGISTIC, LogisticRegression)
         self.register_constructor(ML.SklearnModel.SVM, LinearSVC)
         self.register_constructor(ML.SklearnModel.SVC, SVC)
+        self.register_constructor(ML.SklearnModel.LGBM, LGBMClassifier)

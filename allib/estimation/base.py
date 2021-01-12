@@ -22,7 +22,7 @@ PVT = TypeVar("PVT")
 LVT = TypeVar("LVT")
 
 
-class AbstractEstimator(ABC,Generic[KT, DT, VT, RT, LT]):
+class AbstractEstimator(ABC, Generic[KT, DT, VT, RT, LT]):
     @abstractmethod
     def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, Optional[float]]:
         raise NotImplementedError

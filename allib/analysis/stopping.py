@@ -1,10 +1,11 @@
+from allib.estimation.abundance import AbundanceEstimator
 import collections
 import itertools
 from abc import ABC, abstractmethod
 from typing import Deque, Generic, TypeVar, Any
 
 from ..activelearning import ActiveLearner
-from ..activelearning.estimator import Estimator, NewEstimator
+from ..activelearning.estimator import Estimator
 from .analysis import process_performance
 from ..utils.func import all_equal
 
@@ -77,20 +78,19 @@ class SameStateCount(AbstractStopCriterion[LT], Generic[LT]):
 
 class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
     def __init__(self, label: LT, same_state_count: int, margin: float):
+        self.calculator = AbundanceEstimator[KT, DT, VT, RT, LT]()
         super().__init__(label, same_state_count)
         self.estimate_history: Deque[float] = collections.deque()
         self.margin: float = margin
 
     def update(self, learner: ActiveLearner[KT, DT, VT, RT, LT]):
         super().update(learner)
-        if isinstance(learner, Estimator) or isinstance(learner, NewEstimator):
+        if isinstance(learner, Estimator):
             self.add_count(learner.env.labels.document_count(self.label))
-            abd = learner.get_abundance(self.label)
-            if abd is not None:
-                estimate, error = abd
-                self.add_estimate(estimate + error)
+            estimate, error = self.calculator(learner, self.label)
+            self.add_estimate(estimate + error)
             print(f"Found {self.pos_history[0]} positive documents. The current estimate is"
-                f"{self.estimate_history[0]:.2f}")
+                f"{estimate:.2f} (+- {error:.2f})")
         
     def add_estimate(self, value: float) -> None:
         if len(self.estimate_history) > self.same_state_count:
