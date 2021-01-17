@@ -1,12 +1,19 @@
 import functools
 import itertools
 
-from typing import Any, Iterable, List, TypeVar, Callable,  Tuple, Optional, Sequence
+from typing import Any, Dict, Iterable, List, TypeVar, Callable,  Tuple, Optional, Sequence
 
 _T = TypeVar("_T")
 _U = TypeVar("_U")
 _V = TypeVar("_V")
 _Z = TypeVar("_Z")
+
+def flatten_dicts(*dicts: Dict[_T, _U]) -> Dict[_T, _U]:
+    try:
+        head, *tail = dicts
+        return {**head, **flatten_dicts(*tail)}
+    except ValueError:
+        return {}
 
 def clist(iter: Iterable[_Z]) -> List[_Z]:
     ret_list = list(iter)

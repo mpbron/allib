@@ -77,8 +77,8 @@ class SameStateCount(AbstractStopCriterion[LT], Generic[LT]):
 
 
 class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
-    def __init__(self, label: LT, same_state_count: int, margin: float):
-        self.calculator = AbundanceEstimator[KT, DT, VT, RT, LT]()
+    def __init__(self, calculator: AbundanceEstimator[Any, Any, Any, Any, LT], label: LT, same_state_count: int, margin: float):
+        self.calculator = calculator
         super().__init__(label, same_state_count)
         self.estimate_history: Deque[float] = collections.deque()
         self.margin: float = margin
@@ -89,8 +89,6 @@ class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
             self.add_count(learner.env.labels.document_count(self.label))
             estimate, error = self.calculator(learner, self.label)
             self.add_estimate(estimate + error)
-            print(f"Found {self.pos_history[0]} positive documents. The current estimate is"
-                f"{estimate:.2f} (+- {error:.2f})")
         
     def add_estimate(self, value: float) -> None:
         if len(self.estimate_history) > self.same_state_count:

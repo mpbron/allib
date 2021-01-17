@@ -1,23 +1,22 @@
-from typing import Dict, Any
+from typing import Any, Dict
 
-from sklearn.ensemble import RandomForestClassifier # type: ignore
-from sklearn.linear_model import LogisticRegression # type: ignore
-from sklearn.multiclass import OneVsRestClassifier # type: ignore
-from sklearn.multioutput import ClassifierChain # type: ignore
-from sklearn.naive_bayes import MultinomialNB # type: ignore
-from sklearn.pipeline import Pipeline # type: ignore
-from sklearn.preprocessing import LabelBinarizer, MultiLabelBinarizer # type: ignore
-from sklearn.svm import LinearSVC, SVC # type: ignore
+from lightgbm.sklearn import LGBMClassifier  # type: ignore
 
-from lightgbm.sklearn import LGBMClassifier
+from sklearn.ensemble import RandomForestClassifier  # type: ignore
+from sklearn.linear_model import LogisticRegression  # type: ignore
+from sklearn.multiclass import OneVsRestClassifier  # type: ignore
+from sklearn.multioutput import ClassifierChain  # type: ignore
+from sklearn.naive_bayes import MultinomialNB  # type: ignore
+from sklearn.pipeline import Pipeline  # type: ignore
+from sklearn.preprocessing import (LabelBinarizer,  # type: ignore
+                                   MultiLabelBinarizer)
+from sklearn.svm import SVC, LinearSVC  # type: ignore
 
 from ..balancing import BalancerFactory
 from ..balancing.catalog import BalancerCatalog as BL
 from ..factory import AbstractBuilder, ObjectFactory
-from ..machinelearning import (MultilabelSkLearnClassifier,
-                                   SkLearnClassifier)
+from ..machinelearning import MultilabelSkLearnClassifier, SkLearnClassifier
 from ..module.component import Component
-
 from .catalog import MachineLearningCatalog as ML
 
 
