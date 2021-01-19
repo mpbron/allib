@@ -7,4 +7,3 @@ gensim
 mypy
 pylint
 matplotlib
-enum
