@@ -120,3 +120,11 @@ class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
                 return False 
             return self.has_been_different and self.same_count and self.estimate_match
         return super().stop_criterion
+
+class CaptureRecaptureCriterion2(CaptureRecaptureCriterion[LT], Generic[LT]):
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
+        super().update(learner)
+        if isinstance(learner, Estimator):
+            self.add_count(learner.env.labels.document_count(self.label))
+            estimate, error = self.calculator(learner, self.label)
+            self.add_estimate(estimate)

@@ -62,7 +62,7 @@ def not_in_supersets(
     sets = frozenset(contingency.keys())
     for key_set in sets:
         strict_supersets = frozenset(filter(
-            lambda s: s.issubset(key_set) and s != key_set,
+            lambda s: s.issuperset(key_set) and s != key_set,
             sets))
         in_supersets: FrozenSet[_U] = frozenset()
         if len(strict_supersets) > 0:
@@ -178,6 +178,44 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
         errors = list(results[:,1])
         tuples = list(zip(names, estimations, errors))
         return tuples
+    
+    def get_contingency_sets(self, 
+                         estimator: Estimator[KT, DT, VT, RT, LT], 
+                         label: LT) -> Dict[FrozenSet[int], FrozenSet[KT]]:
+        learner_sets = {
+            learner_key: learner.env.labels.get_instances_by_label(
+                label).intersection(learner.env.labeled)
+            for learner_key, learner in enumerate(estimator.learners)
+        }
+        key_combinations = powerset(range(len(estimator.learners)))
+        result = {
+            combination: intersection(*[learner_sets[key] for key in combination])
+            for combination in key_combinations
+            if len(combination) >= 1
+        }
+        filtered_result = not_in_supersets(result)
+        return filtered_result
+
+    def get_occasion_history(self, 
+                             estimator: Estimator[KT, DT, VT, RT, LT], 
+                             label: LT) -> pd.DataFrame:
+        contingency_sets = self.get_contingency_sets(estimator, label)
+        learner_keys = union(*contingency_sets.keys())
+        rows = {i:
+            {
+                **{
+                    f"learner_{learner_key}": int(learner_key in combination) 
+                    for learner_key in learner_keys
+                },  
+                **{
+                    "count": len(instances)
+                }
+            }
+            for (i, (combination, instances)) in enumerate(contingency_sets.items())
+        }
+        df = pd.DataFrame.from_dict(# type: ignore
+            rows, orient="index")
+        return df
 
 class MeanAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float]:
@@ -213,41 +251,18 @@ class NegativeAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic
         return estimate, error_estimate
 
 class RatschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
-    def _start_r(self) -> None:
+    def _nstart_r(self) -> None:
         _check_R()
         R = ro.r
         filedir = os.path.dirname(os.path.realpath(__file__))
         r_script_file = os.path.join(filedir, "ratsch_estimate.R")
         R["source"](r_script_file)
     
-    def get_label_matrix(self, 
-                         estimator: Estimator[KT, DT, VT, RT, LT], 
-                         label: LT) -> pd.DataFrame:
-        rows = {ins_key: {
-            l_key: ins_key in learner.env.labeled
-            for l_key, learner in enumerate(estimator.learners)}
-            for ins_key in estimator.env.labels.get_instances_by_label(label)
-        }
-        dataframe = pd.DataFrame.from_dict(  # type: ignore
-            rows, orient="index")
-        self.matrix_history.append(dataframe)
-        return dataframe
-
-    def get_contingency_sets(self, 
-                         estimator: Estimator[KT, DT, VT, RT, LT], 
-                         label: LT) -> Dict[FrozenSet[int], FrozenSet[KT]]:
-        learner_sets = {
-            learner_key: learner.env.labels.get_instances_by_label(
-                label).intersection(learner.env.labeled)
-            for learner_key, learner in enumerate(estimator.learners)
-        }
-        key_combinations = powerset(range(len(estimator.learners)))
-        result = {
-            combination: intersection(*[learner_sets[key] for key in combination])
-            for combination in key_combinations
-            if len(combination) >= 1
-        }
-        filtered_result = not_in_supersets(result)
-        return filtered_result
+    def get_dfreq_ratsch_table(self, 
+                             estimator: Estimator[KT, DT, VT, RT, LT], 
+                             label: LT) -> pd.DataFrame:
+        df = self.get_occasion_history(estimator, label)
+        df["h1"] = df.filter(regex="^learner").sum(axis=1) # type: ignore
+        return df
     
     
