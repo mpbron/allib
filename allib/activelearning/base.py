@@ -37,19 +37,52 @@ class NoOrderingException(Exception):
 
 
 class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT, RT, LT]):
+    
     _name = "ActiveLearner"
     ordering: Optional[Deque[KT]]
     _env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]]
 
+    
     @property
     def name(self) -> Tuple[str, Optional[LT]]:
+        """Return the name of the Active Learner
+
+        Returns
+        -------
+        Tuple[str, Optional[LT]]
+            The tuple contains a name and optionally the label if it the learner
+            optimizes for a specific label
+        """          
         return self._name, None
    
     def __iter__(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
+        """The Active Learning class is an iterator, iterating
+        over instances
+
+        Returns
+        -------
+        ActiveLearner[KT, DT, VT, RT, LT]
+            The same Active Learner is an iterator, so `iter(al) == al`
+        """        
         return self
 
     @property
     def env(self) -> AbstractEnvironment[KT, DT, VT, RT, LT]:
+        """Every ActiveLearner has an Environment that is based on the
+        `allib.environment.base.AbstractEnvironment`. The Environment 
+        contains the dataset, and the current label state (i.e., which 
+        documents are labeled, and which labels do they have)
+
+        Returns
+        -------
+        AbstractEnvironment[KT, DT, VT, RT, LT]
+            The environment that is attached to this Active Learner
+
+        Raises
+        ------
+        NotInitializedException
+            If there is no environment attached
+        """
         if self._env is None:
             raise NotInitializedException
         return self._env
@@ -57,29 +90,58 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
     @abstractmethod
     def update_ordering(self) -> bool:
         """Update the ordering of the Active Learning method
-        
-        Returns:
-        ------
-            bool: True if updating the ordering succeeded
+
+        Returns
+        -------
+        bool
+            True if updating the ordering succeeded
         """             
         raise NotImplementedError
 
     @property
     @abstractmethod
     def has_ordering(self) -> bool:
+        """Returns true if an ordering has been established for this Active Learner
+
+        Returns
+        -------
+            bool: True if an ordering has been established
+        
+        See Also
+        --------
+        update_ordering : The method to create or update the ordering
+        """        
         raise NotImplementedError
 
     @abstractmethod
     def __next__(self) -> Instance[KT, DT, VT, RT]:
         """Return the next instance based on the ordering
 
-        Returns:
-            Instance[KT, DT, VT, RT]: The most informative instance based on the learners ordering
+        Returns
+        -------
+        Instance[KT, DT, VT, RT]
+            The most informative instance based on the learners ordering
+
+        See Also
+        --------
+        __iter__() : Optional function for iterating over instances
         """        
         raise NotImplementedError
        
     @staticmethod
     def iterator_log(func: F) -> F:
+        """A decorator that logs iterator calls
+
+        Parameters
+        ----------
+        func : F
+            The `__next__()` function that iterates over Instances
+
+        Returns
+        -------
+        F
+            The same function with a logger wrapped around it
+        """        
         @functools.wraps(func)
         def wrapper(
                 self: ActiveLearner[KT, DT, VT, RT, LT], 
