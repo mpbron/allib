@@ -7,3 +7,5 @@ gensim
 mypy
 pylint
 matplotlib
+lightgbm
+h5py
