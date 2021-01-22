@@ -49,41 +49,45 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
     """The **Abstract Base Class** `ActiveLearner` specifies the design for all 
     Active Learning algorithms. 
 
-    Attributes
-    ----------
-        ordering: Optional[Deque[KT]]
-            The ordering of instances
-
     Examples
     --------
-    Assume that the variable `al` contains an object that implements this :class:`ABC`.
+    Assume that the variable `al` contains an object that implements this :class:`abc.ABC`.
     You can initialize the learner (supply it with data by attaching 
     an environment) as follows:
+    
     >>> al = al(env)
 
     Instances can be sampled as follows
+    
     >>> instance = next(al)
 
     Or in batch mode by using :func:`itertools.islice`:
+    
     >>> instances = itertools.islice(al, 10) # Change the number to get more instances
 
     Mark a document as labeled
+    
     >>> al.set_as_labeled(instance)
 
     Mark a document as unlabeled
+    
     >>> al.set_as_unlabeled(instance)
 
     Update the ordering
+    
     >>> al.update_ordering()
 
     Check how many documents are labeled
+    
     >>> al.len_labeled
     """    
     
     _name = "ActiveLearner"
+    """The internal name for this Active Learner"""
     ordering: Optional[Deque[KT]]
+    """The ordering of the Active Learner"""
     _env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]]
-
+    """The internal environment"""
     
     @property
     def name(self) -> Tuple[str, Optional[LT]]:
@@ -313,7 +317,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
 
         Parameters
         ----------
-        instance : Instance
+        instance : Instance[KT, DT, VT, RT]
             The now labeled instance
         """
         raise NotImplementedError
@@ -324,7 +328,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
 
         Parameters
         ----------
-        instance : Instance
+        instance : Instance[KT, DT, VT, RT]
             The now labeled instance
         """
         raise NotImplementedError    

@@ -35,6 +35,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
+    "sphinx_autodoc_typehints",
 ]
 
 autosectionlabel_prefix_document = True
@@ -75,4 +76,6 @@ napoleon_use_admonition_for_notes = True
 napoleon_use_admonition_for_references = True
 napoleon_use_ivar = False
 napoleon_use_param = True
-napoleon_use_rtype = False
+napoleon_use_rtype = True
+always_document_param_types = True
+typehints_document_rtype = True
