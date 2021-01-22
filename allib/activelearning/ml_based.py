@@ -7,7 +7,7 @@ import logging
 from abc import ABC, abstractmethod
 from multiprocessing import Pool
 from queue import Queue
-from typing import (Any, Callable, Dict, Generic, Iterator, Optional, Sequence,
+from typing import (Any, Callable, Dict, FrozenSet, Generic, Iterator, Optional, Sequence,
                     Tuple, TypeVar)
 
 import numpy as np  # type: ignore
@@ -62,12 +62,26 @@ class FeatureMatrix(Generic[KT]):
 
 
 class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+   
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
                  fallback: PoolBasedAL[KT, DT, VT, RT, LT] = RandomSampling[KT, DT, VT, RT, LT](),
                  batch_size = 200,
                  *_, **__
                  ) -> None:
+        """Initialize an Machine Learning Based Active Learning method
+
+        Parameters
+        ----------
+        classifier : AbstractClassifier[KT, VT, LT, LVT, PVT]
+            The classifier
+        fallback : PoolBasedAL[KT, DT, VT, RT, LT], optional
+            If fitting a classifier is not possible choose 
+            this ActiveLearner for sampling, 
+            by default ``RandomSampling[KT, DT, VT, RT, LT]()``
+        batch_size : int, optional
+            The batch size for the feature matrix, by default 200
+        """        
         super().__init__()
         self.fitted = False
         self.classifier = classifier
@@ -77,6 +91,14 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
 
     @property
     def uses_fallback(self) -> bool:
+        """Returns true if the fallback method is used 
+        instead of the ML-based method
+
+        Returns
+        -------
+        bool
+            True if the model uses the fallback method
+        """        
         return self._uses_fallback
 
     def __call__(self, 
@@ -88,6 +110,14 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         return self
 
     def retrain(self) -> None:
+        """Retrain the classifier using the information in the
+        labeled set
+
+        Raises
+        ------
+        NotInitializedException
+            If the AL method has no attached Environment
+        """        
         LOGGER.info("[%s] Retraining the classifier", self.name)
         if not self.initialized:
             raise NotInitializedException
@@ -102,12 +132,54 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         LOGGER.info("[%s] Fitted the classifier", self.name)
         self.fitted = True
 
-    def predict(self, instances: Sequence[Instance[KT, DT, VT, RT]]):
+    def predict(self, 
+                instances: Sequence[Instance[KT, DT, VT, RT]]
+               ) -> Sequence[FrozenSet[LT]]:
+        """Predict the labels for the provided instances
+
+        Parameters
+        ----------
+        instances : Sequence[Instance[KT, DT, VT, RT]]
+            A sequence of instances. The instances should all
+            have a vector of type `VT`; they should not be None
+
+        Returns
+        -------
+        Sequence[FrozenSet[LT]]
+            A list of labelings, matching the order of the `instances` parameters
+
+        Raises
+        ------
+        NotInitializedException
+            If the model has no attached Environment
+        """        
         if not self.initialized:
             raise NotInitializedException
         return self.classifier.predict_instances(instances)
 
-    def predict_proba(self, instances: Sequence[Instance[KT, DT, VT, RT]]):
+    def predict_proba(self, 
+                      instances: Sequence[Instance[KT, DT, VT, RT]]
+                      ) -> Sequence[FrozenSet[Tuple[LT, float]]]:
+        """Predict the labels and their probability 
+        for the provided instances
+
+        Parameters
+        ----------
+        instances : Sequence[Instance[KT, DT, VT, RT]]
+            A sequence of instances. The instances should all
+            have a vector of type `VT`; they should not be None
+
+        Returns
+        -------
+        Sequence[FrozenSet[Tuple[LT, float]]]
+            A list of labelings and probabilities, 
+            matching the order of the `instances` parameters
+
+        Raises
+        ------
+        NotInitializedException
+            If the model has no attached Environment
+        """        
         if not self.initialized:
             raise NotInitializedException
         return self.classifier.predict_proba_instances(instances)
@@ -117,7 +189,30 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         return f"{self._name} :: {self.classifier.name}", None
 
     @staticmethod
-    def iterator_fallback(func: Callable[..., Instance[KT, DT, VT, RT]]) -> Callable[..., Instance[KT, DT, VT, RT]]:
+    def iterator_fallback(func: Callable[..., Instance[KT, DT, VT, RT]]
+                        ) -> Callable[..., Instance[KT, DT, VT, RT]]:
+        """A decorator for fallback. If the ``__next__`` function
+        fails, the fallback model's ``__next__`` will be used instead.
+
+        The model catches the following exceptions:
+
+        - :class:`sklearn.exceptions.NotFittedError` the model is not fitted
+        - :class:`IndexError` e.g., there is no train data
+        - :class:`ValueError` e.g., the train data has an incorrect format
+        - :class:`StopIteration` e.g., there are no unlabeled documents
+        - :class:`allib.activelearning.base.NoOrderingException` an ordering 
+            could not be established
+
+        Parameters
+        ----------
+        func : Callable[..., Instance[KT, DT, VT, RT]]
+            The :meth:`__next__` method of a learner, that may fail
+
+        Returns
+        -------
+        Callable[..., Instance[KT, DT, VT, RT]]
+            The same method with an fallback
+        """        
         @functools.wraps(func)
         def wrapper(self: MLBased[KT, DT, VT, RT, LT, LVT, PVT],
                     *args: Any,
@@ -144,17 +239,44 @@ class AbstractSelectionCriterion(ABC):
     def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
         """Calculates the selection metric given a probability matrix
 
-        Args:
-            prob_mat (np.ndarray): The probability matrix with 
-                rows of class probabilities. Shape should be 
-                (n_instances, n_classes)
+        Parameters
+        ----------
+        prob_mat : np.ndarray
+            The probability matrix with rows of class probabilities. 
+            Shape should be ``(n_instances, n_classes)``
 
-        Returns:
-            np.ndarray: The metric for each row in the matrix
-        """        
+        Returns
+        -------
+        np.ndarray
+            The result of the selection metrix. This has as shape
+            ``(n_instances, )``
+
+        """
         raise NotImplementedError
 
 class ProbabilityBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], ABC, Generic[KT, DT, RT, LT]):
+    """
+    An Active Learner that uses information in the probability matrix (i.e., the
+    results of the classifier on the *unlabeled*  set of instances).
+
+    Examples
+    --------
+    Usage:
+
+    >>> classifier = SklearnClassifier(MultinomialNB(), LabelBinarizer())
+    >>> sel_crit = EntropySampling() # Uncertainty Sampling
+    >>> al = ProbabilityBased(classifier, sel_crit)
+    >>> # Assume env contains your environment
+    >>> al = al(env)
+    >>> # Update the ordering
+    >>> al.update_ordering()
+    >>> # Retrieve the next document
+    >>> instance = next(al)
+    >>> # Label the document as Positive
+    >>> label = "Positive"
+    >>> al.env.labels.set_labels(instance, doc_label)
+    >>> al.set_as_labeled(instance)
+    """
     _name  = "ProbabilityBased"
     
     def __init__(self,
@@ -168,6 +290,21 @@ class ProbabilityBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarra
         self._selection_criterion = selection_criterion
 
     def selection_criterion(self, prob_mat: np.ndarray) -> np.ndarray:
+        """Calculate the internal selection criterion for the given 
+        probability matrix
+
+        Parameters
+        ----------
+        prob_mat : np.ndarray
+            The probability matrix with rows of class probabilities. 
+            Shape should be ``(n_instances, n_classes)``
+
+        Returns
+        -------
+        np.ndarray
+            The result of the selection metrix. This has as shape
+            ``(n_instances, )``
+        """        
         return self._selection_criterion(prob_mat)
 
     def _get_predictions(self, matrix: FeatureMatrix[KT]) -> Tuple[Sequence[KT], np.ndarray]:
@@ -186,6 +323,19 @@ class ProbabilityBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarra
 
     #@ActiveLearner.ordering_log
     def calculate_ordering(self) -> Tuple[Sequence[KT], Sequence[float]]:
+        """Calculate the ordering for the unlabeled set of instances according
+        to their predicted label probabilities by the learner's classifier.
+        The provided selection criterion calculates a metric on the probabilities.
+
+        Returns
+        -------
+        Tuple[Sequence[KT], Sequence[float]]
+            A tuple of two lists of equal length and ordered descendingly
+            according to the second list.
+
+            - A list of instance keys with type KT
+            - A list of scores, matching with the instance keys
+        """        
         def get_metric_tuples(keys: Sequence[KT], vec: np.ndarray) -> Sequence[Tuple[KT, float]]:
             floats: Sequence[float] = vec.tolist()
             return list(zip(keys, floats))
