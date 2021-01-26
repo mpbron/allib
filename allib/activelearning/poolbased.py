@@ -26,11 +26,51 @@ F = TypeVar("F", bound=Callable[..., Any])
 LOGGER = logging.getLogger(__name__)
 
 class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    """PoolBasedAL specifies the basis for a poolbased Active Learning algorithm. 
+    Any algorithm that determines an ordering for *n* instances, can be based on 
+    this class.
+
+    Examples
+    --------
+    Creation and initialization by attaching an Environment `env`.
+    
+    >>> al = PoolBasedAL()
+    >>> al = al(env)
+
+    Instances can be sampled as follows
+    
+    >>> instance = next(al)
+
+    Or in batch mode by using :func:`itertools.islice`:
+    
+    >>> instances = itertools.islice(al, 10) # Change the number to get more instances
+
+    Mark a document as labeled
+    
+    >>> al.set_as_labeled(instance)
+
+    Mark a document as unlabeled
+    
+    >>> al.set_as_unlabeled(instance)
+
+    Update the ordering
+    
+    >>> al.update_ordering()
+
+    Check how many documents are labeled
+    
+    >>> al.len_labeled
+    """    
+    
+    sampled: Set[KT]
+    """The documents that were sampled during by this learner"""    
+
     def __init__(self, *_, **__) -> None:
         self.initialized = False
         self._env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]] = None
         self.ordering = None
         self.sampled: Set[KT] = set()
+     
 
     def __call__(self, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> PoolBasedAL[KT, DT, VT, RT, LT]:
         """Initialze the active learner with an environment. After the environment is attached, the learner is 
@@ -63,8 +103,6 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
         self.sampled.clear()
 
     def update_ordering(self) -> bool:
-        """Update the ordering of the active learner
-        """
         ordering = self.env.unlabeled.key_list
         self._set_ordering(ordering)
         return True
@@ -82,7 +120,10 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
 
     @ActiveLearner.iterator_log
     def __next__(self) -> Instance[KT, DT, VT, RT]:
-        """Query the next instance according to the ordering
+        """Query the next instance according to the ordering.
+        If the instances has already been sampled during the 
+        current iteration. The sampled set is cleared after
+        each :meth:`.update_ordering()` call
         
         Returns
         -------
@@ -92,9 +133,24 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
         Raises
         ------
         StopIteration
-            If all instances are labeled, we throw a stop iteration
+            If there are no instances left that have not been sampled
         NoOrderingException
-            If the ordering cannot be determined
+            If the ordering was not determined
+
+        
+        Examples
+        --------
+        :meth:`~.PoolBasedAL.__next__()` is a special method and 
+        makes this object combined with the method :meth:`~.base.ActiveLearner.__iter__()`
+        an :term:`iterator`. 
+        As any iterator, this object can be used as follows:
+
+        >>> # Initialize the object
+        >>> al = PoolBasedAL()(env)
+        >>> # Request the most informative instance
+        >>> ins = next(al)
+        >>> # Request the 10 most informative instances
+        >>> inss = itertools.islice(al, 10)
         """        
         if self.ordering is not None:
             try:
