@@ -1,5 +1,5 @@
 from __future__ import annotations
-from allib.utils.func import list_unzip3
+from allib.utils.func import all_subsets, intersection, list_unzip3, union
 from allib.activelearning.base import ActiveLearner
 
 import collections
@@ -38,13 +38,6 @@ _T = TypeVar("_T")
 _U = TypeVar("_U")
 
 LOGGER = logging.getLogger(__name__)
-
-def intersection(first: FrozenSet[_T], *others: FrozenSet[_T]) -> FrozenSet[_T]:
-    return first.intersection(*others)
-
-def union(first: FrozenSet[_T], *others: FrozenSet[_T]) -> FrozenSet[_T]:
-    return first.union(*others)
-
 
 def powerset(iterable: Iterable[_T]) -> FrozenSet[FrozenSet[_T]]:
     "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
@@ -250,19 +243,58 @@ class NegativeAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic
         error_estimate = (neg_docs / error) * pos_docs
         return estimate, error_estimate
 
-class RatschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
-    def _nstart_r(self) -> None:
+
+
+class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    def _start_r(self) -> None:
         _check_R()
         R = ro.r
         filedir = os.path.dirname(os.path.realpath(__file__))
-        r_script_file = os.path.join(filedir, "ratsch_estimate.R")
+        r_script_file = os.path.join(filedir, "rasch_estimate.R")
         R["source"](r_script_file)
-    
-    def get_dfreq_ratsch_table(self, 
+
+    def get_occasion_history(self, 
                              estimator: Estimator[KT, DT, VT, RT, LT], 
                              label: LT) -> pd.DataFrame:
-        df = self.get_occasion_history(estimator, label)
-        df["h1"] = df.filter(regex="^learner").sum(axis=1) # type: ignore
+        contingency_sets = self.get_contingency_sets(estimator, label)
+        learner_keys = union(*contingency_sets.keys())
+        max_len = len(learner_keys)
+        rows = {i:
+            {
+                **{
+                    f"learner_{learner_key}": int(learner_key in combination) 
+                    for learner_key in learner_keys
+                },  
+                **{
+                    "count": len(instances),
+                    "h1": len(all_subsets(combination, 2, max_len - 1))
+                }
+            }
+            for (i, (combination, instances)) in enumerate(contingency_sets.items())
+        }
+        df = pd.DataFrame.from_dict(# type: ignore
+            rows, orient="index")
         return df
+
+    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+                              label: LT) -> pd.DataFrame:
+        df = self.get_occasion_history(estimator, label)
+        with localconverter(ro.default_converter + pandas2ri.converter):
+            df_r = ro.conversion.py2rpy(df)
+            abundance_r = ro.globalenv["get_abundance"]
+            r_df = abundance_r(df_r)
+            res_df = ro.conversion.rpy2py(r_df)
+        return res_df
+
+    
+    def calculate_abundance(self, 
+                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            label: LT) -> Tuple[float, float]:
+        res_df = self.calculate_abundance_R(estimator, label)
+        estimate_missing = res_df.values[0,0]
+        estimate_error = res_df.values[0,1]
+        total_found = estimator.env.labels.document_count(label)
+        return (total_found + estimate_missing), estimate_error
+
     
     
