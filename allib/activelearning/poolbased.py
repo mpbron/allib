@@ -65,11 +65,12 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
     sampled: Set[KT]
     """The documents that were sampled during by this learner"""    
 
-    def __init__(self, *_, **__) -> None:
+    def __init__(self, *_, identifier: Optional[str] = None, **__) -> None:
         self.initialized = False
         self._env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]] = None
         self.ordering = None
         self.sampled: Set[KT] = set()
+        self.identifier = identifier
      
 
     def __call__(self, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> PoolBasedAL[KT, DT, VT, RT, LT]:

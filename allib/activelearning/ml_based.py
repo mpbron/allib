@@ -67,7 +67,7 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
                  fallback: PoolBasedAL[KT, DT, VT, RT, LT] = RandomSampling[KT, DT, VT, RT, LT](),
                  batch_size = 200,
-                 *_, **__
+                 *_, identifier: Optional[str] = None, **__
                  ) -> None:
         """Initialize an Machine Learning Based Active Learning method
 
@@ -82,7 +82,7 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         batch_size : int, optional
             The batch size for the feature matrix, by default 200
         """        
-        super().__init__()
+        super().__init__(identifier=identifier)
         self.fitted = False
         self.classifier = classifier
         self.fallback = fallback
@@ -284,9 +284,9 @@ class ProbabilityBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarra
                  selection_criterion: AbstractSelectionCriterion,
                  fallback: PoolBasedAL[KT, DT, np.ndarray, RT, LT] = RandomSampling[KT, DT, np.ndarray, RT, LT](),
                  batch_size = 200,
-                 *_, **__
+                 *_, identifier: Optional[str] = None, **__
                  ) -> None:
-        super().__init__(classifier, fallback, batch_size)
+        super().__init__(classifier, fallback, batch_size, identifier=identifier)
         self._selection_criterion = selection_criterion
 
     def selection_criterion(self, prob_mat: np.ndarray) -> np.ndarray:

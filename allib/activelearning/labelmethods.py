@@ -29,8 +29,9 @@ class LabelProbabilityBased(ProbabilityBased[KT, DT, RT, LT], ABC, Generic[KT, D
     def __init__(self, 
                  classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray], 
                  selection_criterion: AbstractSelectionCriterion,
-                 label: LT, fallback = RandomSampling[KT, DT, np.ndarray, RT, LT],  *_, **__) -> None:
-        super().__init__(classifier, selection_criterion, fallback)
+                 label: LT, fallback = RandomSampling[KT, DT, np.ndarray, RT, LT],
+                 identifier: Optional[str] = None,  *_, **__) -> None:
+        super().__init__(classifier, selection_criterion, fallback, identifier=identifier)
         self.label = label
         self.labelposition: Optional[int] = None
 
@@ -41,6 +42,8 @@ class LabelProbabilityBased(ProbabilityBased[KT, DT, RT, LT], ABC, Generic[KT, D
 
     @property
     def name(self) -> Tuple[str, LT]:
+        if self.identifier is not None:
+            return f"{self.identifier}", self.label
         return f"{self._name} :: {self.classifier.name}", self.label
 
     def _get_predictions(self, matrix: FeatureMatrix[KT]) -> Tuple[Sequence[KT], np.ndarray]:

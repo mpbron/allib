@@ -65,7 +65,8 @@ class BinaryPlotter(Generic[LT]):
         
         results = {**count_results, **estimation_results, **crit_estimation_results}
         self.result_frame = self.result_frame.append(results, ignore_index=True)
-        print(f"{crit_estimation_results}")
+        pos_count = activelearner.env.labels.document_count(self.pos_label)
+        print(f"Found {pos_count} documents so far")
 
 
             

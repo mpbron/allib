@@ -1,4 +1,4 @@
-get_abundance <- function(df){
+get_rasch <- function(df){
   model <- glm(
     formula = count ~ ., 
     family = poisson(link = "log"), 

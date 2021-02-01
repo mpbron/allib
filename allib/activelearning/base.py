@@ -88,6 +88,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
     """The ordering of the Active Learner"""
     _env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]]
     """The internal environment"""
+    identifier: Optional[str]
     
     @property
     def name(self) -> Tuple[str, Optional[LT]]:
@@ -98,7 +99,9 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         Tuple[str, Optional[LT]]
             The tuple contains a name and optionally the label if it the learner
             optimizes for a specific label
-        """          
+        """
+        if self.identifier is not None:
+            return self.identifier, None          
         return self._name, None
    
     def __iter__(self) -> ActiveLearner[KT, DT, VT, RT, LT]:

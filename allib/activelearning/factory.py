@@ -1,6 +1,6 @@
 import functools
 from abc import ABC
-from typing import Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, TypeVar
 
 from ..factory import AbstractBuilder, ObjectFactory
 from ..machinelearning import AbstractClassifier, MachineLearningFactory
@@ -34,11 +34,15 @@ class ProbabilityBasedBuilder(AbstractBuilder):
             query_type: AL.QueryType,
             machinelearning: Dict,
             fallback: Dict = dict(),
+            identifier: Optional[str] = None,
             **kwargs):
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
         selection_criterion: AbstractSelectionCriterion = self._factory.create(query_type, **kwargs)
         built_fallback = self._factory.create(Component.FALLBACK, **fallback)
-        return ProbabilityBased(classifier, selection_criterion, built_fallback)
+        return ProbabilityBased(classifier, 
+                                selection_criterion, 
+                                built_fallback,
+                                identifier=identifier)
 
 class LabelProbabilityBasedBuilder(AbstractBuilder):
     def __call__( # type: ignore
@@ -47,11 +51,16 @@ class LabelProbabilityBasedBuilder(AbstractBuilder):
             machinelearning: Dict,
             label: LT,
             fallback: Dict = dict(),
+            identifier: Optional[str] = None,
             **kwargs):
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
         selection_criterion: AbstractSelectionCriterion = self._factory.create(query_type, **kwargs)
         built_fallback = self._factory.create(Component.FALLBACK, **fallback)
-        return LabelProbabilityBased(classifier, selection_criterion, label, built_fallback)
+        return LabelProbabilityBased(classifier, 
+                                     selection_criterion, 
+                                     label, 
+                                     built_fallback,
+                                     identifier=identifier)
 
 
 class PoolbasedBuilder(AbstractBuilder):
@@ -59,22 +68,28 @@ class PoolbasedBuilder(AbstractBuilder):
             self,
             query_type: AL.QueryType,
             machinelearning: Dict,
+            identifier: Optional[str] = None,
             **kwargs):
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
         return self._factory.create(query_type,
             classifier=classifier,
+            identifier=identifier,
             **kwargs)
 class StrategyEnsembleBuilder(AbstractBuilder):
-    def build_learner(self, classifier: AbstractClassifier, config):
+    def build_learner(self, 
+                      classifier: AbstractClassifier, 
+                      config):
         query_type = config["query_type"]
-        params = {k: v for k,v in config if k not in ["query_type"]}
+        params = {k: v for k, v in config if k not in ["query_type"]}
         return self._factory.create(query_type, classifier=classifier, **params)
 
     def __call__( # type: ignore
             self,
             learners: List[Dict],
             machinelearning: Dict, 
-            probabilities: List[float],**kwargs):
+            probabilities: List[float],
+            identifier: Optional[str] = None,
+            **kwargs):
         assert len(learners) == len(probabilities)
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
         config_function = functools.partial(self.build_learner, classifier)
@@ -82,7 +97,8 @@ class StrategyEnsembleBuilder(AbstractBuilder):
         return StrategyEnsemble(classifier, configured_learners, probabilities)
 class CycleEstimatorBuilder(AbstractBuilder):
     def __call__( # type: ignore
-            self, learners: List[Dict], 
+            self, learners: List[Dict],
+            identifier: Optional[str] = None, 
             **kwargs) -> Estimator:
         configured_learners = [
             self._factory.create(Component.ACTIVELEARNER, **learner_config)
@@ -92,7 +108,9 @@ class CycleEstimatorBuilder(AbstractBuilder):
 
 class EstimatorBuilder(AbstractBuilder):
     def __call__( # type: ignore
-            self, learners: List[Dict], **kwargs) -> Estimator:
+            self, learners: List[Dict], 
+            identifier: Optional[str] = None,
+            **kwargs) -> Estimator:
         configured_learners = [
             self._factory.create(Component.ACTIVELEARNER, **learner_config)
             for learner_config in learners
@@ -101,7 +119,9 @@ class EstimatorBuilder(AbstractBuilder):
 
 class RetryEstimatorBuilder(AbstractBuilder):
     def __call__( # type: ignore
-            self, learners: List[Dict], **kwargs) -> RetryEstimator:
+            self, learners: List[Dict], 
+            identifier: Optional[str] = None,
+            **kwargs) -> RetryEstimator:
         configured_learners = [
             self._factory.create(Component.ACTIVELEARNER, **learner_config)
             for learner_config in learners

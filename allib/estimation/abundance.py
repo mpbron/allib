@@ -219,6 +219,25 @@ class MeanAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT,
         error = float(np.mean(errors)) # type: ignore
         return estimation, error
 
+class WeightedMeanAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    def calculate_abundance(self, 
+                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            label: LT) -> Tuple[float, float]:
+        res_df = self.calculate_abundance_R(estimator, label)
+        ok_fit = res_df[res_df.infoFit == 0]
+        if len(ok_fit) == 0:
+            ok_fit = res_df
+        
+        best_bic = ok_fit.BIC.min()
+        worst_bic = ok_fit.BIC.max()
+        scaled_bics = ok_fit.BIC.max() / ok_fit.BIC
+        total_bic_parts = sum(scaled_bics)
+        weights = scaled_bics / total_bic_parts
+
+        weighted_abundance = sum(weights * ok_fit.abundance)
+        weighted_stderr = sum(weights * ok_fit.stderr)
+        return weighted_abundance, weighted_stderr
+
 class MedianAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float]:
         if not isinstance(learner, Estimator):
@@ -281,7 +300,7 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         df = self.get_occasion_history(estimator, label)
         with localconverter(ro.default_converter + pandas2ri.converter):
             df_r = ro.conversion.py2rpy(df)
-            abundance_r = ro.globalenv["get_abundance"]
+            abundance_r = ro.globalenv["get_rasch"]
             r_df = abundance_r(df_r)
             res_df = ro.conversion.rpy2py(r_df)
         return res_df
@@ -294,7 +313,9 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         estimate_missing = res_df.values[0,0]
         estimate_error = res_df.values[0,1]
         total_found = estimator.env.labels.document_count(label)
-        return (total_found + estimate_missing), estimate_error
+        return (total_found + estimate_missing), estimate_error * 2
 
+    def all_estimations(self, estimator: Estimator[KT, DT, VT, RT, LT], label: LT) -> Sequence[Tuple[str, float, float]]:
+        return []
     
     
