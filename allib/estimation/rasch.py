@@ -100,7 +100,7 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         return abundance, abundance-error, abundance + error
 
 class NonParametricRasch(RaschEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
-    name = "RaschEstimator"
+    name = "RaschNonParamatric"
     def _start_r(self) -> None:
         _check_R()
         R = ro.r
@@ -135,6 +135,7 @@ class NonParametricRasch(RaschEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         return estimate, lower_bound, upper_bound
 
 class ParametricRasch(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    name = "RaschParametric"
     def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df = self.get_occasion_history(estimator, label)

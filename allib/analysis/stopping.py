@@ -92,8 +92,8 @@ class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
         super().update(learner)
         if isinstance(learner, Estimator):
             self.add_count(learner.env.labels.document_count(self.label))
-            estimate, error = self.calculator(learner, self.label)
-            self.add_estimate(estimate + error)
+            estimate, lower, upper = self.calculator(learner, self.label)
+            self.add_estimate(upper)
         
     def add_estimate(self, value: float) -> None:
         if len(self.estimate_history) > self.same_state_count:
@@ -130,7 +130,7 @@ class CaptureRecaptureCriterion2(CaptureRecaptureCriterion[LT], Generic[LT]):
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
         self.add_count(learner.env.labels.document_count(self.label))
         if isinstance(learner, Estimator):
-            estimate, error = self.calculator(learner, self.label)
+            estimate, lower, upper = self.calculator(learner, self.label)
             self.add_estimate(estimate)
 
 class RaschCaptureCriterion(CaptureRecaptureCriterion[LT], Generic[LT]):
@@ -142,7 +142,7 @@ class RaschCaptureCriterion(CaptureRecaptureCriterion[LT], Generic[LT]):
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
         self.add_count(learner.env.labels.document_count(self.label))
         if isinstance(learner, Estimator):
-            estimate, error = self.calculator(learner, self.label)
+            estimate, lower, upper = self.calculator(learner, self.label)
             dataset_size = len(learner.env.dataset)
             if estimate < dataset_size:
                 self.add_estimate(estimate)
