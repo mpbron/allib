@@ -9,6 +9,7 @@ pylint
 matplotlib
 lightgbm
 h5py
+tables
 sphinx
 sphinx-rtd-theme
 sphinx-autodoc-typehints

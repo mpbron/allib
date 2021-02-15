@@ -23,8 +23,11 @@ LVT = TypeVar("LVT")
 
 
 class AbstractEstimator(ABC, Generic[KT, DT, VT, RT, LT]):
+    name = "AbstractEstimator"
     @abstractmethod
-    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, Optional[float]]:
+    def __call__(self, 
+                 learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT
+                ) -> Tuple[float, Optional[float], Optional[float]]:
         raise NotImplementedError
 
 @dataclass
@@ -37,7 +40,9 @@ class DecisionRow(Generic[KT]):
 
 class SemiEstimator(AbstractEstimator[KT, DT, np.ndarray, RT, LT]):
     @abstractmethod
-    def semi(self, learner: MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], pos_label: LT) -> Tuple[float, Optional[float]]:
+    def semi(self, 
+             learner: MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], 
+             pos_label: LT) -> Tuple[float, Optional[float], Optional[float]]:
         def temporary_label_indices(y_pred_proba: np.ndarray) -> List[int]:
             order = np.argsort(y_pred_proba)[::-1]
             print(f"{y_pred_proba[order[0]]}, {y_pred_proba[order[-1]]}")
@@ -110,7 +115,7 @@ class SemiEstimator(AbstractEstimator[KT, DT, np.ndarray, RT, LT]):
                 return pos_num        
             return estimate(x_data, y_data_new, unl_idx, neg_label_count, pos_num)
         r_estimate = estimate(x_data, y_data, unl_idx, neg_label_count, 0)
-        return r_estimate, 0.0
+        return r_estimate, 0.0, 0.0
 
 
 

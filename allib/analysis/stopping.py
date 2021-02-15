@@ -1,4 +1,4 @@
-from allib.estimation.abundance import AbundanceEstimator
+from allib.estimation.rcapture import AbundanceEstimator
 import collections
 import itertools
 from abc import ABC, abstractmethod

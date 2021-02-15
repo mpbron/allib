@@ -7,6 +7,69 @@ _T = TypeVar("_T")
 _U = TypeVar("_U")
 _V = TypeVar("_V")
 
+def powerset(iterable: Iterable[_T]) -> FrozenSet[FrozenSet[_T]]:
+    """Calculates the powerset of an interable.
+
+
+    Parameters
+    ----------
+    iterable : Iterable[_T]
+        An iterable of which we want to calculate the powerset
+
+    Returns
+    -------
+    FrozenSet[FrozenSet[_T]]
+        Returns a frozenset of frozensets containing all elements
+        of the powerset
+
+    Examples
+    --------
+    
+    Usage
+    >>> powerset([1,2,3])
+    >>> # frozenset({() (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)})
+    >>> # all elements are also frozensets
+    """
+    s = list(iterable)
+    result = itertools.chain.from_iterable(
+        itertools.combinations(s, r) for r in range(len(s)+1))
+    return frozenset(map(frozenset, result))  # type: ignore
+
+
+
+def not_in_supersets(
+        contingency: Dict[FrozenSet[_T], FrozenSet[_U]]
+        ) -> Dict[FrozenSet[_T], FrozenSet[_U]]:
+    """This function filters out all values that also exist in supersets
+    in the dictionary for the values that exist in
+    all pairs in the mapping key sets to value sets
+
+    TODO: Make a clear description for this function
+
+    Parameters
+    ----------
+    contingency : Dict[FrozenSet[_T], FrozenSet[_U]]
+        A dictionary that maps key set to sets of values
+
+    Returns
+    -------
+    Dict[FrozenSet[_T], FrozenSet[_U]]
+        A dictionary that maps sets to sets of of values.
+        The values of that belong to a key set only contain
+        values that do not exist in a superset of the keyset.
+    """    
+    ret_dict: Dict[FrozenSet[_T], FrozenSet[_U]] = {}
+    sets = frozenset(contingency.keys())
+    for key_set in sets:
+        strict_supersets = frozenset(filter(
+            lambda s: s.issuperset(key_set) and s != key_set,
+            sets))
+        in_supersets: FrozenSet[_U] = frozenset()
+        if len(strict_supersets) > 0:
+            in_supersets = union(*map(lambda k: contingency[k], strict_supersets))
+        ret_dict[key_set] = contingency[key_set].difference(in_supersets)
+    return ret_dict
+
 
 def flatten_dicts(*dicts: Dict[_T, _U]) -> Dict[_T, _U]:
     """Recursive function that combines a list of dictionaries

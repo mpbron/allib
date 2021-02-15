@@ -1,0 +1,86 @@
+library(purrr)
+
+rasch.single <- function(df){
+  model <- glm(
+    formula = count ~ ., 
+    family = poisson(link = "log"), 
+    data = df
+  )
+  coefficients <- coef(model) %>% unlist(use.names = F)
+  stderrs = sqrt(diag(vcov(model))) %>% unlist(use.names = F)
+  intercept = coefficients[1]
+  intercept.err = stderrs[1]
+  estimate.missing = exp(intercept)
+  estimate.stderr = exp(intercept.err)
+  df <- data.frame(
+    estimate = c(estimate.missing),
+    stderr = c(estimate.stderr))
+  return(df)
+}
+
+
+rasch.nonparametric <- function(df, it=2000, confidence=0.95, epsilon=0.1){
+  count.found <- sum(df$count)
+  # Gather the counts of all rows
+  # Add a small value to 
+  df$count <- df$count + epsilon
+  counts.sum <- sum(df$count)
+  counts.orig <- df$count
+  counts.bootstrap <- rmultinom(it, count.found, counts.orig)
+  # Estimate n_00...0 using the Rasch model
+  estimate.missing <- rasch.single(df)$estimate
+  estimates <- list()
+  for (col.idx in 1:dim(counts.bootstrap)[2]) {
+    count.bootstrap <- counts.bootstrap[,col.idx]
+    df.adjusted <- df
+    df.adjusted$count <- count.bootstrap
+    model.results <- rasch.single(df.adjusted)
+    estimates[[col.idx]] <- model.results$estimate
+  }
+  # Determine using the percentile method a 
+  # 95% confidence interval
+  results <- unlist(estimates, use.names = F)
+  sorted <- sort(results)
+  bounds <- unlist(quantile(sorted, c(1-confidence, confidence)), use.names=F)
+  result.df <- data.frame(
+    estimate = c(count.found + estimate.missing),
+    lowerbound = c(count.found + bounds[1]),
+    upperbound = c(count.found + bounds[2])
+  )
+  return(result.df)
+}
+
+rasch.parametric <- function(df, it=2000, confidence=0.95, epsilon=0.1){
+  count.found <- sum(df$count)
+  # Estimate n_00...0 using the Rasch model
+  df$count <- df$count + epsilon
+  estimate.missing <- rasch.single(df)$estimate
+  # Gather the counts of all rows and add the estimation for n_00..0
+  counts.model <- append(df$count, estimate.missing)
+  counts.model.sum <- sum(counts.model)
+  # Sample with replacement of size n from this multinomial distribution. 
+  # Remove the observation that correspond with cell 00..0. 
+  counts.bootstrap <- rmultinom(it, 
+                                counts.model.sum, 
+                                counts.model) %>% head(-1)
+  # Calculate the n_00.0 for all the bootstrap counts
+  estimates <- list()
+  for (col.idx in 1:dim(counts.bootstrap)[2]) {
+    count.bootstrap <- counts.bootstrap[,col.idx]
+    df.adjusted <- df
+    df.adjusted$count <- count.bootstrap
+    model.results <- rasch.single(df.adjusted)
+    estimates[[col.idx]] <- model.results$estimate
+  }
+  # Determine using the percentile method a 
+  # 95% confidence interval
+  results <- unlist(estimates, use.names = F)
+  sorted <- sort(results)
+  bounds <- unlist(quantile(sorted, c(1-confidence, confidence)), use.names=F)
+  result.df <- data.frame(
+    estimate = c(count.found + estimate.missing),
+    lowerbound = c(count.found + bounds[1]),
+    upperbound = c(count.found + bounds[2])
+  )
+  return(result.df)
+}

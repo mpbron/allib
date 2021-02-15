@@ -16,6 +16,7 @@ import pandas as pd  # type: ignore
 from ..activelearning.estimator import Estimator
 
 from .base import AbstractEstimator
+from ..utils.func import powerset, not_in_supersets
 
 try:
     import rpy2.robjects as ro  # type: ignore
@@ -39,35 +40,19 @@ _U = TypeVar("_U")
 
 LOGGER = logging.getLogger(__name__)
 
-def powerset(iterable: Iterable[_T]) -> FrozenSet[FrozenSet[_T]]:
-    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-    s = list(iterable)
-    result = itertools.chain.from_iterable(
-        itertools.combinations(s, r) for r in range(len(s)+1))
-    return frozenset(map(frozenset, result))  # type: ignore
-
-
-
-def not_in_supersets(
-        contingency: Dict[FrozenSet[_T], FrozenSet[_U]]
-        ) -> Dict[FrozenSet[_T], FrozenSet[_U]]:
-    ret_dict: Dict[FrozenSet[_T], FrozenSet[_U]] = {}
-    sets = frozenset(contingency.keys())
-    for key_set in sets:
-        strict_supersets = frozenset(filter(
-            lambda s: s.issuperset(key_set) and s != key_set,
-            sets))
-        in_supersets: FrozenSet[_U] = frozenset()
-        if len(strict_supersets) > 0:
-            in_supersets = union(*map(lambda k: contingency[k], strict_supersets))
-        ret_dict[key_set] = contingency[key_set].difference(in_supersets)
-    return ret_dict
-
 def _check_R():
+    """Checks if Python <-> R interop is available
+
+    Raises
+    ------
+    ImportError
+        If the interop is not available
+    """    
     if not R_AVAILABLE:
         raise ImportError("Install rpy2 interop")
 
 class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
+    name = "BestBICEstimator"
     def __init__(self):
         self.matrix_history: Deque[pd.DataFrame] = collections.deque()
         self.contingency_history: Deque[Dict[FrozenSet[int], int]] = collections.deque()
@@ -152,11 +137,11 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
         best_np = best_result.values
         return best_np[0, 0], best_np[0, 1]
 
-    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float]:
+    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
-            return 0.0, 0.0
+            return 0.0, 0.0, 0.0
         abundance, error = self.calculate_abundance(learner, label)
-        return abundance, error
+        return abundance, abundance-error, abundance + error
 
     def all_estimations(self, 
                         estimator: Estimator[KT, DT, VT, RT, LT], 
@@ -211,15 +196,17 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
         return df
 
 class MeanAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
-    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float]:
+    name = "MeanAbundance"
+    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
-            return 0.0, 0.0
+            return 0.0, 0.0, 0.0
         _, estimations, errors = list_unzip3(self.all_estimations(learner, label))
         estimation = float(np.mean(estimations)) #type: ignore
         error = float(np.mean(errors)) # type: ignore
-        return estimation, error
+        return estimation, estimation - error, estimation + error
 
 class WeightedMeanAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    name = "WeightedBICEstimator"
     def calculate_abundance(self, 
                             estimator: Estimator[KT, DT, VT, RT, LT], 
                             label: LT) -> Tuple[float, float]:
@@ -239,32 +226,34 @@ class WeightedMeanAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Gen
         return weighted_abundance, weighted_stderr
 
 class MedianAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
-    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float]:
+    name = "MedianAbundanceEstimator"
+    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
-            return 0.0, 0.0
+            return 0.0, 0.0, 0.0
         _, estimations, errors = list_unzip3(self.all_estimations(learner, label))
         estimation = float(np.median(estimations)) # type: ignore
         error = float(np.median(errors)) # type: ignore
-        return estimation, error
+        return estimation, estimation - error, estimation + error
 
 class NegativeAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     def __init__(self, neg_label: LT):
         super().__init__()
         self.neg_label = neg_label
     
-    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float]:
+    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
-            return 0.0, 0.0
+            return 0.0, 0.0, 0.0
         neg_docs = learner.env.labels.document_count(self.neg_label)
         neg_abundance, error = self.calculate_abundance(learner, self.neg_label)
         pos_docs = learner.env.labels.document_count(label)
         estimate = pos_docs * (1 + (neg_docs /neg_abundance))
         error_estimate = (neg_docs / error) * pos_docs
-        return estimate, error_estimate
+        return estimate, estimate - error_estimate, estimate + error_estimate
 
 
 
 class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    name = "RaschEstimator"
     def _start_r(self) -> None:
         _check_R()
         R = ro.r
@@ -293,6 +282,7 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         }
         df = pd.DataFrame.from_dict(# type: ignore
             rows, orient="index")
+        self.matrix_history.append(df)
         return df
 
     def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 

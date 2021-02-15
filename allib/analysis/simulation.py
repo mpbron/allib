@@ -1,36 +1,28 @@
 import itertools
 import random
-import numpy as np # type: ignore
 from typing import Any, Dict, List, Sequence, Tuple, TypeVar
+
+import numpy as np  # type: ignore
 
 from ..activelearning.base import ActiveLearner
 from ..analysis.analysis import process_performance
 from ..analysis.stopping import AbstractStopCriterion
 from ..environment.base import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
+from ..factory.factory import ObjectFactory
 from ..feature_extraction.base import BaseVectorizer
+from ..functions.vectorize import vectorize
 from ..instances.base import Instance
 from ..module.component import Component
 from ..utils.chunks import divide_sequence
-from ..functions.vectorize import vectorize
+from .initialization import Initializer
+from .plotter import BinaryPlotter
 
 KT = TypeVar("KT")
 DT = TypeVar("DT")
 VT = TypeVar("VT")
 RT = TypeVar("RT")
 LT = TypeVar("LT")
-
-def add_doc_from_truth(learner: ActiveLearner[KT, DT, VT, RT, LT], id: KT):
-    doc = learner.env.unlabeled[id]
-    labels = learner.env.truth.get_labels(doc)
-    learner.env.labels.set_labels(doc, *labels)
-    learner.set_as_labeled(doc)
-
-SimulationResult = Tuple[ActiveLearner[KT, DT, np.ndarray, RT, LT],
-                         BaseVectorizer[Instance[KT, DT, np.ndarray, RT]],
-                         List[float],
-                         List[int],
-                         List[int]]
 
 def reset_environment(vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, Any]], 
                       environment: AbstractEnvironment[KT, DT, np.ndarray, Any, LT]
@@ -39,32 +31,81 @@ def reset_environment(vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, An
     vectorize(vectorizer, env, True, 200)
     return env
 
-def simulate(learner: ActiveLearner[KT, DT, np.ndarray, RT, LT], 
-             vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, RT]], 
-             start_env: AbstractEnvironment[KT, DT, np.ndarray, RT, LT], 
-             stop_crit: AbstractStopCriterion[LT],
-             pos_label: LT, neg_label: LT,
-             batch_size: int, 
-             target_recall: float = 0.95) -> SimulationResult:
-    # Re-initialize the environment
-    env = reset_environment(vectorizer, start_env)
-    
-    # Attach the environment to the active learner
-    learner = learner(env) # type: ignore
-    
-    # Sample 1 pos and 1 neg document
-    pos_docs = random.sample(learner.env.truth.get_instances_by_label(pos_label), 1)
-    neg_docs = random.sample(learner.env.truth.get_instances_by_label(neg_label), 1)
-    docs = pos_docs + neg_docs
+def initialize(factory: ObjectFactory,
+               al_config: Dict[str, Any], 
+               fe_config: Dict[str, Any],
+               initializer: Initializer[KT, LT], 
+               env: AbstractEnvironment[KT, DT, np.ndarray, DT, LT]
+              ) -> Tuple[ActiveLearner[KT, DT, np.ndarray, DT, LT],
+                            BaseVectorizer[Instance[KT, DT, np.ndarray, DT]]]:
+    """Build and initialize an Active Learning method.
 
-    # Add the preliminary labeled documents to the dataset
-    for doc in docs:
-        add_doc_from_truth(learner, doc)
+    Parameters
+    ----------
+    factory : ObjectFactory
+        The factory method that builds the components
+    al_config : Dict[str, Any]
+        The dictionary that declares the configuration of the Active Learning component
+    fe_config : Dict[str, Any]
+        The dictionary that declares the configuration of the Feature Extraction component
+    initializer : Initializer[KT, LT]
+        The function that determines how and which initial knowledge should be supplied to
+        the Active Learner
+    env : AbstractEnvironment[KT, DT, np.ndarray, DT, LT]
+        The environment on which we should simulate
+
+    Returns
+    -------
+    Tuple[ActiveLearner[KT, DT, np.ndarray, DT, LT], BaseVectorizer[Instance[KT, DT, np.ndarray, DT]]]
+        A tuple that contains:
+
+        - An :class:`~allib.activelearning.base.ActiveLearner` object according 
+            to the configuration in `al_config`
+        - An :class:`~allib.feature_extraction.base.BaseVectorizer` object according 
+            to the configuration in `fe_config`
+    """    
+    # Build the active learners and feature extraction models
+    learner: ActiveLearner[KT, DT, np.ndarray, DT, LT] = factory.create(
+        Component.ACTIVELEARNER, **al_config)
+    vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, DT]] = factory.create(
+        Component.FEATURE_EXTRACTION, **fe_config)
     
-    estimates: List[float] = []
-    poses: List[int] = []
-    neges: List[int] = []
-    oracle_count = 0
+    ## Copy the data to memory
+    start_env = MemoryEnvironment[KT, DT, np.ndarray, LT].from_environment_only_data(env)
+    # Vectorize the dataset
+    vectorize(vectorizer, start_env)
+
+    # Attach the environment to the active learner
+    learner = learner(start_env)
+
+    # Initialize the learner with initial knowledge
+    learner = initializer(learner)
+    return learner, vectorizer
+
+
+def simulate(learner: ActiveLearner[KT, DT, np.ndarray, DT, LT],
+             stop_crit: AbstractStopCriterion[LT],
+             plotter: BinaryPlotter[LT],
+             batch_size: int) -> Tuple[ActiveLearner[KT, DT, np.ndarray, DT, LT],
+                         BinaryPlotter[LT]]:
+    """Simulates the Active Learning 
+
+    Parameters
+    ----------
+    learner : ActiveLearner[KT, DT, np.ndarray, DT, LT]
+        [description]
+    stop_crit : AbstractStopCriterion[LT]
+        [description]
+    plotter : BinaryPlotter[LT]
+        [description]
+    batch_size : int
+        [description]
+
+    Returns
+    -------
+    Tuple[ActiveLearner[KT, DT, np.ndarray, DT, LT], BinaryPlotter[LT]]
+        [description]
+    """    
     while not stop_crit.stop_criterion:
         # Train the model
         learner.update_ordering()
@@ -73,18 +114,12 @@ def simulate(learner: ActiveLearner[KT, DT, np.ndarray, RT, LT],
         for instance in sample:
             # Retrieve the labels from the oracle
             oracle_labels = learner.env.truth.get_labels(instance)
-            oracle_count += 1
 
-            # Set the labels for the document
+            # Set the labels in the active learner
             learner.env.labels.set_labels(instance, *oracle_labels)
             learner.set_as_labeled(instance)
+
+        plotter.update(learner)
         stop_crit.update(learner)
-        # Estimate the number of remaining positive documents
-        pos_count = learner.env.labels.document_count(pos_label)
-        neg_count = learner.env.labels.document_count(neg_label)
-        stop_crit.update(learner)
-        estimate = 0.0
-        estimates.append(estimate)
-        poses.append(pos_count)
-        neges.append(neg_count)
-    return learner, vectorizer, estimates, poses, neges
+    
+    return learner, plotter
