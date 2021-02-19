@@ -41,7 +41,7 @@ class MemoryEnvironment(AbstractEnvironment[KT, DT, VT, DT, LT], Generic[KT, DT,
             target_labels: Iterable[LT], 
             indices: Sequence[KT], 
             data: Sequence[DT], 
-            ground_truth: Sequence[Set[LT]],
+            ground_truth: Sequence[Iterable[LT]],
             vectors: Sequence[VT]) -> MemoryEnvironment[KT, DT, VT, LT]:
         dataset = DataPointProvider[KT, DT, VT].from_data_and_indices(indices, data, vectors)
         unlabeled = DataBucketProvider[KT, DT, VT](dataset, dataset.key_list)

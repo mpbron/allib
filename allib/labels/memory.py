@@ -37,10 +37,11 @@ class MemoryLabelProvider(LabelProvider[KT, LT], Generic[KT, LT]):
             cls, 
             labelset: Iterable[LT], 
             indices: Sequence[KT], 
-            labels: Sequence[Set[LT]]) -> MemoryLabelProvider[KT, LT]:
+            labels: Sequence[Iterable[LT]]
+        ) -> MemoryLabelProvider[KT, LT]:
         labelset = frozenset(labelset)
         labeldict = {
-            idx: labellist for (idx, labellist) in zip(indices, labels)
+            idx: set(labellist) for (idx, labellist) in zip(indices, labels)
         }
         labeldict_inv: Dict[LT, Set[KT]] = {label: set() for label in labelset}
         # Store all instances in a Dictionary<LT, Set[ID]>
