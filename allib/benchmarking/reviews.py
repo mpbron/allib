@@ -180,12 +180,12 @@ def benchmark(path: PathLike,
     stop = RaschCaptureCriterion[str](rasch, "Relevant", 3, 1.0)
     
     # Simulate the annotation workflow
-    plotter = BinaryPlotter[str]("Relevant", "Irrelevant")
+    plotter = BinaryPlotter[str]("Relevant", "Irrelevant", rasch)
     al, _ = initialize(factory, al_config, fe_config, initializer, environment)
     al_result, plotter_result = simulate(al, stop, plotter, 10)
 
     # Assess the performance
     performance = process_performance(al_result, "Relevant")
     result = BenchmarkResult(path, uuid, 
-                             performance.wss, performance.accuracy)
+                             performance.wss, performance.recall)
     return result, plotter_result

@@ -6,6 +6,7 @@ from .configurations import ALConfiguration, FEConfiguration, AL_REPOSITORY, FE_
 from uuid import uuid4
 
 import pandas as pd
+import pickle
 
 def run_benchmark(dataset_path: PathLike, 
                   target_dir: PathLike, 
@@ -28,15 +29,18 @@ def run_benchmark(dataset_path: PathLike,
     # Save the benchmark results (or append if the file already exists)
     target_csv = target_path / "benchmark_results.csv"
     if target_csv.exists():
-        result_df = pd.read_csv(target_csv)
-        result_df = result_df.append(result) # type: ignore
+        result_df = pd.read_csv(target_csv, index_col=0)
+        result_df = result_df.append([result], ignore_index=True) # type: ignore
     else:
-        result_df = pd.from_dataclasses([result]) # type: ignore
+        result_df = pd.DataFrame(data=[result]) # type: ignore
     result_df.to_csv(target_csv)
     
     # Save the plot table
-    plot_filename = target_path / f"run_{uuid}.csv"
-    plot.result_frame.to_csv(plot_filename)
+    df_filename = target_path / f"run_{uuid}.csv"
+    plot_filename = target_path / f"run_{uuid}.pdf"
+    plot.result_frame.to_csv(df_filename)
+
+    plot.show(filename=plot_filename)
 
 
     
