@@ -28,7 +28,7 @@ test:
   script:
     - python setup.py test
     - pip install tox flake8  # you can also use tox
-    - tox -e py36,flake8
+    - tox -e py38,flake8
 
 run:
   script:
@@ -42,8 +42,8 @@ run:
 
 pages:
   script:
-    - pip install sphinx sphinx-rtd-theme
-    - cd doc ; make html
+    - pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
+    - cd docs ; make html
     - mv build/html/ ../public/
   artifacts:
     paths:
