@@ -1,6 +1,6 @@
+numpy
 scikit-learn
 pandas
-numpy
 imblearn
 scipy
 gensim
