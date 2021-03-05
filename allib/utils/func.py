@@ -154,11 +154,27 @@ def all_subsets(fset: FrozenSet[_T],
     FrozenSet[FrozenSet[_T]]
         A set of subsets
     """    
-   
-
     subsets = (find_subsets(fset, n) for n in range(n_min, n_max + 1))
     result = union(*subsets)
     return result
+
+def expandgrid(**itrs: Iterable[_T]) -> Dict[str, List[_T]]:
+    """Port of the expand.grid function from R
+
+    Parameters
+    ----------
+    itrs: Keyword variables with an iterable as argument
+
+    Returns
+    -------
+    Dict[str, List[_T]]
+        A dictionary with as values all possible combinations in a gridlike 
+        ordering
+    """
+    variables = list(itrs.keys())
+    iterators = list(itrs.values())
+    product = list(itertools.product(*iterators))
+    return {variable: [x[i] for x in product] for i, variable in enumerate(variables)}
 
 def mapsnd(func: Callable[[_U], _V]) -> Callable[[_T, _U], Tuple[_T, _V]]:
     """This function converts a function with signature `u -> v` to a function

@@ -38,6 +38,7 @@ rasch.expectation <- function(df.pos, df.neg, dataset.size, missing.pos, missing
 rasch.maximization <- function(df.pos, df.neg, dataset.size, missing.pos, missing.neg){
   estimate.pos <- rasch.estimate(df.pos, missing.pos)
   estimate.neg <- rasch.estimate(df.neg, missing.neg)
+  deviance <- rasch.estimate(df.pos, missing.)
   return(list(missing.pos=estimate.pos, missing.neg=estimate.neg))
 }
 calculate.ratio <- function(exp.r){
@@ -92,4 +93,30 @@ rasch.em <- function(df.pos, df.neg, dataset.size, missing.pos=1, missing.neg=1,
     ratios.m = unlist(m.results)
   )
   return(result.list$df)
+}
+
+
+rasch.maarten <- function(freq.df, N){
+  df <- freq.df
+  s <- !(df$learner_0 == 0 & df$learner_1 == 0 & df$learner_2 == 0)
+  N0  <- N - sum(df$count[s])
+  dem <- df
+  dem$count[!s] <- N0 / sum(!s)
+  mstep        <- glm(count ~ ., "poisson", dem)
+  devold       <- mstep$deviance
+  tol <- devold
+  
+  while(tol > 1e-5){
+    mfit  <- fitted(mstep, "response")
+    efit  <- dem$count
+    efit[!s] <- mfit[!s] * N0 / sum(mfit[!s]) 
+    dem$count <- efit
+    
+    mstep <- glm(count ~ ., "poisson", dem)
+    devnew <- mstep$deviance
+    
+    tol <- devold - mstep$deviance
+    devold <- mstep$deviance
+  }
+  return(mstep)
 }

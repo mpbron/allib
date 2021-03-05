@@ -210,6 +210,9 @@ class EMRaschCombined(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT
                 **{
                     "count": len(instances),
                     "h": 1,
+                    "h1": len(all_subsets(combination, 2, max_len - 1)),
+                    "h2": 0,
+                    "h3": 0,
                 }
             }
             for (i, (combination, instances)) in enumerate(contingency_sets_pos.items())
@@ -222,7 +225,10 @@ class EMRaschCombined(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT
                 },  
                 **{
                     "count": len(instances),
-                    "h": 0
+                    "h": 0,
+                    "h1": len(all_subsets(combination, 2, max_len - 1)),
+                    "h2": 0,
+                    "h3": 0,                    
                 }
             }
             for (i, (combination, instances)) in enumerate(contingency_sets_neg.items(), len(contingency_sets_pos))
