@@ -1,17 +1,18 @@
 from __future__ import annotations
+
 import collections
-
-from allib.machinelearning.base import AbstractClassifier
-
 import logging
 from abc import ABC, abstractmethod
 from typing import (Any, Callable, Deque, Dict, FrozenSet, Generic, Iterator,
-                    List, Optional, Sequence, Tuple, TypeVar, Union, Set)
+                    List, Optional, Sequence, Set, Tuple, TypeVar, Union)
 
-from .base import ActiveLearner, NoOrderingException
+from allib.machinelearning.base import AbstractClassifier
+
 from ..environment import AbstractEnvironment
+from ..exceptions import NoOrderingException
 from ..instances import Instance, InstanceProvider
 from ..labels.base import LabelProvider
+from .base import ActiveLearner
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")

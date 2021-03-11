@@ -27,6 +27,10 @@ rasch.estimate <- function(df, count.expectation){
     deviance=model$deviance)
   return(ret)
 }
+create.design.matrix<- function(learners){
+  learners.n <- dim(learners)
+  
+}
 
 rasch.expectation <- function(df.pos, df.neg, dataset.size, missing.pos, missing.neg){
   count.read <- sum(df.pos$count) + sum(df.neg$count)
@@ -95,19 +99,31 @@ rasch.em <- function(df.pos, df.neg, dataset.size, missing.pos=1, missing.neg=1,
   return(result.list$df)
 }
 
+df.modify <- function(freq.df, n.pos, n.neg){
+  df <- freq.df %>% 
+    add_row(count=n.pos, positive=1) %>%
+    add_row(count=n.neg, positive=0) %>%
+    mutate_at(vars(-c("count")), ~replace(., is.na(.), 0))
+  return(df)
+}
 
-rasch.maarten <- function(freq.df, N){
-  df <- freq.df
-  s <- !(df$learner_0 == 0 & df$learner_1 == 0 & df$learner_2 == 0)
-  N0  <- N - sum(df$count[s])
-  dem <- df
-  dem$count[!s] <- N0 / sum(!s)
-  mstep        <- glm(count ~ ., "poisson", dem)
-  devold       <- mstep$deviance
+rasch.em.comb <- function(freq.df, N, proportion=0.05){
+  n.pos   <- round(proportion*N)
+  n.neg   <- round((1-proportion)*N)
+  df      <- df.modify(freq.df, n.pos, n.neg)
+  s       <- c(
+    rep(T, dim(freq.df)[1]), 
+    rep(F, dim(df)[1] - dim(freq.df)[1])
+  )
+  N0      <- N - sum(df$count[s])
+  dem     <- df
+  mstep   <- glm(count ~ ., "poisson", dem)
+  devold  <- mstep$deviance
   tol <- devold
   
-  while(tol > 1e-5){
+  while(tol > 1e-6){
     mfit  <- fitted(mstep, "response")
+    
     efit  <- dem$count
     efit[!s] <- mfit[!s] * N0 / sum(mfit[!s]) 
     dem$count <- efit
@@ -119,4 +135,12 @@ rasch.maarten <- function(freq.df, N){
     devold <- mstep$deviance
   }
   return(mstep)
+}
+rasch.em.2 <- function(freq.df, N){
+  count.found <- sum(freq.df$count)
+  model <- rasch.comb(freq.df, N)
+  fv <- fitted(model) %>% unlist(use.names=F) %>% as.vector()
+  estimates <-  tail(fv, 2)
+  df <- data.frame(estimate=count.found + estimates[1])
+  return(df)
 }

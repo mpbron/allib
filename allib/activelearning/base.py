@@ -10,6 +10,8 @@ from abc import ABC, abstractmethod
 from typing import (Any, Callable, Deque, Dict, FrozenSet, Generic, Iterator,
                     List, Optional, Sequence, Tuple, TypeVar, Union, Set)
 
+
+from ..exceptions import NotInitializedException
 from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
 from ..labels.base import LabelProvider
@@ -28,22 +30,6 @@ ProbabilityPrediction = FrozenSet[Tuple[LT, float]]
 LabelPrediction = FrozenSet[LT]
 
 LOGGER = logging.getLogger(__name__)
-
-class NotInitializedException(Exception):
-    """This exception is returned if the Active Learner has not been 
-    initialized. That is, there is no attached Environment, so it 
-    cannot sample instances.
-    """    
-    pass
-
-class NoOrderingException(Exception):
-    """This exception is returned if the instances in the `ActiveLearner`
-    have not yet been ordered, or establishing an ordering is not possible
-    while sampling instances. In this case, no instances can be returned
-    and instead this `Exception` is raised.
-    """    
-    pass
-
 
 class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT, RT, LT]):
     """The **Abstract Base Class** `ActiveLearner` specifies the design for all 
@@ -207,7 +193,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         @functools.wraps(func)
         def wrapper(
                 self: ActiveLearner[KT, DT, VT, RT, LT], 
-                *args: Any, **kwargs: Dict[str, Any]) -> FT:
+                *args: Any, **kwargs: Dict[str, Any]) -> F:
             result: Union[Any,Instance[KT, DT, VT, RT]] = func(self, *args, **kwargs)
             if isinstance(result, Instance):
                 LOGGER.info("Sampled document %i with method %s",

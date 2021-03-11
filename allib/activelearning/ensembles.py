@@ -13,8 +13,7 @@ from ..environment import AbstractEnvironment
 from ..instances import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
 from ..utils import get_random_generator
-from .base import (ActiveLearner, LabelPrediction,
-                   NotInitializedException)
+from .base import ActiveLearner
 from .poolbased import PoolBasedAL
 from .ml_based import MLBased
 

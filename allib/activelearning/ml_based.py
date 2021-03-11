@@ -7,18 +7,21 @@ import logging
 from abc import ABC, abstractmethod
 from multiprocessing import Pool
 from queue import Queue
-from typing import (Any, Callable, Dict, FrozenSet, Generic, Iterator, Optional, Sequence,
-                    Tuple, TypeVar)
+from typing import (Any, Callable, Dict, FrozenSet, Generic, Iterator,
+                    Optional, Sequence, Tuple, TypeVar)
 
 import numpy as np  # type: ignore
 from sklearn.exceptions import NotFittedError  # type: ignore
 
 from ..environment import AbstractEnvironment
+from ..exceptions import NoOrderingException, NotInitializedException
+from ..exceptions.base import NoLabeledDataException, NoVectorsException
 from ..instances.base import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
 from ..utils import divide_sequence, mapsnd
 from ..utils.func import filter_snd_none, list_unzip, sort_on
-from .base import ActiveLearner, NotInitializedException, NoOrderingException
+
+from .base import ActiveLearner
 from .poolbased import PoolBasedAL
 from .random import RandomSampling
 
@@ -118,16 +121,25 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         NotInitializedException
             If the AL method has no attached Environment
         """        
-        LOGGER.info("[%s] Retraining the classifier", self.name)
+        LOGGER.info("[%s] Start with the retraining procedure", self.name)
+        # Some sanity checks
         if not self.initialized:
-            raise NotInitializedException
+            raise NotInitializedException("This AL object has no attached environment")
+        if self.env.labeled.empty:
+            raise NoLabeledDataException("There are no labeled instances for retraining")
+        
         # Collect the feature matrix for the labeled subset
         key_vector_pairs = itertools.chain.from_iterable(self.env.labeled.vector_chunker(self.batch_size))
         keys, vectors = list_unzip(key_vector_pairs)
+        if not vectors:
+            raise NoVectorsException("There are no vectors available for training the classifier")
         LOGGER.info("[%s] Gathered the feature matrix for all labeled documents", self.name)
+        
         # Get all labels for documents in the labeled set
         labelings = list(map(self.env.labels.get_labels, keys))
         LOGGER.info("[%s] Gathered all labels", self.name)
+        
+        LOGGER.info("[%s] Start fitting the classifier", self.name)
         self.classifier.fit_vectors(vectors, labelings)
         LOGGER.info("[%s] Fitted the classifier", self.name)
         self.fitted = True
@@ -200,7 +212,7 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         - :class:`IndexError` e.g., there is no train data
         - :class:`ValueError` e.g., the train data has an incorrect format
         - :class:`StopIteration` e.g., there are no unlabeled documents
-        - :class:`allib.activelearning.base.NoOrderingException` an ordering 
+        - :class:`~allib.exceptions.base.NoOrderingException` an ordering 
             could not be established
 
         Parameters
@@ -220,7 +232,8 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
             if not self.uses_fallback:
                 try:
                     return func(self, *args, **kwargs)
-                except (NotFittedError, IndexError, ValueError, StopIteration, NoOrderingException) as ex:
+                except (NotFittedError, IndexError, ValueError, 
+                        StopIteration, NoOrderingException, NoVectorsException) as ex:
                     LOGGER.error("[%s] Falling back to model %s, because of: %s",
                                  self.name, self.fallback.name, ex, exc_info=ex)
             LOGGER.warn("[%s] Falling back to model %s, because it is not fitted", self.name, self.fallback.name)
@@ -378,7 +391,9 @@ class ProbabilityBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarra
         try:
             self.retrain()
             ordering, _ = self.calculate_ordering()
-        except (NotFittedError, IndexError, ValueError) as ex:
+        except (NotFittedError, IndexError, 
+                ValueError, NoLabeledDataException, 
+                NoVectorsException) as ex:
             self._uses_fallback = True
             LOGGER.error("[%s] Falling back to model %s, because of: %s",
                                  self.name, self.fallback.name, ex, exc_info=ex)

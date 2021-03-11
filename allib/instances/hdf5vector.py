@@ -1,21 +1,41 @@
-from abc import abstractmethod
-from typing import Dict, Generic, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar
-
-import h5py # type: ignore
-import pickle
 import itertools
+import pickle
+from abc import abstractmethod
+from typing import (Dict, Generic, Iterable, Iterator, Optional, Sequence,
+                    Tuple, TypeVar)
+
+import h5py  # type: ignore
 import numpy as np  # type: ignore
-from h5py._hl.dataset import Dataset # type: ignore
+from h5py._hl.dataset import Dataset  # type: ignore
 
-from .vectorstorage import VectorStorage
-
+from ..exceptions import NoVectorsException
 from ..utils.chunks import divide_iterable_in_lists, get_range
 from ..utils.func import filter_snd_none, list_unzip
-from ..utils.numpy import slicer, matrix_to_vector_list, matrix_tuple_to_vectors, matrix_tuple_to_zipped
+from ..utils.numpy import (matrix_to_vector_list, matrix_tuple_to_vectors,
+                           matrix_tuple_to_zipped, slicer)
+from .vectorstorage import VectorStorage, ensure_writeable
 
 KT = TypeVar("KT")
 
 class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
+    """This class provides the handling of on disk vector storage in HDF5 format.
+    In many cases, storing feature matrices or large sets of vectors
+    in memory is not feasible.
+    
+    This class provides methods that `InstanceProvider` implementations
+    can use to ensure that only the vectors needed by some operations are 
+    kept in memory. This class enables processing all vector in chunks that
+    do fit in memory, enabling ordering all unlabeled instances for very large
+    datasets.
+
+    Parameters
+        ----------
+        h5path : str
+            The path to the hdf5 file
+        mode : str, optional
+            The file mode (see `h5py` documentation), by default "r"
+    """    
+    
     __writemodes = ["a", "r+", "w", "w-", "x"]
     def __init__(self, h5path: str, mode: str = "r") -> None:
         self.__mode = mode
@@ -24,7 +44,42 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         self.inv_key_dict: Dict[int, KT] = dict()
         self.reload()
 
+    @property
+    def writeable(self) -> bool:
+        """Check if the storage is writeable
+
+        Returns
+        -------
+        bool
+            True when writeable
+        """        
+        return self.__mode in self.__writemodes
+
+    def __len__(self) -> int:
+        """Returns the size of the dataset
+        Returns
+        -------
+        int
+            The size of the dataset
+        """        
+        return len(self.key_dict)
+
+    @property
+    def datasets_exist(self) -> bool:
+        """Check if the HDF5 file contains a dataset
+
+        Returns
+        -------
+        bool
+            True, if the file contains a dataset
+        """        
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            exist = "vectors" in hfile and "keys" in hfile
+        return exist    
+
     def reload(self) -> None:
+        """Reload the index from disk
+        """        
         with h5py.File(self.h5path, self.__mode) as hfile:
             if "dicts" in hfile:
                 dicts = hfile["dicts"]
@@ -35,8 +90,10 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
     def __enter__(self):
         return self
 
+    @ensure_writeable
     def __store_dicts(self) -> None:
-        assert self.__mode in self.__writemodes
+        """Store the index dictionaries to disk in the HDF5 file
+        """        
         with h5py.File(self.h5path, self.__mode) as hfile:
             if "dicts" not in hfile:
                 dt = h5py.special_dtype(vlen=np.dtype("uint8"))
@@ -47,22 +104,51 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
                 pickle.dumps(self.key_dict), dtype="uint8") #type: ignore
             dicts[1] = np.fromstring(
                 pickle.dumps(self.inv_key_dict), dtype="uint8") # type: ignore
+    
+    @ensure_writeable
+    def rebuild_index(self) -> None:
+        """Rebuild the index after manual manipulation of a HDF5 file.
+
+        Raises
+        ------
+        NoVectorsException
+            If there are no vectors, or if they are stored incorrectly
+        """        
+        if not self.datasets_exist:
+            raise NoVectorsException("There are no vectors stored in this file, "
+                                     "therefore, the index dictionaries cannot "
+                                     "be rebuilt.")
+        self.key_dict: Dict[KT, int] = dict()
+        self.inv_key_dict: Dict[int, KT] = dict()
+        with h5py.File(self.h5path, self.__mode) as hfile:
+            keys = hfile["keys"]
+            assert isinstance(keys, Dataset)
+            for i, key in enumerate(keys):
+                self.key_dict[key] = i # type: ignore
+                self.inv_key_dict[i] = key # type: ignore
+        self.__store_dicts()
+        
+    
             
     def __exit__(self, type, value, traceback):
         if self.__mode in self.__writemodes:
             self.__store_dicts()
-
-    @property
-    def datasets_exist(self) -> bool:
-        with h5py.File(self.h5path, self.__mode) as hfile:
-            exist = "vectors" in hfile and "keys" in hfile
-        return exist
-
+    
     def close(self) -> None:
+        """Close the file and store changes to the index to disk
+        """        
         self.__exit__(None, None, None)
 
+    @ensure_writeable
     def _create_matrix(self, first_slice: np.ndarray) -> None:
-        assert self.__mode in self.__writemodes
+        """Create a vectors colum in the HDF5 file and add the
+        the vectors in `first_slice`
+
+        Parameters
+        ----------
+        first_slice : np.ndarray
+            A matrix
+        """        
         vector_dim = first_slice.shape[1]
         with h5py.File(self.h5path, self.__mode) as hfile:
             if "vectors" not in hfile:
@@ -70,8 +156,15 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
                     "vectors", data=first_slice, 
                     maxshape=(None, vector_dim), dtype="f", chunks=True)
 
+    @ensure_writeable
     def _create_keys(self, keys: Sequence[KT]) -> None:
-        assert self.__mode in self.__writemodes
+        """Create a key column in the HDF5 file.
+
+        Parameters
+        ----------
+        keys : Sequence[KT]
+            The keys that should be written
+        """        
         with h5py.File(self.h5path, self.__mode) as hfile:
             if "keys" not in hfile:
                 hfile.create_dataset("keys", 
@@ -80,12 +173,27 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
                 self.key_dict[key] = i
                 self.inv_key_dict[i] = key
   
-    def __len__(self) -> int:
-        return len(self.key_dict)
-    
+    @ensure_writeable
     def _append_matrix(self, matrix: np.ndarray) -> bool:
-        assert self.__mode in self.__writemodes
-        assert self.datasets_exist
+        """Append a matrix to storage (only for internal use)
+
+        Parameters
+        ----------
+        matrix : np.ndarray
+            A matrix. The vector dimension should match with this object
+
+        Returns
+        -------
+        bool
+            [description]
+
+        Raises
+        ------
+        NoVectorsException
+            [description]
+        """        
+        if not self.datasets_exist:
+            raise NoVectorsException("Cannot append without existing vectors")
         with h5py.File(self.h5path, self.__mode) as hfile:
             dataset = hfile["vectors"]
             assert isinstance(dataset, Dataset)
@@ -97,9 +205,27 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
             dataset[-mat_shape[0]:,:] = matrix
         return True 
 
+    @ensure_writeable
     def _append_keys(self, keys: Sequence[KT]) -> bool:
-        assert self.__mode in self.__writemodes
-        assert self.datasets_exist
+        """Append keys to the vector storage
+
+        Parameters
+        ----------
+        keys : Sequence[KT]
+            The keys that should be appended to storage
+
+        Returns
+        -------
+        bool
+            True, if the operation succeeded
+
+        Raises
+        ------
+        NoVectorsException
+            If there are no vectors in storage, non can be appended
+        """        
+        if not self.datasets_exist:
+            raise NoVectorsException("Cannot append without existing vectors")
         assert all(map(lambda k: k not in self.key_dict, keys))
         new_keys = np.array(keys) # type: ignore
         with h5py.File(self.h5path, self.__mode) as hfile:
@@ -119,7 +245,8 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         return True
         
     def __getitem__(self, k: KT) -> np.ndarray:
-        assert self.datasets_exist
+        if not self.datasets_exist:
+            raise NoVectorsException("There are no vectors stored in this object")
         h5_idx = self.key_dict[k]
         with h5py.File(self.h5path, self.__mode) as hfile:
             dataset = hfile["vectors"]
@@ -127,8 +254,8 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
             data = dataset[h5_idx,:]
         return data # type: ignore
 
+    @ensure_writeable
     def __setitem__(self, k: KT, value: np.ndarray) -> None:
-        assert self.__mode in self.__writemodes
         assert self.datasets_exist
         if k in self:
             h5_idx = self.key_dict[k]
@@ -148,8 +275,17 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
     def __iter__(self) -> Iterator[KT]:
         yield from self.key_dict
 
+    @ensure_writeable
     def add_bulk_matrix(self, keys: Sequence[KT], matrix: np.ndarray) -> None:
-        assert self.__mode in self.__writemodes
+        """Add matrices in bulk
+
+        Parameters
+        ----------
+        keys : Sequence[KT]
+            A list of identifiers. The following should hold: `len(keys) == matrix.shape[0]`
+        matrix : np.ndarray
+            A matrix. The rows should correspond with the identifiers in keys
+        """        
         assert len(keys) == matrix.shape[0]
         if not self.datasets_exist:
             self._create_matrix(matrix)
@@ -160,8 +296,16 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
                 self._append_matrix(matrix)
             return
 
+    @ensure_writeable
     def _update_vectors(self, keys: Sequence[KT], values: Sequence[np.ndarray]) -> None:
-        assert self.__mode in self.__writemodes
+        """Update vectors in bulk
+        Parameters
+        ----------
+        keys : Sequence[KT]
+            A list of identifiers
+        values : Sequence[np.ndarray]
+            A list of new vectors
+        """        
         assert len(keys) == len(values)
         if values:
             with h5py.File(self.h5path, self.__mode) as hfile:
@@ -171,10 +315,20 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
                     h5_idx = self.key_dict[key]
                     dataset[h5_idx] = value # type: ignore
             
+    @ensure_writeable
     def add_bulk(self, input_keys: Sequence[KT], input_values: Sequence[Optional[np.ndarray]]) -> None:
-        assert self.__mode in self.__writemodes
+        """Add a bulk of keys and values (vectors) to the vector storage
+
+        Parameters
+        ----------
+        input_keys : Sequence[KT]
+            The keys of the Instances
+        input_values : Sequence[Optional[np.ndarray]]
+            The vectors that correspond with the indices
+        """        
         assert len(input_keys) == len(input_values) and len(input_keys) > 0
 
+        # Filter all keys that do not have a vector (input_values may contain None)
         keys, values = filter_snd_none(input_keys, input_values) # type: ignore
         
         if not values:
@@ -199,7 +353,7 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         not_in_storage = filter(lambda kv: kv[0] not in self.key_dict, zip(keys, values))
         in_storage = filter(lambda kv: kv[0] in self.key_dict, zip(keys, values))
         
-        # Update the present key vector pairs
+        # Update the already present key vector pairs
         old_keys, updated_vectors = list_unzip(in_storage)
         self._update_vectors(old_keys, updated_vectors)
 
@@ -212,6 +366,27 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
     
 
     def _get_matrix(self, h5_idxs: Sequence[int]) -> Tuple[Sequence[KT], np.ndarray]:
+        """Return a matrix that correspond with the internal `h5_idxs`.
+
+        Parameters
+        ----------
+        h5_idxs : Sequence[int]
+            A list of internal indices that correspond with the indices
+
+        Returns
+        -------
+        Tuple[Sequence[KT], np.ndarray]
+            A tuple containing:
+
+                - The public indices (from the :class:`~allib.instances.InstanceProvider`)
+                - A matrix where the rows map to the external indices
+        Raises
+        ------
+        NoVectorsException
+            If there are no vectors stored in this object
+        """        
+        if not self.datasets_exist:
+            raise NoVectorsException("There are no vectors stored in this object")
         with h5py.File(self.h5path, self.__mode) as dfile:
             dataset = dfile["vectors"]
             assert isinstance(dataset, Dataset)
@@ -221,19 +396,84 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         return included_keys, result_matrix
 
     def get_vectors(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], Sequence[np.ndarray]]:
+        """Return the vectors that correspond with the `keys` 
+
+        Parameters
+        ----------
+        keys : Sequence[KT]
+            A list of identifier keys
+
+        Returns
+        -------
+        Tuple[Sequence[KT], Sequence[np.ndarray]]
+            A tuple containing two lists:
+
+                - A list with identifier (order may differ from `keys` argument)
+                - A list with vectors 
+        """        
         ret_keys, ret_matrix = self.get_matrix(keys)
         ret_vectors = matrix_to_vector_list(ret_matrix)
         return ret_keys, ret_vectors
 
     def get_matrix(self, keys: Sequence[KT]) -> Tuple[Sequence[KT], np.ndarray]:
-        assert self.datasets_exist
+        """Return a matrix containing the vectors that correspond with the `keys`
+
+        Parameters
+        ----------
+        keys : Sequence[KT]
+            A list of identifier keys
+
+        Returns
+        -------
+        Tuple[Sequence[KT], np.ndarray]
+            A tuple containing:
+
+                - A list with identifier keys
+                    (order may differ from `keys` argument)
+                - A matrix containing the vectors 
+                    (rows correspond with the returned list)
+
+        Raises
+        ------
+        NoVectorsException
+            If there are no vectors returned
+        """        
+        if not self.datasets_exist:
+            raise NoVectorsException("There are no vectors stored in this object")
         in_storage = frozenset(self.key_dict).intersection(keys)
         h5py_idxs = map(lambda k: self.key_dict[k], in_storage)
         sorted_keys = sorted(h5py_idxs)
         return self._get_matrix(sorted_keys)
 
-    def get_matrix_chunked(self, keys: Sequence[KT], chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
-        assert self.datasets_exist
+    def get_matrix_chunked(self, 
+                           keys: Sequence[KT], 
+                           chunk_size: int = 200) -> Iterator[Tuple[Sequence[KT], np.ndarray]]:
+        """Return matrices in chunks of `chunk_size` containing the vectors requested in `keys`
+
+        Parameters
+        ----------
+        keys : Sequence[KT]
+            A list of identifier keys
+        chunk_size : int, optional
+            The size of the chunks, by default 200
+
+        Yields
+        -------
+        Tuple[Sequence[KT], np.ndarray]
+            A tuple containing:
+
+                - A list with identifier keys
+                    (order may differ from `keys` argument)
+                - A matrix containing the vectors 
+                    (rows correspond with the returned list)
+
+        Raises
+        ------
+        StopIteration
+            When there are no more chunks to process
+        """        
+        if not self.datasets_exist:
+            raise StopIteration
         in_storage = frozenset(self.key_dict).intersection(keys)
         h5py_idxs = map(lambda k: self.key_dict[k], in_storage)
         sorted_keys = sorted(h5py_idxs)
@@ -241,19 +481,92 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
         yield from map(self._get_matrix, chunks)
 
     def get_vectors_chunked(self, keys: Sequence[KT], chunk_size: int = 200):
+        """Return vectors in chunks of `chunk_size` containing the vectors requested in `keys`
+
+        Parameters
+        ----------
+        keys : Sequence[KT]
+            A list of identifier keys
+        chunk_size : int, optional
+            The size of the chunks, by default 200
+
+        Yields
+        -------
+        Tuple[Sequence[KT], Sequence[np.ndarray]]
+            A tuple containing two lists:
+
+                - A list with identifiers (order may differ from `keys` argument)
+                - A list with vectors 
+        """        
         results = itertools.starmap(matrix_tuple_to_vectors, self.get_matrix_chunked(keys, chunk_size))
         yield from results
 
     def get_vectors_zipped(self, keys: Sequence[KT], chunk_size: int = 200):
+        """Return vectors in chunks of `chunk_size` containing the vectors requested in `keys`
+
+        Parameters
+        ----------
+        keys : Sequence[KT]
+            A list of identifier keys
+        chunk_size : int, optional
+            The size of the chunks, by default 200
+
+        Yields
+        -------
+        Sequence[Tuple[KT, np.ndarray]]
+            A list containing tuples of:
+
+                - An identifier (order may differ from `keys` argument)
+                - A vector 
+        """
         results = itertools.starmap(matrix_tuple_to_zipped, self.get_matrix_chunked(keys, chunk_size))
         yield from results
 
     def vectors_chunker(self, chunk_size: int = 200):
+        """Return vectors in chunks of `chunk_size`. This generator will yield all vectors contained
+        in this object.
+
+        Parameters
+        ----------
+        chunk_size : int, optional
+            The size of the chunks, by default 200
+
+
+        Yields
+        -------
+        Sequence[Tuple[KT, np.ndarray]]
+            A list containing tuples of:
+
+                - An identifier
+                - A vector
+        """        
         results = itertools.starmap(matrix_tuple_to_zipped, self.matrices_chunker(chunk_size))
         yield from results
            
     def matrices_chunker(self, chunk_size: int = 200):
-        assert self.datasets_exist
+        """Yield matrices in chunks of `chunk_size` containing all the vectors in this object
+
+        Parameters
+        ----------
+        chunk_size : int, optional
+            The size of the chunks, by default 200
+
+        Yields
+        -------
+        Tuple[Sequence[KT], np.ndarray]
+            A tuple containing:
+
+                - A list with identifier keys
+                - A matrix containing the vectors 
+                    (row indices correspond with the list indices)
+
+        Raises
+        ------
+        StopIteration
+            When there are no more chunks to process
+        """        
+        if not self.datasets_exist:
+            raise StopIteration
         h5py_idxs = self.inv_key_dict.keys()
         sorted_keys = sorted(h5py_idxs)
         chunks = divide_iterable_in_lists(sorted_keys, chunk_size)
