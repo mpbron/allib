@@ -100,6 +100,8 @@ rasch.em <- function(df.pos, df.neg, dataset.size, missing.pos=1, missing.neg=1,
 }
 
 df.modify <- function(freq.df, n.pos, n.neg){
+  # From Python the rows for n_00...0 are missing
+  # We add them with the following statement
   df <- freq.df %>% 
     add_row(count=n.pos, positive=1) %>%
     add_row(count=n.neg, positive=0) %>%
@@ -107,40 +109,62 @@ df.modify <- function(freq.df, n.pos, n.neg){
   return(df)
 }
 
-rasch.em.comb <- function(freq.df, N, proportion=0.05){
+rasch.em.comb <- function(freq.df, N, proportion=0.05, tolerance=1e-6){
+  # Calculate the start values for the n.pos and n.neg
   n.pos   <- round(proportion*N)
   n.neg   <- round((1-proportion)*N)
+  
+  # Add the missing rows for n_00...0
   df      <- df.modify(freq.df, n.pos, n.neg)
   s       <- c(
-    rep(T, dim(freq.df)[1]), 
-    rep(F, dim(df)[1] - dim(freq.df)[1])
+    rep(T, nrow(freq.df)), # Do not contain n_00...0
+    rep(F, nrow(df) - nrow(freq.df)) #Do contain n_00...0
   )
-  N0      <- N - sum(df$count[s])
-  dem     <- df
-  mstep   <- glm(count ~ ., "poisson", dem)
+  N0      <- N - sum(df$count[s]) # The number of documents that are not read
+  # Copy the data frame to new variable that can be manipulated
+  df.em     <- df 
+  
+  # Fit initial log linear model and calculate deviance
+  mstep   <- glm(count ~ ., "poisson", df.em)
   devold  <- mstep$deviance
   tol <- devold
   
-  while(tol > 1e-6){
+  while(tol > tolerance){
+    # Calculate fitted frequencies
     mfit  <- fitted(mstep, "response")
     
-    efit  <- dem$count
+    # Adjust the frequencies for n_00...0
+    efit  <- df.em$count
     efit[!s] <- mfit[!s] * N0 / sum(mfit[!s]) 
-    dem$count <- efit
     
-    mstep <- glm(count ~ ., "poisson", dem)
+    # Store new frequencies in data frame
+    df.em$count <- efit
+    
+    # Fit log linear model and calculate deviance
+    mstep <- glm(count ~ ., "poisson", df.em)
     devnew <- mstep$deviance
     
+    # Determine if we have converged
     tol <- devold - mstep$deviance
     devold <- mstep$deviance
   }
   return(mstep)
 }
-rasch.em.2 <- function(freq.df, N){
-  count.found <- sum(freq.df$count)
-  model <- rasch.comb(freq.df, N)
+rasch.csv <- function(filename){
+  df <- read_csv(filename, col_types = cols(X1= col_skip()))
+  return(df)
+}
+rasch.em.horizon <- function(freq.df, N, proportion=0.05){
+  # This is the function that is called from Python
+  # Gather the positive part of the table
+  df.pos <- freq.df %>% filter(positive==1)
+  # Calculate the number of positive documents
+  count.found <- sum(df.pos$count)
+  model <- rasch.em.comb(freq.df, N, proportion=proportion)
   fv <- fitted(model) %>% unlist(use.names=F) %>% as.vector()
+  # Estimates for n00...0 are located at the last two members of the list
   estimates <-  tail(fv, 2)
+  # Return the estimated number of positive documents
   df <- data.frame(estimate=count.found + estimates[1])
   return(df)
 }

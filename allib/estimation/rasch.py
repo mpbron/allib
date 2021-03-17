@@ -334,7 +334,7 @@ class EMRaschCombined(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT
         _check_R()
         R = ro.r
         filedir = os.path.dirname(os.path.realpath(__file__))
-        r_script_file = os.path.join(filedir, "rasch_em.R")
+        r_script_file = os.path.join(filedir, "rasch_em_comb.R")
         R["source"](r_script_file)
 
     def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
@@ -343,7 +343,7 @@ class EMRaschCombined(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT
         dataset_size = len(estimator.env.dataset)
         with localconverter(ro.default_converter + pandas2ri.converter):
             df_pos_r = ro.conversion.py2rpy(df_pos)
-            abundance_r = ro.globalenv["rasch.em2"]
+            abundance_r = ro.globalenv["rasch.em.horizon"]
             r_df = abundance_r(df_pos_r, dataset_size)
             res_df = ro.conversion.rpy2py(r_df)
         return res_df

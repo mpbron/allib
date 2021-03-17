@@ -34,7 +34,7 @@ class MostConfidence(AbstractSelectionCriterion):
     name = ALCatalog.QueryType.MOST_CONFIDENCE
     
     def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
-        confidence: np.ndarray = np.amax(prob_mat, axis=1)
+        confidence: np.ndarray = np.amax(prob_mat, axis=1) # type: ignore
         return confidence
 
 class LabelMaximizer(AbstractSelectionCriterion):

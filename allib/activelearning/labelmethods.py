@@ -29,7 +29,7 @@ class LabelProbabilityBased(ProbabilityBased[KT, DT, RT, LT], ABC, Generic[KT, D
     def __init__(self, 
                  classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray], 
                  selection_criterion: AbstractSelectionCriterion,
-                 label: LT, fallback = RandomSampling[KT, DT, np.ndarray, RT, LT],
+                 label: LT, fallback = RandomSampling[KT, DT, np.ndarray, RT, LT](),
                  identifier: Optional[str] = None,  *_, **__) -> None:
         super().__init__(classifier, selection_criterion, fallback, identifier=identifier)
         self.label = label
