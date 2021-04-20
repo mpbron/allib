@@ -91,17 +91,18 @@ class BinaryPlotter(Generic[LT]):
         print(f"Found {pos_count} documents so far")
     
     def show(self,
-             y_lim_scale: float = 1.4,
+             x_lim: Optional[float] = None,
+             y_lim: Optional[float] = None,
              all_estimations: bool = False,
              filename: Optional[PathLike] = None) -> None:
         # Gathering intermediate results
         df = self.result_frame
 
         n_pos_overall = np.array(df.positives)
-        n_found = n_pos_overall[-1]
-        true_pos = np.array(df.true_pos_count)[-1]
-        n_read = np.array(df.total)[-1]
-        total_n = np.array(df.dataset_size)[-1]
+        n_found = int(n_pos_overall[-1])
+        true_pos = int(np.array(df.true_pos_count)[-1])
+        n_read = int(np.array(df.total)[-1])
+        total_n = int(np.array(df.dataset_size)[-1])
         wss = np.array(df.wss)[-1] * 100
         recall = np.array(df.recall)[-1] * 100
         n_exp = int(np.floor((n_read / total_n) * true_pos))
@@ -157,7 +158,12 @@ class BinaryPlotter(Generic[LT]):
         plt.plot(n_documents_read, (n_documents_read / total_n) * true_pos, ":",label = f"Exp. found at random ({n_exp})")
         
         # Setting axis limitations
-        plt.ylim(0, y_lim_scale * true_pos)
+        if x_lim is not None:
+            plt.xlim(0, x_lim)
+        if y_lim is not None:
+            plt.ylim(0, y_lim)
+        else:
+            plt.ylim(0, 1.4 * true_pos)
 
         # Setting axis labels
         plt.xlabel(f"number of read documents (total {n_read}), WSS = {wss:.2f} % Recall = {recall:.2f} %")

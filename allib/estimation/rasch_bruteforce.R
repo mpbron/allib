@@ -10,13 +10,14 @@ df.modify <- function(freq.df, n.pos, n.neg){
   return(df)
 }
 
-rasch.bf.comb <- function(freq.df, N, count.pos, proportion=0.1, tolerance=1e-5){
+rasch.bf.comb <- function(freq.df, N,proportion=0.1, tolerance=1e-5){
   # Calculate the number of documents that are not read
   count.found <- sum(freq.df$count)
   N0 <- N - sum(freq.df$count) 
   # Calculate the start values for the n.pos and n.neg
   deviances <- list()
   models <- list()
+  estimates <- list()
   model.min <- glm(count ~ ., "poisson", df.modify(freq.df, 0, N0))
   deviance.min <- Inf
   for(i in 0:N0){
@@ -28,16 +29,35 @@ rasch.bf.comb <- function(freq.df, N, count.pos, proportion=0.1, tolerance=1e-5)
       deviance.min <- model$deviance
       model.min <- model
     }
+    estimate <- fitted(model) %>% 
+                  unlist(use.names=F) %>% 
+                  as.vector() %>% 
+                  tail(2) %>% head(1)
     models[[(i+1)]] <- model
     deviances[[(i+1)]] <- model$deviance
+    estimates[[(i+1)]] <- estimate
   }
   ret <- list(
     model.min = model.min,
     models = models,
-    deviances = (deviances %>% unlist(use.names = F) %>% as.vector())
+    deviances = (deviances %>% unlist(use.names = F) %>% as.vector()),
+    estimates = (estimates %>% unlist(use.names = F) %>% as.vector())
   )
   return(ret)
 }
+
+rasch.bf.table <- function(result){
+  x <- (1:length(result$deviances)) - 1
+  df <- data.frame(
+    n.pos = x,
+    deviance = result$deviances,
+    estimate = result$estimates ,
+    difference = result$estimates - x
+  )
+  return(df)
+}
+
+
 
 
 rasch.csv <- function(filename){

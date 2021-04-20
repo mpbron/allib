@@ -67,14 +67,10 @@ class PoolbasedBuilder(AbstractBuilder):
     def __call__( # type: ignore
             self,
             query_type: AL.QueryType,
-            machinelearning: Dict,
             identifier: Optional[str] = None,
             **kwargs):
-        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
-        return self._factory.create(query_type,
-            classifier=classifier,
-            identifier=identifier,
-            **kwargs)
+        return self._factory.create(
+            query_type, identifier=identifier,**kwargs)
 class StrategyEnsembleBuilder(AbstractBuilder):
     def build_learner(self, 
                       classifier: AbstractClassifier, 

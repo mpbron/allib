@@ -391,3 +391,36 @@ class EMAlternative(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT,
             **count_col
         }
         return final_row
+
+class EMRaschRidge(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+                              label: LT) -> pd.DataFrame:
+        df_pos = self.get_occasion_history(estimator, label)
+        dataset_size = len(estimator.env.dataset)
+        with localconverter(ro.default_converter + pandas2ri.converter):
+            df_pos_r = ro.conversion.py2rpy(df_pos)
+            abundance_r = ro.globalenv["rasch.ridge.em.horizon"]
+            r_df = abundance_r(df_pos_r, dataset_size)
+            res_df = ro.conversion.rpy2py(r_df)
+        return res_df
+
+class EMRaschCombinedBootstrap(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+                              label: LT) -> pd.DataFrame:
+        df_pos = self.get_occasion_history(estimator, label)
+        dataset_size = len(estimator.env.dataset)
+        with localconverter(ro.default_converter + pandas2ri.converter):
+            df_pos_r = ro.conversion.py2rpy(df_pos)
+            abundance_r = ro.globalenv["rasch.em.bootstrap.horizon"]
+            r_df = abundance_r(df_pos_r, dataset_size)
+            res_df = ro.conversion.rpy2py(r_df)
+        return res_df
+
+    def calculate_estimate(self, 
+                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            label: LT) -> Tuple[float, float, float]:
+        res_df = self.calculate_abundance_R(estimator, label)
+        horizon = res_df.values[0,0]
+        lowerbound = res_df.values[0,1]
+        upperbound = res_df.values[0,2]
+        return horizon, lowerbound, upperbound
