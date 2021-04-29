@@ -119,6 +119,15 @@ svm_estimator = {
     ]
 }
 
+rasch_estimator = {
+    "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+    "learners": [
+        add_identifier(al_config_nb, "NaiveBayes"),
+        add_identifier(al_config_svm, "SVM"),
+        add_identifier(al_config_rf, "RandomForest"),
+    ]
+}
+
 al_config_est3 = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
     "learners": [
@@ -149,6 +158,9 @@ al_config_ens = {
         }
     }
 }
+
+
+
 env_config = { "environment_type": Cat.ENV.Type.MEMORY }
 
 tf_idf5000 ={

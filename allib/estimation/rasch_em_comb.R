@@ -132,6 +132,8 @@ g <- function(x){
   ifelse(x == 0, 1e-6, 10 * x)
 }
 
+
+
 rasch.ridge.em.comb <- function(freq.df, N, proportion=0.1, tolerance=1e-5){
   N0 <- N - sum(freq.df$count) # N0  <- N - sum(d$Freq[s])
   # Calculate the start values for the n.pos and n.neg
@@ -156,7 +158,8 @@ rasch.ridge.em.comb <- function(freq.df, N, proportion=0.1, tolerance=1e-5){
   s.neg <- df$positive == 0 & !s
   D <- as.matrix(df.mat)
   efit     <- df$count
-  efit[!s] <- N0 / sum(!s)
+  efit[s.pos] <- n.pos
+  efit[s.neg] <- n.neg
   beta     <- L2(
     b0 = c(log(N), rep(0, ncol(D) - 1)), 
     D = D, N = N, counts = efit
@@ -171,12 +174,18 @@ rasch.ridge.em.comb <- function(freq.df, N, proportion=0.1, tolerance=1e-5){
     tol      <- devold - devnew
     devold   <- devnew
   }
+  p <- as.list(mfit) %>% unlist()
+  W <- diag(p*(1-p))
+  cvm <- solve(t(D) %*% W %*% D)
+  SE <- sqrt(diag(cvm))
   ret <- list(
     coefficients=beta,
     fitted=mfit,
     deviance=devold,
     est.pos=mfit[s.pos,1],
-    est.neg=mfit[s.neg,1]
+    est.neg=mfit[s.neg,1],
+    std.err = SE,
+    cvm=cvm
   )
   return(ret)
 }
@@ -254,7 +263,17 @@ rasch.em.bootstrap.horizon <- function(freq.df, # The dataframe (from python or 
 }
 
 
-
+rasch.em.ms <- function(f.em, freq.df, N){
+  lowest <- f.em(freq.df, N, proportion=0.5)
+  proportions = c(0.0001, 0.001, 0.01, 0.1, 0.3, 0.5, 0.8, 0)
+  for(pp in proportions){
+    result <- f.em(freq.df, N, proportion=pp)
+    if(lowest$deviance > result$deviance){
+      lowest <- result
+    }
+  }
+  return(lowest)
+}
 
 
 rasch.ridge.em.horizon <- function(freq.df, # The dataframe (from python or rasch.csv)
@@ -265,8 +284,62 @@ rasch.ridge.em.horizon <- function(freq.df, # The dataframe (from python or rasc
   df.pos <- freq.df %>% filter(positive==1)
   # Calculate the number of positive documents
   count.found <- sum(df.pos$count)
-  results <- rasch.ridge.em.comb(freq.df, N, proportion=proportion)
+  results <- rasch.em.ms(rasch.ridge.em.comb, freq.df, N)
   # Return the estimated number of positive documents
   df <- data.frame(estimate=count.found + results$est.pos)
   return(df)
 }
+rasch.ridge.em.horizon.parametric <- function(freq.df, # The dataframe (from python or rasch.csv)
+                                   N, # The dataset size 
+                                   it=100, confidence=0.95){ # Initial ratio of positive documents
+  
+  # Store the original freq.df
+  orig.df <- freq.df
+  
+  # Find the prediction value
+  results <- rasch.ridge.em.horizon(freq.df, N)
+  est.pos <- results[1,1]
+
+  # This is the function that is called from Python
+  # Gather the positive part of the table
+  df.pos <- freq.df %>% filter(positive==1)
+  df.neg <- freq.df %>% filter(positive==0)
+  # Calculate the number of positive documents
+  count.found <- sum(df.pos$count)
+  
+  counts.model <- append(freq.df$count, est.pos)
+  counts.model.sum <- sum(counts.model)
+  # Sample with replacement of size n from this multinomial distribution. 
+  # Remove the observation that correspond with cell 00..0. 
+  counts.bootstrap <- rmultinom(it, 
+                                counts.model.sum, 
+                                counts.model) %>% head(-1)
+  # Calculate the n_00...0 for all the bootstrap counts
+  estimates <- list()
+  for (col.idx in 1:dim(counts.bootstrap)[2]) {
+    count.bootstrap <- counts.bootstrap[,col.idx]
+    df.adjusted <- orig.df
+    df.adjusted$count <- count.bootstrap
+    model.results <- rasch.ridge.em.horizon(df.adjusted, N)
+    estimates[[col.idx]] <- model.results[1,1]
+  }
+  # Determine using the percentile method a 
+  # 95% confidence interval
+  results <- unlist(estimates, use.names = F)
+  sorted <- sort(results)
+  bounds <- unlist(quantile(sorted, c(1-confidence, confidence)), use.names=F)
+  result.df <- data.frame(
+    estimate = est.pos,
+    lowerbound = bounds[1],
+    upperbound = bounds[2]
+  )
+  return(result.df)
+  
+  # Return the estimated number of positive documents
+  df <- data.frame(estimate=count.found + results$est.pos)
+  return(df)
+}
+
+
+
+

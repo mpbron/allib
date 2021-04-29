@@ -31,6 +31,38 @@ rasch.single <- function(df, epsilon=0.1){
   return(results)
 }
 
+rasch.single.model <- function(df, epsilon=0.1){
+  # Copy the Frequency Table to a new variable
+  count.df <- df
+  # Add a small amount $\epsilon$ to the counts to migitate
+  # explosion of estimates
+  count.df$count <- count.df$count + epsilon
+  # Estimate the Rasch model
+  model <- glm(
+    formula = count ~ ., 
+    family = poisson(link = "log"), 
+    data = count.df
+  )
+  # Get the coefficients from the model
+  coefficients <- coef(model) %>% unlist(use.names = F)
+  stderrs = sqrt(diag(vcov(model))) %>% unlist(use.names = F)
+  
+  # Get the intercept of the formula (the estimate is exp(intercept))
+  intercept = coefficients[1]
+  intercept.err = stderrs[1]
+  
+  # Calculate the estimate
+  estimate.missing = exp(intercept)
+  estimate.stderr = exp(intercept.err)
+  
+  # Construct a dataframe that contains the results 
+  results <- list(
+    estimate = estimate.missing,
+    stderr = estimate.stderr,
+    model=model)
+  return(results)
+}
+
 
 rasch.nonparametric <- function(df, it=2000, confidence=0.95, epsilon=0.1){
   count.found <- sum(df$count)
@@ -64,7 +96,7 @@ rasch.parametric <- function(df, it=2000, confidence=0.95, epsilon=0.1){
   count.df <- df
   count.found <- sum(count.df$count)
   # Estimate n_00...0 using the Rasch model
-  estimate.missing <- rasch.single(df, epsilon)$estimate
+  main.model <- rasch.single.model(df, epsilon)$estimate
   # Gather the counts of all rows and add the estimation for n_00..0
   counts.model <- append(df$count, estimate.missing)
   counts.model.sum <- sum(counts.model)

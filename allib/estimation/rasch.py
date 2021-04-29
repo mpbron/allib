@@ -1,8 +1,6 @@
 from __future__ import annotations
-import functools
-from allib.utils.func import all_subsets, intersection, list_unzip3, union
-from allib.activelearning.base import ActiveLearner
 
+import functools
 import os
 from abc import ABC, abstractmethod
 from typing import (Any, Deque, Dict, FrozenSet, Generic, Iterable, List,
@@ -11,11 +9,12 @@ from typing import (Any, Deque, Dict, FrozenSet, Generic, Iterable, List,
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 
+from ..activelearning.base import ActiveLearner
 from ..activelearning.estimator import Estimator
-
+from ..utils.func import (all_subsets, intersection, list_unzip3,
+                          not_in_supersets, powerset, union)
 from .base import AbstractEstimator
 from .rcapture import AbundanceEstimator, _check_R
-from ..utils.func import powerset, not_in_supersets
 
 try:
     import rpy2.robjects as ro  # type: ignore
@@ -186,7 +185,7 @@ class SingleInteractionRaschParametric(ParametricRasch[KT, DT, VT, RT, LT], Gene
 
 class SingleInteractionRaschParametric2(
         ParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
-    name = "ParametericRaschOnly2ndOrder"
+    name = "ParametricRaschOnly2ndOrder"
     
     @staticmethod
     def rasch_row(combination: Tuple[FrozenSet[int], FrozenSet[Any]], 
@@ -412,6 +411,27 @@ class EMRaschCombinedBootstrap(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, 
         with localconverter(ro.default_converter + pandas2ri.converter):
             df_pos_r = ro.conversion.py2rpy(df_pos)
             abundance_r = ro.globalenv["rasch.em.bootstrap.horizon"]
+            r_df = abundance_r(df_pos_r, dataset_size)
+            res_df = ro.conversion.rpy2py(r_df)
+        return res_df
+
+    def calculate_estimate(self, 
+                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            label: LT) -> Tuple[float, float, float]:
+        res_df = self.calculate_abundance_R(estimator, label)
+        horizon = res_df.values[0,0]
+        lowerbound = res_df.values[0,1]
+        upperbound = res_df.values[0,2]
+        return horizon, lowerbound, upperbound
+
+class EMRaschRidgeCombinedBootstrap(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+                              label: LT) -> pd.DataFrame:
+        df_pos = self.get_occasion_history(estimator, label)
+        dataset_size = len(estimator.env.dataset)
+        with localconverter(ro.default_converter + pandas2ri.converter):
+            df_pos_r = ro.conversion.py2rpy(df_pos)
+            abundance_r = ro.globalenv["rasch.ridge.em.horizon.parametric"]
             r_df = abundance_r(df_pos_r, dataset_size)
             res_df = ro.conversion.rpy2py(r_df)
         return res_df

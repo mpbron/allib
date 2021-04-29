@@ -1,11 +1,10 @@
 from __future__ import annotations
-import logging
-from allib.activelearning.random import RandomSampling
 
+import logging
 import random
 from abc import ABC, abstractmethod
 from typing import (Any, Callable, Dict, Generic, Iterable, List, Optional,
-                    Sequence, Tuple, TypeVar, Union, Set)
+                    Sequence, Set, Tuple, TypeVar, Union)
 
 import numpy as np  # type: ignore
 
@@ -14,8 +13,9 @@ from ..instances import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
 from ..utils import get_random_generator
 from .base import ActiveLearner
-from .poolbased import PoolBasedAL
 from .ml_based import MLBased
+from .poolbased import PoolBasedAL
+from .random import RandomSampling
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")
@@ -100,9 +100,11 @@ class ManualEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], PoolBasedAL[KT, DT, V
     def _choose_learner(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
         """Internal functions that selects the next active learner for the next query
 
-        Returns:
-            ActiveLearner[KT, DT, VT, RT, LT]: One of the learners from the ensemble
-        """        
+        Returns
+        -------
+        ActiveLearner[KT, DT, VT, RT, LT]
+            One of the learners from the ensemble
+        """
         idxs = np.arange(len(self.learners))
         al_idx: int = self._rng.choice(idxs, size=1, p=self.probabilities)[0]
         learner = self.learners[al_idx]
