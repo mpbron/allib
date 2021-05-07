@@ -16,7 +16,7 @@ from ..instances.base import Instance
 from ..module.component import Component
 from ..utils.chunks import divide_sequence
 from .initialization import Initializer
-from .plotter import BinaryPlotter
+from .plotter import AbstractPlotter, BinaryPlotter
 
 KT = TypeVar("KT")
 DT = TypeVar("DT")
@@ -85,9 +85,9 @@ def initialize(factory: ObjectFactory,
 
 def simulate(learner: ActiveLearner[KT, DT, np.ndarray, DT, LT],
              stop_crit: AbstractStopCriterion[LT],
-             plotter: BinaryPlotter[LT],
+             plotter: AbstractPlotter[LT],
              batch_size: int) -> Tuple[ActiveLearner[KT, DT, np.ndarray, DT, LT],
-                         BinaryPlotter[LT]]:
+                         AbstractPlotter[LT]]:
     """Simulates the Active Learning 
 
     Parameters

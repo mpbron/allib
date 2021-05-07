@@ -9,6 +9,7 @@ class ALCatalog:
         RETRY_ESTIMATOR = "NewEstimator"
         PROBABILITY_BASED = "ProbabilityBased"
         LABEL_PROBABILITY_BASED = "LabelProbabilityBased"
+        PROBABILITY_BASED_ENSEMBLE = "ProbabilityBasedEnsemble"
 
     class QueryType(str, Enum):
         RANDOM_SAMPLING = "RandomSampling"

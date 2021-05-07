@@ -1,21 +1,21 @@
 import functools
 from abc import ABC
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, Sequence, TypeVar
 
 from ..factory import AbstractBuilder, ObjectFactory
 from ..machinelearning import AbstractClassifier, MachineLearningFactory
 from ..module.component import Component
-
 from .base import ActiveLearner
 from .catalog import ALCatalog as AL
 from .ensembles import StrategyEnsemble
 from .estimator import CycleEstimator, Estimator, RetryEstimator
 from .labelmethods import LabelProbabilityBased
 from .ml_based import AbstractSelectionCriterion, ProbabilityBased
-from .mostcertain import LabelMaximizer, MostCertainSampling
+from .mostcertain import LabelMaximizer, MostCertainSampling, MostConfidence
+from .prob_ensembles import ProbabilityBasedEnsemble
 from .random import RandomSampling
-from .uncertainty import (EntropySampling, LabelUncertainty, LeastConfidence, MarginSampling,
-                          NearDecisionBoundary)
+from .uncertainty import (EntropySampling, LabelUncertainty, LeastConfidence,
+                          MarginSampling, NearDecisionBoundary)
 
 LT = TypeVar("LT")
 class FallbackBuilder(AbstractBuilder):
@@ -124,18 +124,42 @@ class RetryEstimatorBuilder(AbstractBuilder):
         ]
         return RetryEstimator(configured_learners)
 
+class SelectionCriterionBuilder(AbstractBuilder):
+    def __call__(self, query_type: AL.QueryType, **kwargs):
+        return self._factory.create(query_type, **kwargs)
+
+class ProbabilityEnsembleBuilder(AbstractBuilder):
+    def __call__( # type: ignore
+            self,
+            strategies: List[Dict],
+            machinelearning: Dict,
+            fallback: Dict = dict(),
+            identifier: Optional[str] = None,
+            **kwargs):
+        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
+        built_strategies: Sequence[AbstractSelectionCriterion] = [
+            self._factory.create(Component.SELECTION_CRITERION, **dic) for dic in strategies
+        ]
+        built_fallback = self._factory.create(Component.FALLBACK, **fallback)
+        return ProbabilityBasedEnsemble(classifier, 
+                                built_strategies, 
+                                fallback=built_fallback,
+                                identifier=identifier)
+
 class ActiveLearningFactory(ObjectFactory):
     def __init__(self) -> None:
         super().__init__()
         self.attach(MachineLearningFactory())
         self.register_builder(Component.ACTIVELEARNER, ALBuilder())
         self.register_builder(Component.FALLBACK, FallbackBuilder())
+        self.register_builder(Component.SELECTION_CRITERION, SelectionCriterionBuilder())
         self.register_builder(AL.Paradigm.POOLBASED, PoolbasedBuilder())
         self.register_builder(AL.Paradigm.PROBABILITY_BASED, ProbabilityBasedBuilder())
         self.register_builder(AL.Paradigm.ESTIMATOR, EstimatorBuilder())
         self.register_builder(AL.Paradigm.CYCLE_ESTIMATOR, CycleEstimatorBuilder())
         self.register_builder(AL.Paradigm.ENSEMBLE, StrategyEnsembleBuilder())
         self.register_builder(AL.Paradigm.LABEL_PROBABILITY_BASED, LabelProbabilityBasedBuilder())
+        self.register_builder(AL.Paradigm.PROBABILITY_BASED_ENSEMBLE, ProbabilityEnsembleBuilder())
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)
         self.register_constructor(AL.QueryType.MAX_ENTROPY, EntropySampling)
@@ -144,3 +168,4 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_constructor(AL.QueryType.LABELMAXIMIZER, LabelMaximizer)
         self.register_constructor(AL.QueryType.LABELUNCERTAINTY, LabelUncertainty)
         self.register_constructor(AL.QueryType.MOST_CERTAIN, MostCertainSampling)
+        self.register_constructor(AL.QueryType.MOST_CONFIDENCE, MostConfidence)

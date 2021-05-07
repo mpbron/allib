@@ -389,3 +389,12 @@ def sort_on(index: int, seq: Sequence[Tuple[_T, _U]]) -> Sequence[Tuple[_T, _U]]
     """    
     return sorted(seq, key=lambda k: k[index], reverse=True) # type: ignore
 
+def multisort(seq: Sequence[Tuple[_T, Sequence[_U]]]) -> Sequence[Sequence[Tuple[_T,_U]]]:
+    len_scores = len(seq[0][1])
+    unpacked = [[(key, scores[i]) for (key, scores) in seq] for i in range(len_scores)]
+    sorted_unpacked = [sort_on(1, sublist) for sublist in unpacked]
+    return sorted_unpacked
+
+def fst(tup: Tuple[_T, Any]) -> _T:
+    first_element = tup[0]
+    return first_element

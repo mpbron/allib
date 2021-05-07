@@ -31,6 +31,11 @@ class Initializer(ABC, Generic[KT, LT]):
     def __call__(self, learner: ActiveLearner[KT, Any, Any, Any, LT]) -> ActiveLearner[KT, Any, Any, Any, LT]:
         raise NotImplementedError
 
+
+class IdentityInitializer(Initializer[KT, LT], Generic[KT, LT]):
+    def __call__(self, learner: ActiveLearner[KT, Any, Any, Any, LT]):
+        return learner
+
 class RandomInitializer(Initializer[KT, LT], Generic[KT, LT]):
     def __init__(self, env: AbstractEnvironment[KT, Any, Any, Any, LT], sample_size: int = 1, **kwargs) -> None:
         self.env = env

@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import functools
 from os import PathLike
 from typing import (Any, Dict, Generic, Optional, Sequence, Tuple, TypeVar,
@@ -23,7 +24,51 @@ def name_formatter(learner: ActiveLearner[Any, Any, Any, Any, LT]) -> str:
         return f"{name}_{label}"
     return name
 
-class BinaryPlotter(Generic[LT]):
+class AbstractPlotter(ABC, Generic[LT]):
+    @abstractmethod
+    def update(self,
+               activelearner: ActiveLearner[Any, Any, Any, Any, LT]
+               ) -> None:
+        raise NotImplementedError
+    
+    @abstractmethod
+    def show(self,
+             x_lim: Optional[float] = None,
+             y_lim: Optional[float] = None,
+             all_estimations: bool = False,
+             filename: Optional[PathLike] = None) -> None:
+        raise NotImplementedError
+
+class MultilabelPlotter(AbstractPlotter[LT], Generic[LT]):
+    def __init__(self):
+        self.result_frame = pd.DataFrame()
+
+    def update(self,
+               activelearner: ActiveLearner[Any, Any, Any, Any, LT]
+               ) -> None:
+               
+        stats: Dict[str, float] = dict()
+        stats["dataset_size"] = len(activelearner.env.dataset)
+        for label in activelearner.env.labels.labelset:
+            labeled_docs = activelearner.env.labels.get_instances_by_label(label).intersection(
+                activelearner.env.labeled
+            )
+            stats[f"{str(label)}_count"] =  len(labeled_docs)
+            stats[f"{str(label)}_true_size"] = float(
+                activelearner.env.truth.document_count(label))
+        name = name_formatter(activelearner)
+        results = {**stats}
+        self.result_frame = self.result_frame.append(results, ignore_index=True)
+
+    def show(self,
+             x_lim: Optional[float] = None,
+             y_lim: Optional[float] = None,
+             all_estimations: bool = False,
+             filename: Optional[PathLike] = None) -> None:
+        pass
+
+            
+class BinaryPlotter(AbstractPlotter[LT], Generic[LT]):
     result_frame: pd.DataFrame
 
     def __init__(self, pos_label: LT, neg_label: LT, *estimators: AbstractEstimator[Any, Any, Any, Any, LT]):

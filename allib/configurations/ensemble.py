@@ -54,6 +54,28 @@ al_config_lgbm = {
         }
     }
 }
+al_config_ensemble_prob = {
+    "paradigm": Cat.AL.Paradigm.PROBABILITY_BASED_ENSEMBLE,
+    "strategies": [
+        { "query_type": Cat.AL.QueryType.MAX_ENTROPY},
+        { "query_type": Cat.AL.QueryType.MOST_CONFIDENCE},
+    ],
+    "machinelearning": {
+        "sklearn_model": Cat.ML.SklearnModel.SVC,
+        "model_configuration": {
+            "kernel": "linear", 
+            "probability": True, 
+            "class_weight": "balanced"
+        },
+        "task": Cat.ML.Task.MULTILABEL,
+        "balancer": {
+            "type": Cat.BL.Type.IDENTITY,
+            "config": {}
+        },
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
+    },
+}
+    
 al_config_rf = {
     "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,
     "query_type": Cat.AL.QueryType.LABELMAXIMIZER,
@@ -156,6 +178,25 @@ al_config_ens = {
             "type": Cat.BL.Type.DOUBLE,
             "config": {}
         }
+    }
+}
+
+al_config_entropy = {
+    "paradigm": Cat.AL.Paradigm.PROBABILITY_BASED,
+    "query_type": Cat.AL.QueryType.MOST_CONFIDENCE,
+    "machinelearning": {
+        "sklearn_model": Cat.ML.SklearnModel.SVC,
+        "model_configuration": {
+            "kernel": "linear", 
+            "probability": True, 
+            "class_weight": "balanced"
+        },
+        "task": Cat.ML.Task.MULTILABEL,
+        "balancer": {
+            "type": Cat.BL.Type.DOUBLE,
+            "config": {}
+        },
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
     }
 }
 

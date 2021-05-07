@@ -30,6 +30,18 @@ class AbstractStopCriterion(ABC, Generic[LT]):
     def stop_criterion(self) -> bool:
         pass
 
+class DocCountStopCritertion(AbstractStopCriterion[LT], Generic[LT]):
+    def __init__(self, max_docs: int):
+        self.max_docs = max_docs
+        self.doc_count = 0
+    
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]) -> None:
+        self.doc_count = len(learner.env.labeled)
+    
+    @property
+    def stop_criterion(self) -> bool:
+        return self.doc_count >= self.max_docs
+
 class RecallStopCriterion(AbstractStopCriterion[LT], Generic[LT]):
     def __init__(self, label: LT, target_recall: float):
         self.label = label

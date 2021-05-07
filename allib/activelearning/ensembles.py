@@ -146,7 +146,9 @@ class ManualEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], PoolBasedAL[KT, DT, V
             learner.set_as_unlabeled(instance)
             del self._sample_dict[instance.identifier]
 
-class StrategyEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], MLBased[KT, DT, VT, RT, LT, LVT, PVT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+class StrategyEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], 
+                       MLBased[KT, DT, VT, RT, LT, LVT, PVT], 
+                       Generic[KT, DT, VT, RT, LT, LVT, PVT]):
     _name = "StrategyEnsemble"
 
     def __init__(self,
