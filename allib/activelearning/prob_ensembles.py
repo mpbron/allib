@@ -41,6 +41,8 @@ FT = TypeVar("FT")
 LOGGER = logging.getLogger(__name__)
 
 def get_probabilities(probabilities: Optional[Sequence[float]], learners: Sequence[Any]) -> Sequence[float]:
+    if len(learners) == 0:
+        return []
     if probabilities is not None and probabilities:
         return probabilities
     equal_prob = 1.0 / len(learners)
@@ -52,7 +54,7 @@ def get_probabilities(probabilities: Optional[Sequence[float]], learners: Sequen
 
 class ProbabilityBasedEnsemble(AbstractEnsemble[KT, DT, np.ndarray, RT, LT], 
                        ProbabilityBased[KT, DT, RT, LT], 
-                       Generic[KT, DT, RT, LT,]):
+                       Generic[KT, DT, RT, LT]):
     _name = "ProbabilityBasedEnsemble"
 
     def __init__(self,
@@ -208,3 +210,46 @@ class ProbabilityBasedEnsemble(AbstractEnsemble[KT, DT, np.ndarray, RT, LT],
 
 
 
+class LabelProbEnsemble(ProbabilityBasedEnsemble[KT, DT, RT, LT], 
+                        Generic[KT, DT, RT, LT]):
+
+    def __init__(self,
+                 classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray],
+                 strategy: Callable[..., AbstractSelectionCriterion],
+                 batch_size = 200,
+                 rng: Any = None,
+                 identifier: Optional[str] = None, 
+                 fallback = RandomSampling[KT, DT, np.ndarray, RT, LT](), *_, **__) -> None:
+        super().__init__(classifier, [], [], 
+                         batch_size=batch_size, 
+                         identifier=identifier,
+                         rng=rng, 
+                         fallback=fallback)
+        self._strategy_builder = strategy
+
+    def __call__(self, environment: AbstractEnvironment[KT, DT, np.ndarray, RT, LT]) -> LabelProbEnsemble[KT, DT, RT, LT]:
+        super().__call__(environment)
+        labelset = self.env.labels.labelset
+        self.label_dict = {label: idx for idx, label in enumerate(labelset)}
+        label_columns = list(map(self.classifier.get_label_column_index, labelset))
+        self.strategies = list(map(self._strategy_builder, label_columns))
+        self.probabilities = get_probabilities(None, self.strategies)
+        self.learners = [
+            FixedOrdering[KT,DT, np.ndarray, RT, LT](
+                identifier=strategy.name)(self.env) for strategy in self.strategies
+        ]
+        return self
+
+   
+
+class LabelMinProbEnsemble(LabelProbEnsemble[KT, DT, RT, LT], 
+                             Generic[KT, DT, RT, LT]):
+    
+    def _choose_learner(self) -> ActiveLearner[KT, DT, np.ndarray, RT, LT]:
+        labelcounts = [(self.env.labels.document_count(label), label)
+                       for label in self.env.labels.labelset]
+        min_label = min(labelcounts)[1]
+        al_idx = self.label_dict[min_label]
+        learner = self.learners[al_idx]
+        return learner
+    

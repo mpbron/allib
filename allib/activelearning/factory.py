@@ -1,6 +1,6 @@
 import functools
 from abc import ABC
-from typing import Any, Dict, List, Optional, Sequence, TypeVar
+from typing import Any, Dict, List, Optional, Sequence, TypeVar, Callable
 
 from ..factory import AbstractBuilder, ObjectFactory
 from ..machinelearning import AbstractClassifier, MachineLearningFactory
@@ -11,11 +11,11 @@ from .ensembles import StrategyEnsemble
 from .estimator import CycleEstimator, Estimator, RetryEstimator
 from .labelmethods import LabelProbabilityBased
 from .ml_based import AbstractSelectionCriterion, ProbabilityBased
-from .mostcertain import LabelMaximizer, MostCertainSampling, MostConfidence
-from .prob_ensembles import ProbabilityBasedEnsemble
+from .mostcertain import LabelMaximizer, LabelMaximizerNew, MostCertainSampling, MostConfidence
+from .prob_ensembles import LabelProbEnsemble, ProbabilityBasedEnsemble, LabelMinProbEnsemble
 from .random import RandomSampling
 from .uncertainty import (EntropySampling, LabelUncertainty, LeastConfidence,
-                          MarginSampling, NearDecisionBoundary)
+                          MarginSampling, NearDecisionBoundary, LabelUncertaintyNew)
 
 LT = TypeVar("LT")
 class FallbackBuilder(AbstractBuilder):
@@ -146,10 +146,47 @@ class ProbabilityEnsembleBuilder(AbstractBuilder):
                                 fallback=built_fallback,
                                 identifier=identifier)
 
+class LabelProbilityBasedEnsembleBuilder(AbstractBuilder):
+    def __call__( # type: ignore
+            self,
+            strategy: AL.QueryType,
+            machinelearning: Dict,
+            fallback: Dict = dict(),
+            identifier: Optional[str] = None,
+            **kwargs):
+        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
+        if strategy not in self._factory.builders:
+            raise NotImplementedError(f"The selection strategy {strategy} is not available")
+        chosen_strategy = self._factory.get_constructor(strategy)
+        built_fallback = self._factory.create(Component.FALLBACK, **fallback)
+        return LabelProbEnsemble(classifier, 
+                                 chosen_strategy, 
+                                 fallback=built_fallback,
+                                 identifier=identifier)
+
+class LabelMinProbilityBasedEnsembleBuilder(AbstractBuilder):
+    def __call__( # type: ignore
+            self,
+            strategy: AL.QueryType,
+            machinelearning: Dict,
+            fallback: Dict = dict(),
+            identifier: Optional[str] = None,
+            **kwargs):
+        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
+        if strategy not in self._factory.builders:
+            raise NotImplementedError(f"The selection strategy {strategy} is not available")
+        chosen_strategy = self._factory.get_constructor(strategy)
+        built_fallback = self._factory.create(Component.FALLBACK, **fallback)
+        return LabelMinProbEnsemble(classifier, 
+                                 chosen_strategy, 
+                                 fallback=built_fallback,
+                                 identifier=identifier)
+
 class ActiveLearningFactory(ObjectFactory):
     def __init__(self) -> None:
         super().__init__()
         self.attach(MachineLearningFactory())
+        
         self.register_builder(Component.ACTIVELEARNER, ALBuilder())
         self.register_builder(Component.FALLBACK, FallbackBuilder())
         self.register_builder(Component.SELECTION_CRITERION, SelectionCriterionBuilder())
@@ -160,6 +197,9 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_builder(AL.Paradigm.ENSEMBLE, StrategyEnsembleBuilder())
         self.register_builder(AL.Paradigm.LABEL_PROBABILITY_BASED, LabelProbabilityBasedBuilder())
         self.register_builder(AL.Paradigm.PROBABILITY_BASED_ENSEMBLE, ProbabilityEnsembleBuilder())
+        self.register_builder(AL.Paradigm.LABEL_PROBABILITY_BASED_ENSEMBLE, LabelProbilityBasedEnsembleBuilder())
+        self.register_builder(AL.Paradigm.LABEL_MIN_PROB_ENSEMBLE, LabelMinProbilityBasedEnsembleBuilder())
+        
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)
         self.register_constructor(AL.QueryType.MAX_ENTROPY, EntropySampling)
@@ -169,3 +209,5 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_constructor(AL.QueryType.LABELUNCERTAINTY, LabelUncertainty)
         self.register_constructor(AL.QueryType.MOST_CERTAIN, MostCertainSampling)
         self.register_constructor(AL.QueryType.MOST_CONFIDENCE, MostConfidence)
+        self.register_constructor(AL.QueryType.LABELMAXIMIZER_NEW, LabelMaximizerNew)
+        self.register_constructor(AL.QueryType.LABELUNCERTAINTY_NEW, LabelUncertaintyNew)

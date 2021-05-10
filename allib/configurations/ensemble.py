@@ -75,6 +75,25 @@ al_config_ensemble_prob = {
         "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
     },
 }
+
+al_config_ensemble_labelprob = {
+    "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED_ENSEMBLE,
+    "strategy": Cat.AL.QueryType.LABELUNCERTAINTY_NEW,
+    "machinelearning": {
+        "sklearn_model": Cat.ML.SklearnModel.SVC,
+        "model_configuration": {
+            "kernel": "linear", 
+            "probability": True, 
+            "class_weight": "balanced"
+        },
+        "task": Cat.ML.Task.MULTILABEL,
+        "balancer": {
+            "type": Cat.BL.Type.IDENTITY,
+            "config": {}
+        },
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
+    },
+}
     
 al_config_rf = {
     "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,

@@ -49,3 +49,17 @@ class LabelMaximizer(AbstractSelectionCriterion):
     def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
         return prob_mat
 
+class LabelMaximizerNew(AbstractSelectionCriterion):
+    name = ALCatalog.QueryType.LABELMAXIMIZER_NEW
+    
+    def __init__(self, label_column: int):
+        super().__init__()
+        self.label_column = label_column
+
+    def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
+        prob_mat_sliced = prob_mat[:,self.label_column]
+        return prob_mat_sliced
+
+
+
+

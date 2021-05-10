@@ -10,6 +10,13 @@ class ObjectFactory:
     def __init__(self):
         self.builders = {}
 
+    def get_constructor(self, key: Any) -> Any:
+        builder = self.builders[key]
+        if isinstance(builder, ObjectBuilder):
+            return builder.constructor            
+        raise KeyError(
+            f"The requested key '{key}' has no retrievable constructor")
+
     def register_constructor(self, key: Any, constructor: Any) -> None:
         builder = ObjectBuilder[Any](constructor)
         self.register_builder(key, builder)
@@ -17,7 +24,6 @@ class ObjectFactory:
     def register_builder(self, key: Any, builder: AbstractBuilder):
         builder.register_factory(self)
         self.builders[key] = builder
-        
 
     def create(self, key: Any, **kwargs):
         builder = self.builders.get(key)

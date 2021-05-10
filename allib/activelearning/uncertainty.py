@@ -20,7 +20,8 @@ class LeastConfidence(AbstractSelectionCriterion):
     
     def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
         max_prob = prob_mat.max(axis=1) # type: ignore
-        return 1 - max_prob
+        return 1 - max_prob # typeL ignore
+
 class NearDecisionBoundary(AbstractSelectionCriterion):
     name = ALCatalog.QueryType.NEAR_DECISION_BOUNDARY
     
@@ -50,3 +51,15 @@ class LabelUncertainty(AbstractSelectionCriterion):
     def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
         min_prob = - np.abs(prob_mat - 0.5)
         return min_prob
+
+class LabelUncertaintyNew(AbstractSelectionCriterion):
+    name = ALCatalog.QueryType.LABELUNCERTAINTY_NEW
+    def __init__(self, label_column: int):
+        super().__init__()
+        self.label_column = label_column
+
+    def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
+        prob_mat_sliced = prob_mat[:,self.label_column]
+        min_prob = - np.abs(prob_mat_sliced - 0.5)
+        return min_prob
+
