@@ -20,7 +20,7 @@ class LeastConfidence(AbstractSelectionCriterion):
     
     def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
         max_prob = prob_mat.max(axis=1) # type: ignore
-        return 1 - max_prob # typeL ignore
+        return 1 - max_prob # type: ignore
 
 class NearDecisionBoundary(AbstractSelectionCriterion):
     name = ALCatalog.QueryType.NEAR_DECISION_BOUNDARY

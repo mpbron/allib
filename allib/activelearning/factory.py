@@ -49,7 +49,7 @@ class LabelProbabilityBasedBuilder(AbstractBuilder):
             self,
             query_type: AL.QueryType,
             machinelearning: Dict,
-            label: LT,
+            label: Any,
             fallback: Dict = dict(),
             identifier: Optional[str] = None,
             **kwargs):

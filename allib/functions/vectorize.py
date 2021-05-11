@@ -17,7 +17,7 @@ RT = TypeVar("RT")
 VT = TypeVar("VT")
 
 def vectorize(vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, Any]], 
-              environment: AbstractEnvironment[KT, DT, np.ndarray, Any,  LT], fit: bool = True, 
+              environment: AbstractEnvironment[KT, DT, np.ndarray, Any,  Any], fit: bool = True, 
               chunk_size: int = 200) -> None:
     def fit_vector() -> None:
         instances = list(itertools.chain.from_iterable(environment.dataset.data_chunker(chunk_size)))

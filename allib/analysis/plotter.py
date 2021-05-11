@@ -18,7 +18,7 @@ from .analysis import process_performance
 
 LT = TypeVar("LT")
 
-def name_formatter(learner: ActiveLearner[Any, Any, Any, Any, LT]) -> str:
+def name_formatter(learner: ActiveLearner[Any, Any, Any, Any, Any]) -> str:
     name, label = learner.name
     if label is not None:
         return f"{name}_{label}"

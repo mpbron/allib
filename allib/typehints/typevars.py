@@ -23,4 +23,4 @@ RT = TypeVar("RT") # The Type of the representation of the data point
 LT = TypeVar("LT") # The Type of the labels
 CT = TypeVar("CT") # The Type of the context
 LVT = TypeVar("LVT") # The Type of the encoded label vector
-PVT = TypeVar("PVT")
+PVT = TypeVar("PVT") # The Type of the probability vector

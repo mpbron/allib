@@ -16,7 +16,7 @@ import itertools
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, FrozenSet, Generic, Sequence, TypeVar
+from typing import Dict, FrozenSet, Generic, Sequence, TypeVar, Any
 
 import numpy as np  # type: ignore
 from scipy import stats  # type: ignore
@@ -106,7 +106,7 @@ def label_metrics(truth: LabelProvider[KT, LT],
     true_neg = included_keys.difference(true_pos, false_pos, false_neg)
     return BinaryPerformance[KT](true_pos, true_neg, false_pos, false_neg)
 
-def classifier_performance(learner: MLBased[KT, DT, VT, RT, LT, LVT, PVT], 
+def classifier_performance(learner: MLBased[KT, DT, VT, RT, LT, Any, Any], 
               ground_truth: LabelProvider[KT, LT],
               instances: Sequence[Instance[KT, DT, VT, RT]]) -> Dict[LT, BinaryPerformance[KT]]:
     keys = [ins.identifier for ins in instances]
@@ -125,7 +125,7 @@ def classifier_performance(learner: MLBased[KT, DT, VT, RT, LT, LVT, PVT],
     }
     return performance
 
-def process_performance(learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> BinaryPerformance[KT]:
+def process_performance(learner: ActiveLearner[KT, Any, Any, Any, LT], label: LT) -> BinaryPerformance[KT]:
     labeled = frozenset(learner.env.labeled)
     labeled_positives = learner.env.labels.get_instances_by_label(label)
     labeled_negatives = labeled.difference(labeled_positives)

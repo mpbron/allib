@@ -22,7 +22,7 @@ LT = TypeVar("LT")
 
 class AbstractStopCriterion(ABC, Generic[LT]):
     @abstractmethod
-    def update(self, learner: ActiveLearner[KT, DT, VT, RT, LT]) -> None:
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]) -> None:
         pass
 
     @property
