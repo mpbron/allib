@@ -29,3 +29,4 @@ class ALCatalog:
         PRELABELED = "Prelabeled"
         LABELMAXIMIZER_NEW = "LabelMaximizerNew"
         LABELUNCERTAINTY_NEW = "LabelUncertaintyNew"
+        RANDOM_ML = "RandomML"

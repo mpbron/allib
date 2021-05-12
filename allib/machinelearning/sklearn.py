@@ -139,5 +139,5 @@ class MultilabelSkLearnClassifier(SkLearnClassifier):
         return self.encoder.transform([list(set(labels))]) # type: ignore
 
     def decode_vector(self, vector: np.ndarray) -> Sequence[FrozenSet[str]]:
-        labelings = self.encoder.inverse_transform(vector).tolist() # type: ignore
+        labelings = self.encoder.inverse_transform(vector) # type: ignore
         return [frozenset(labeling) for labeling in labelings]

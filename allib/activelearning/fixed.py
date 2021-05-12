@@ -1,12 +1,25 @@
-from typing import Dict, Generic, Optional, Sequence
+from typing import Dict, Generic, Optional, Sequence, Tuple
 from .random import PoolBasedAL
 
 from ..typehints import KT, DT, VT, RT, LT
 
 class FixedOrdering(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
-    def __init__(self, *_, identifier: Optional[str] = None, **__) -> None:
-        super().__init__(identifier)
+
+    _name = "FixedOrdering"
+
+    
+    def __init__(self, *_, identifier: Optional[str] = None, 
+                           label: Optional[LT] = None, **__) -> None:
+        super().__init__(identifier=identifier)
         self.metrics: Dict[KT, float] = dict()
+        self.label = label
+
+    @property
+    def name(self) -> Tuple[str, Optional[LT]]:
+        if self.identifier is not None:
+            return f"{self.identifier}", self.label
+        return f"{self._name}", self.label
+
 
     def enter_ordering(self, ordering: Sequence[KT], metrics: Optional[Sequence[float]] = None):
         self._set_ordering(ordering)

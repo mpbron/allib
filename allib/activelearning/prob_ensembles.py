@@ -229,14 +229,16 @@ class LabelProbEnsemble(ProbabilityBasedEnsemble[KT, DT, RT, LT],
 
     def __call__(self, environment: AbstractEnvironment[KT, DT, np.ndarray, RT, LT]) -> LabelProbEnsemble[KT, DT, RT, LT]:
         super().__call__(environment)
-        labelset = self.env.labels.labelset
+        labelset = list(self.env.labels.labelset)
         self.label_dict = {label: idx for idx, label in enumerate(labelset)}
         label_columns = list(map(self.classifier.get_label_column_index, labelset))
         self.strategies = list(map(self._strategy_builder, label_columns))
         self.probabilities = get_probabilities(None, self.strategies)
+        zipped = zip(labelset, self.strategies)
         self.learners = [
             FixedOrdering[KT,DT, np.ndarray, RT, LT](
-                identifier=strategy.name)(self.env) for strategy in self.strategies
+                identifier=strategy.name, label=label)(self.env) 
+            for label, strategy in zipped
         ]
         return self
 

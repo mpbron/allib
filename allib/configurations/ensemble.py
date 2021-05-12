@@ -94,6 +94,25 @@ al_config_ensemble_labelprob = {
         "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
     },
 }
+al_config_ensemble_random = {
+    "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED_ENSEMBLE,
+    "strategy": Cat.AL.QueryType.RANDOM_ML,
+    "machinelearning": {
+        "sklearn_model": Cat.ML.SklearnModel.SVC,
+        "model_configuration": {
+            "kernel": "linear", 
+            "probability": True, 
+            "class_weight": "balanced"
+        },
+        "task": Cat.ML.Task.MULTILABEL,
+        "balancer": {
+            "type": Cat.BL.Type.IDENTITY,
+            "config": {}
+        },
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
+    },
+}
+
     
 al_config_rf = {
     "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,
@@ -127,6 +146,25 @@ al_config_unc = {
         }
     }
 }
+al_config_svm_multilabel = {
+    "paradigm": Cat.AL.Paradigm.PROBABILITY_BASED,
+    "query_type": Cat.AL.QueryType.MARGIN_SAMPLING,
+    "machinelearning": {
+        "sklearn_model": Cat.ML.SklearnModel.SVC,
+        "model_configuration": {
+            "kernel": "linear", 
+            "probability": True, 
+            "class_weight": "balanced"
+        },
+        "task": Cat.ML.Task.MULTILABEL,
+        "balancer": {
+            "type": Cat.BL.Type.IDENTITY,
+            "config": {}
+        },
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
+    },
+}
+
 al_config_random = {
     "paradigm": Cat.AL.Paradigm.POOLBASED,
     "query_type": Cat.AL.QueryType.RANDOM_SAMPLING,

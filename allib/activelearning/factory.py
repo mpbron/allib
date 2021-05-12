@@ -15,7 +15,7 @@ from .mostcertain import LabelMaximizer, LabelMaximizerNew, MostCertainSampling,
 from .prob_ensembles import LabelProbEnsemble, ProbabilityBasedEnsemble, LabelMinProbEnsemble
 from .random import RandomSampling
 from .uncertainty import (EntropySampling, LabelUncertainty, LeastConfidence,
-                          MarginSampling, NearDecisionBoundary, LabelUncertaintyNew)
+                          MarginSampling, NearDecisionBoundary, LabelUncertaintyNew, RandomMLStrategy)
 
 LT = TypeVar("LT")
 class FallbackBuilder(AbstractBuilder):
@@ -211,3 +211,4 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_constructor(AL.QueryType.MOST_CONFIDENCE, MostConfidence)
         self.register_constructor(AL.QueryType.LABELMAXIMIZER_NEW, LabelMaximizerNew)
         self.register_constructor(AL.QueryType.LABELUNCERTAINTY_NEW, LabelUncertaintyNew)
+        self.register_constructor(AL.QueryType.RANDOM_ML, RandomMLStrategy)

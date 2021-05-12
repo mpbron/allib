@@ -1,4 +1,5 @@
-from typing import Generic, TypeVar, Any
+from allib.utils.random import get_random_generator
+from typing import Generic, Optional, TypeVar, Any
 
 import numpy as np # type: ignore
 from scipy.stats import entropy #type: ignore
@@ -35,7 +36,7 @@ class MarginSampling(AbstractSelectionCriterion):
     def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
         # select the two highest probabilities per instance
         # with the lowest of the two on [:,0] and the highest on [:,1]
-        two_best_prob = np.sort(prob_vec, axis=1)[:,-2:] # type: ignore
+        two_best_prob = np.sort(prob_mat, axis=1)[:,-2:] # type: ignore
         # subtract
         margin = np.diff(two_best_prob, axis=1)
         # invert in order to use as a maximization method
@@ -62,4 +63,17 @@ class LabelUncertaintyNew(AbstractSelectionCriterion):
         prob_mat_sliced = prob_mat[:,self.label_column]
         min_prob = - np.abs(prob_mat_sliced - 0.5)
         return min_prob
+
+class RandomMLStrategy(AbstractSelectionCriterion):
+    name = ALCatalog.QueryType.RANDOM_ML
+
+    def __init__(self, *_, rng: Optional[np.random.Generator] = None):
+        self.rng = get_random_generator(rng)
+
+    def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
+        prob_mat_size = prob_mat.shape[0]
+        random_score = self.rng.random((prob_mat_size,))
+        return random_score
+
+
 
