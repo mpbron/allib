@@ -66,7 +66,10 @@ class BinaryPerformance(Generic[KT]):
     def precision(self) -> float:
         tp = len(self.true_positives)
         fp = len(self.false_positives)
-        precision = tp / (tp + fp)
+        try:
+            precision = tp / (tp + fp)
+        except ZeroDivisionError:
+            return 0.0
         return precision
     
     @property
@@ -94,9 +97,12 @@ class BinaryPerformance(Generic[KT]):
 
     def f_beta(self, beta: int=1) -> float:
         b2 = beta*beta
-        fbeta = (1 + b2) * (
-            (self.precision * self.recall) /
-            ((b2 * self.precision) + self.recall)) 
+        try:
+            fbeta = (1 + b2) * (
+                (self.precision * self.recall) /
+                ((b2 * self.precision) + self.recall))
+        except ZeroDivisionError:
+            fbeta = 0.0
         return fbeta
 
 class MultilabelPerformance(Generic[KT, LT]):
