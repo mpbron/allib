@@ -170,7 +170,7 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
                 # Retrieve the instance from the dataset
                 result = self.env.dataset[key]
                 return result
-        raise NoOrderingException()
+        raise StopIteration()
             
 
 
