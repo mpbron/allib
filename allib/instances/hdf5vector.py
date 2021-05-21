@@ -12,7 +12,7 @@ from ..exceptions import NoVectorsException
 from ..utils.chunks import divide_iterable_in_lists, get_range
 from ..utils.func import filter_snd_none, list_unzip
 from ..utils.numpy import (matrix_to_vector_list, matrix_tuple_to_vectors,
-                           matrix_tuple_to_zipped, slicer)
+                           matrix_tuple_to_zipped, memslicer, slicer)
 from .vectorstorage import VectorStorage, ensure_writeable
 
 KT = TypeVar("KT")
@@ -391,7 +391,7 @@ class HDF5VectorStorage(VectorStorage[KT, np.ndarray], Generic[KT]):
             dataset = dfile["vectors"]
             assert isinstance(dataset, Dataset)
             slices = get_range(h5_idxs)
-            result_matrix = slicer(dataset, slices)
+            result_matrix = memslicer(dataset, slices)
             included_keys = list(map(lambda idx: self.inv_key_dict[idx], h5_idxs))
         return included_keys, result_matrix
 
