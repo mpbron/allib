@@ -13,7 +13,7 @@ from .rasch import EMRaschCombined
 from ..typehints.typevars import KT, DT, VT, RT, LT
 
 def l2(b0: np.ndarray, 
-       D: np.ndarray, 
+       design_mat: np.ndarray, 
        counts: np.ndarray,
        N: int,
        lam: float = 0, 
@@ -22,14 +22,18 @@ def l2(b0: np.ndarray,
     current_tolerance = 1
     b = b0
     while current_tolerance > tolerance:
-        mu = np.exp(np.matmul(D, b0))
+        mu = np.exp(design_mat @ b0)
         all_but_first_b0: np.ndarray = b0[1:]
-        lbpart: np.ndarray = 2 * np.concatenate([np.array([0]), (lam * all_but_first_b0)])
-        Dt = D.conj().transpose()
-        db = np.matmul(Dt, counts) - np.matmul(Dt, mu) - lbpart
+        lbpart: np.ndarray = 2 * np.concatenate(
+            [
+                np.array([0]), 
+                (lam * all_but_first_b0)
+            ])
+        design_mat_t = design_mat.conj().transpose()
+        db = design_mat_t @ counts  - design_mat_t @ mu - lbpart
         repeat_count = b0.shape[0] - 1
         other_lb_part = np.hstack([[0], np.repeat(lam, repeat_count)])
-        I = np.matmul(np.matmul(Dt, np.diag(mu)), D) + 2 * np.diag(other_lb_part)
+        I = (design_mat_t @ np.diag(mu)) @ design_mat + 2 * np.diag(other_lb_part)
         try:
             invI = np.linalg.inv(I)
         except LinAlgError:
@@ -37,7 +41,7 @@ def l2(b0: np.ndarray,
             lam = 1e-6 if lam == 0 else 10 * lam
         else:
             # If inversion succeeded, calculate new coefficients b
-            b = b0 + np.matmul(invI, db)
+            b = b0 + invI @ db
             current_tolerance = np.sum(np.abs(b0 - b))
             b0 = b
     return b
@@ -109,9 +113,15 @@ def rasch_estimate(freq_df: pd.DataFrame,
     learner_cols = list(df_w_missing
         .filter(regex=r"^(?:(?!positive$).)+$")
         .filter(regex=r"^learner")
-        )    
+        )
     df_formatted = l2_format(df_w_missing, learner_cols)
+    
+    # Gather some column indices that we need below to access data from the matrices
     positive_col_idx = list(df_formatted.columns).index("positive")
+    all_pos_cols = list(df_formatted
+        .filter(regex=r"^positive$"))
+
+    # Calculate row masks to select data from the matrices and vectors
     obs_mask = list(df_formatted[learner_cols].sum(axis=1) > 0)
     est_mask = list(df_formatted[learner_cols].sum(axis=1) <= 0)
     pos_mask = list(df_formatted.positive > 0)
@@ -130,6 +140,7 @@ def rasch_estimate(freq_df: pd.DataFrame,
     efit[neg_est_mask] = n_neg
     mfit = efit
 
+    # Calculate initial fit
     b0 = np.hstack(
         [
             np.log([n_dataset]), 
@@ -139,8 +150,10 @@ def rasch_estimate(freq_df: pd.DataFrame,
     deviance = calc_deviance(
             obs_counts, 
             np.exp(np.matmul(design_mat, beta)))
+    
     current_tolerance = 1
     
+    # Expectation Maximization 
     while current_tolerance > tolerance:
         old_deviance = deviance
         mfit = np.exp(design_mat @ beta)
@@ -151,15 +164,18 @@ def rasch_estimate(freq_df: pd.DataFrame,
             np.exp(design_mat @ beta))
         current_tolerance = old_deviance - deviance
 
-    
+
+    # Calculate final results
     fitted = np.exp(design_mat @ beta)
     positive_estimate: float = fitted[pos_est_mask][0]
+
+    # Calculate standard error on predictors
     mat_w = np.diag(fitted)
-    Dt = design_mat.conj().transpose()
-    vcov = np.linalg.inv(Dt @ mat_w @ design_mat)
-    
+    design_mat_t = design_mat.conj().transpose()
+    vcov = np.linalg.inv(design_mat_t @ mat_w @ design_mat)
     se = np.sqrt(np.diagonal(vcov))
-    
+
+    # Calculate confidence interval on estimates    
     lower_bound, upper_bound = calculate_ci_rasch(
         beta[0], 
         beta[positive_col_idx], 
