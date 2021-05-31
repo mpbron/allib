@@ -175,7 +175,7 @@ rasch.ridge.em.comb <- function(freq.df, N, proportion=0.1, tolerance=1e-5){
     devold   <- devnew
   }
   p <- as.list(mfit) %>% unlist()
-  W <- diag(p*(1-p))
+  W <- diag(p)
   cvm <- solve(t(D) %*% W %*% D)
   SE <- sqrt(diag(cvm))
   ret <- list(
@@ -184,12 +184,22 @@ rasch.ridge.em.comb <- function(freq.df, N, proportion=0.1, tolerance=1e-5){
     deviance=devold,
     est.pos=mfit[s.pos,1],
     est.neg=mfit[s.neg,1],
-    std.err = SE,
-    cvm=cvm
+    std.err = se,#SE,
+    cvm = cvm#cvm
   )
   return(ret)
 }
-  
+
+Vcov.glm = function(object, dispersion = NULL, ...) {
+  if (p <- len(coefficients)) {
+    dispersion = 1
+    p1 = seq_len(p)
+    nm <- names(object$coefficients[object$qr$pivot[p1]])
+    covmat = dispersion * chol2inv(object$qr$qr[p1, p1, drop = FALSE])
+    dimnames(covmat) = list(nm, nm)
+    return(covmat)
+  } else return(numeric(0))
+}
 
 
 
