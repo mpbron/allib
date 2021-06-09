@@ -22,7 +22,7 @@ LT = TypeVar("LT")
 
 class AbstractStopCriterion(ABC, Generic[LT]):
     @abstractmethod
-    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]) -> None:
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
         pass
 
     @property
@@ -35,7 +35,7 @@ class DocCountStopCritertion(AbstractStopCriterion[LT], Generic[LT]):
         self.max_docs = max_docs
         self.doc_count = 0
     
-    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]) -> None:
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
         self.doc_count = len(learner.env.labeled)
     
     @property
@@ -48,7 +48,7 @@ class RecallStopCriterion(AbstractStopCriterion[LT], Generic[LT]):
         self.target_recall = target_recall
         self.recall = 0.0
 
-    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
         self.recall = process_performance(learner, self.label).recall
 
     @property
@@ -65,7 +65,7 @@ class SameStateCount(AbstractStopCriterion[LT], Generic[LT]):
         self.pos_history: Deque[int] = collections.deque()
         self.has_been_different = False
 
-    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
         performance = process_performance(learner, self.label)
         self.add_count(len(performance.true_positives))
 
@@ -100,7 +100,7 @@ class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
         self.estimate_history: Deque[float] = collections.deque()
         self.margin: float = margin
 
-    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
         super().update(learner)
         if isinstance(learner, Estimator):
             self.add_count(learner.env.labels.document_count(self.label))
@@ -139,7 +139,7 @@ class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
         return super().stop_criterion
 
 class CaptureRecaptureCriterion2(CaptureRecaptureCriterion[LT], Generic[LT]):
-    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
         self.add_count(learner.env.labels.document_count(self.label))
         if isinstance(learner, Estimator):
             estimate, lower, upper = self.calculator(learner, self.label)
@@ -151,7 +151,7 @@ class RaschCaptureCriterion(CaptureRecaptureCriterion[LT], Generic[LT]):
         history = np.array([*self.estimate_history])
         return float(np.mean(history))
 
-    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
         self.add_count(learner.env.labels.document_count(self.label))
         if isinstance(learner, Estimator):
             estimate, lower, upper = self.calculator(learner, self.label)
@@ -170,7 +170,7 @@ class EnsembleConvergenceCriterion(SameStateCount[LT], Generic[LT]):
             self.missing_history.pop()
         self.missing_history.appendleft(value)
 
-    def update(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
         super().update(learner)
         if isinstance(learner, Estimator):
             common_positive = learner.env.labels.get_instances_by_label(self.label)

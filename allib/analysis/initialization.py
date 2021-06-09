@@ -14,30 +14,24 @@ from ..environment import AbstractEnvironment
 from ..activelearning.base import ActiveLearner
 from ..activelearning.estimator import Estimator
 
-DT = TypeVar("DT")
-VT = TypeVar("VT")
-KT = TypeVar("KT")
-LT = TypeVar("LT")
-RT = TypeVar("RT")
-LVT = TypeVar("LVT")
-PVT = TypeVar("PVT")
+from ..typehints import KT, LT, IT, DT, VT, RT
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Initializer(ABC, Generic[KT, LT]):
+class Initializer(ABC, Generic[IT, KT, LT]):
 
     @abstractmethod
-    def __call__(self, learner: ActiveLearner[KT, Any, Any, Any, LT]) -> ActiveLearner[KT, Any, Any, Any, LT]:
+    def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         raise NotImplementedError
 
 
-class IdentityInitializer(Initializer[KT, LT], Generic[KT, LT]):
-    def __call__(self, learner: ActiveLearner[KT, Any, Any, Any, LT]):
+class IdentityInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
+    def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         return learner
 
-class RandomInitializer(Initializer[KT, LT], Generic[KT, LT]):
-    def __init__(self, env: AbstractEnvironment[KT, Any, Any, Any, LT], sample_size: int = 1, **kwargs) -> None:
+class RandomInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
+    def __init__(self, env: AbstractEnvironment[IT, KT, Any, Any, Any, LT], sample_size: int = 1, **kwargs) -> None:
         self.env = env
         self.sample_size = sample_size
 
@@ -55,20 +49,20 @@ class RandomInitializer(Initializer[KT, LT], Generic[KT, LT]):
             )
         return docs
 
-    def add_doc(self, learner: ActiveLearner[KT, Any, Any, Any, LT], identifier: KT):
+    def add_doc(self, learner: ActiveLearner[IT, KT, Any, Any, Any, LT], identifier: KT):
         doc = learner.env.dataset[identifier]
         labels = self.env.truth.get_labels(doc)
         learner.env.labels.set_labels(doc, *labels)
         learner.set_as_labeled(doc)
 
-    def __call__(self, learner: ActiveLearner[KT, Any, Any, Any, LT]) -> ActiveLearner[KT, Any, Any, Any, LT]:
+    def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         docs = self.get_initialization_sample()
         for doc in docs:
             self.add_doc(learner, doc)
         return learner
 
-class UniformInitializer(RandomInitializer[KT, LT], Generic[KT, LT]):
-    def __call__(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
+class UniformInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
+    def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         if not isinstance(learner, Estimator):
             return super().__call__(learner)
         docs = self.get_initialization_sample()
@@ -78,8 +72,8 @@ class UniformInitializer(RandomInitializer[KT, LT], Generic[KT, LT]):
                 self.add_doc(learner, doc)
         return learner
 
-class SeparateInitializer(RandomInitializer[KT, LT], Generic[KT, LT]):
-    def __call__(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
+class SeparateInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
+    def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         if not isinstance(learner, Estimator):
             return super().__call__(learner)
         for sublearner in learner.learners:
@@ -89,16 +83,16 @@ class SeparateInitializer(RandomInitializer[KT, LT], Generic[KT, LT]):
                 self.add_doc(learner, doc)
         return learner
 
-class PositiveUniformInitializer(RandomInitializer[KT, LT], Generic[KT, LT]):
+class PositiveUniformInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
     def __init__(self, 
-                 env: AbstractEnvironment[KT, Any, Any, Any, LT], 
+                 env: AbstractEnvironment[IT, KT, Any, Any, Any, LT], 
                  pos_label: LT, neg_label: LT, sample_size: int = 1, **kwargs) -> None:
         super().__init__(env, sample_size, **kwargs)
         self.pos_label = pos_label
         self.neg_label = neg_label
 
 
-    def __call__(self, learner: ActiveLearner[Any, Any, Any, Any, LT]):
+    def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         if not isinstance(learner, Estimator):
             return super().__call__(learner)
         pos_docs = self.get_random_sample_for_label(self.pos_label)

@@ -8,8 +8,8 @@ from typing import (Any, Callable, Dict, Generic, Iterable, List, Optional,
 
 import numpy as np  # type: ignore
 
-from ..environment import AbstractEnvironment
-from ..instances import Instance, InstanceProvider
+from ..environment.base import AbstractEnvironment, IT
+from instancelib.instances import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
 from ..utils import get_random_generator
 from .base import ActiveLearner
@@ -27,18 +27,18 @@ PVT = TypeVar("PVT")
 
 LOGGER = logging.getLogger(__name__)
 
-class AbstractEnsemble(ABC, Generic[KT, DT, VT, RT, LT]):
+class AbstractEnsemble(ABC, Generic[IT, KT, DT, VT, RT, LT]):
     _name = "AbstractEnsemble"
-    learners: List[ActiveLearner[KT, DT, VT, RT, LT]]
-    env: AbstractEnvironment[KT, DT, VT, RT, LT]
+    learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]]
+    env: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
     _has_ordering: bool
     
     @abstractmethod
-    def _choose_learner(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
+    def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         """Internal functions that selects the next active learner for the next query
 
         Returns:
-            ActiveLearner[KT, DT, VT, RT, LT]: One of the learners from the ensemble
+            ActiveLearner[IT, KT, DT, VT, RT, LT]: One of the learners from the ensemble
         """        
         raise NotImplementedError
 
@@ -54,7 +54,7 @@ class AbstractEnsemble(ABC, Generic[KT, DT, VT, RT, LT]):
         self._has_ordering = True
         return True
 
-    def __next__(self) -> Instance[KT, DT, VT, RT]:
+    def __next__(self) -> IT:
         learner = self._choose_learner()
         return next(learner)
 
@@ -76,20 +76,20 @@ class AbstractEnsemble(ABC, Generic[KT, DT, VT, RT, LT]):
 
 
 
-class ManualEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], PoolBasedAL[KT, DT, VT, RT, LT],  Generic[KT, DT, VT, RT, LT]):
+class ManualEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT], PoolBasedAL[IT, KT, DT, VT, RT, LT],  Generic[IT, KT, DT, VT, RT, LT]):
     _name = "Ensemble"
 
     def __init__(self,
-                 learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
+                 learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]],
                  probabilities: List[float], 
                  rng: Any = None, *_, identifier: Optional[str] = None, **__) -> None:
         super().__init__(identifier=identifier)
-        self.learners: List[ActiveLearner[KT, DT, VT, RT, LT]] = learners
+        self.learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]] = learners
         self.probabilities = probabilities
         self._sample_dict: Dict[KT, int] = {}
         self._rng: Any = get_random_generator(rng)
 
-    def __call__(self, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> ManualEnsemble[KT, DT, VT, RT, LT]:
+    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> ManualEnsemble[IT, KT, DT, VT, RT, LT]:
         super().__call__(environment)
         for i, learner in enumerate(self.learners):
             env_copy = environment.from_environment(environment)
@@ -97,12 +97,12 @@ class ManualEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], PoolBasedAL[KT, DT, V
         self.initialized = True
         return self
     
-    def _choose_learner(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
+    def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         """Internal functions that selects the next active learner for the next query
 
         Returns
         -------
-        ActiveLearner[KT, DT, VT, RT, LT]
+        ActiveLearner[IT, KT, DT, VT, RT, LT]
             One of the learners from the ensemble
         """
         idxs = np.arange(len(self.learners))
@@ -110,7 +110,7 @@ class ManualEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], PoolBasedAL[KT, DT, V
         learner = self.learners[al_idx]
         return learner
 
-    def __next__(self) -> Instance[KT, DT, VT, RT]:
+    def __next__(self) -> IT:
         # Select the learner
         learner = self._choose_learner()
         
@@ -146,24 +146,24 @@ class ManualEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], PoolBasedAL[KT, DT, V
             learner.set_as_unlabeled(instance)
             del self._sample_dict[instance.identifier]
 
-class StrategyEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT], 
-                       MLBased[KT, DT, VT, RT, LT, LVT, PVT], 
-                       Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+class StrategyEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT], 
+                       MLBased[IT, KT, DT, VT, RT, LT, LVT, PVT], 
+                       Generic[IT, KT, DT, VT, RT, LT, LVT, PVT]):
     _name = "StrategyEnsemble"
 
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
-                 learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
+                 learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]],
                  probabilities: List[float], rng: Any = None, *_, 
                  identifier: Optional[str] = None, **__) -> None:
         super().__init__(classifier, RandomSampling())
-        self.learners: List[ActiveLearner[KT, DT, VT, RT, LT]] = learners
+        self.learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]] = learners
         self.probabilities = probabilities
         self._rng: Any = get_random_generator(rng)
         self.sampled: Set[KT] = set()
         self._has_ordering: bool = False 
     
-    def __call__(self, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> StrategyEnsemble:
+    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> StrategyEnsemble:
         """Initialize the learner with an environment
 
         Args:
@@ -184,18 +184,18 @@ class StrategyEnsemble(AbstractEnsemble[KT, DT, VT, RT, LT],
             self.sampled = set()
         return successful
 
-    def _choose_learner(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
+    def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         """Internal functions that selects the next active learner for the next query
 
         Returns:
-            ActiveLearner[KT, DT, VT, RT, LT]: One of the learners from the ensemble
+            ActiveLearner[IT, KT, DT, VT, RT, LT]: One of the learners from the ensemble
         """        
         idxs = np.arange(len(self.learners))
         al_idx: int = self._rng.choice(idxs, size=1, p=self.probabilities)[0]
         learner = self.learners[al_idx]
         return learner
     
-    def __next__(self) -> Instance[KT, DT, VT, RT]:
+    def __next__(self) -> IT:
         result = super().__next__()
         while result.identifier in self.sampled:
             result = super().__next__()

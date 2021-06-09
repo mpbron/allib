@@ -1,16 +1,12 @@
-from allib.labels.base import LabelProvider
-from typing import Generic, TypeVar, Any, FrozenSet, Union, Deque, Iterable, Sequence
-
 from abc import ABC, abstractmethod
-from ..instances import Instance
+from typing import (Any, FrozenSet, Generic, Iterable, Sequence,
+                    TypeVar, Union)
 
-KT = TypeVar("KT")
-LT = TypeVar("LT")
-MT = TypeVar("MT")
-VT = TypeVar("VT")
+from instancelib.instances import Instance
+from instancelib.labels.base import LabelProvider
+from instancelib.typehints import KT, LT
+
 ST = TypeVar("ST")
-
-
 class BaseLogger(ABC, Generic[KT, LT, ST]):
     @abstractmethod
     def log_ordering(self, ordering: Sequence[KT], metrics: Sequence[float], labeled: Iterable[KT], labels: LabelProvider[KT, LT]) -> None:

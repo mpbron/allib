@@ -5,7 +5,7 @@ from ..module.component import Component
 
 from .base import SeparateContextVectorizer, StackVectorizer
 from .catalog import FECatalog as FE
-from .contextinstance import ContextVectorizer
+#from .contextinstance import ContextVectorizer
 from .doc2vec import Doc2VecVectorizer
 from .textinstance import TextInstanceVectorizer
 from .textsklearn import SklearnVectorizer
@@ -24,10 +24,10 @@ class TextInstanceVectorizerBuilder(AbstractBuilder):
         vectorizer = self._factory.create(Component.VECTORIZER, **kwargs)
         return TextInstanceVectorizer(vectorizer)
 
-class ContextInstanceVectorizerBuilder(AbstractBuilder):
-    def __call__(self, **kwargs):
-        vectorizer = self._factory.create(Component.VECTORIZER, **kwargs)
-        return ContextVectorizer(vectorizer)
+# class ContextInstanceVectorizerBuilder(AbstractBuilder):
+#     def __call__(self, **kwargs):
+#         vectorizer = self._factory.create(Component.VECTORIZER, **kwargs)
+#         return ContextVectorizer(vectorizer)
 
 class StackVectorizerBuilder(AbstractBuilder):
     def __call__(self, vectorizers, **kwargs):
@@ -62,8 +62,8 @@ class FeatureExtractionFactory(ObjectFactory):
         self.register_builder(Component.FEATURE_EXTRACTION, FeatureExtractorBuilder())
         self.register_builder(Component.VECTORIZER, VectorizerBuilder())
         # Data extractors
-        self.register_builder(FE.DataType.CHATMESSAGES, 
-                         ContextInstanceVectorizerBuilder())
+        # self.register_builder(FE.DataType.CHATMESSAGES, 
+        #                  ContextInstanceVectorizerBuilder())
         self.register_builder(FE.DataType.TEXTINSTANCE,
                          TextInstanceVectorizerBuilder())
         # Vectorizer Containers

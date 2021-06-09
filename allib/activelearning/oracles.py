@@ -3,13 +3,9 @@ from typing import Any, Callable, Iterable, List, Optional, TypeVar
 
 import numpy as np # type: ignore
 
-from ..instances import Instance
+from instancelib.instances import Instance
 
-KT = TypeVar("KT")
-DT = TypeVar("DT")
-LT = TypeVar("LT")
-RT = TypeVar("RT")
-VT = TypeVar("VT")
+from ..typehints import KT, DT, LT, RT, VT, IT
 
 OracleFunction = Callable[[Instance, Iterable[LT]], LT]
 
@@ -29,7 +25,7 @@ def console_text_oracle(
     chosen_label = int(input(qstr))
     return [label_dict[chosen_label]]
 
-def label_loop(al: ActiveLearner[KT, DT, VT, RT, LT]) -> ActiveLearner[KT, DT, VT, RT, LT]:
+def label_loop(al: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
     qstr = "Press ENTER to continue or one of the following options"
     qstr += "q => quit\n"
     qstr += "u => update ordering"

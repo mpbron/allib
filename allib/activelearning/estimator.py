@@ -1,7 +1,4 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from allib.activelearning.ensembles import ManualEnsemble
-from allib.activelearning.ml_based import MLBased
 
 import collections
 import itertools
@@ -9,25 +6,22 @@ import logging
 import math
 import os
 import random
+from abc import ABC, abstractmethod
 from typing import (Any, Deque, Dict, FrozenSet, Generic, Iterable, List,
                     Optional, Sequence, Tuple, TypeVar)
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
+from instancelib.instances import Instance
+from instancelib.typehints import DT, KT, LT, LVT, PVT, RT, VT
 
-from ..environment import AbstractEnvironment
-from ..instances import Instance
+from ..activelearning.ensembles import ManualEnsemble
+from ..activelearning.ml_based import MLBased
+from ..environment.base import IT, AbstractEnvironment
 from ..machinelearning import AbstractClassifier
 from ..utils import get_random_generator
 from .base import ActiveLearner, NotInitializedException
 
-DT = TypeVar("DT")
-VT = TypeVar("VT")
-KT = TypeVar("KT")
-LT = TypeVar("LT")
-RT = TypeVar("RT")
-LVT = TypeVar("LVT")
-PVT = TypeVar("PVT")
 _T = TypeVar("_T")
 
 LOGGER = logging.getLogger(__name__)
@@ -44,17 +38,9 @@ def powerset(iterable: Iterable[_T]) -> FrozenSet[FrozenSet[_T]]:
         itertools.combinations(s, r) for r in range(len(s)+1))
     return frozenset(map(frozenset, result))  # type: ignore
 
-
-def _add_doc(learner: ActiveLearner[KT, DT, VT, RT, LT], key: KT):
-    doc = learner.env.dataset[key]
-    labels = learner.env.truth.get_labels(doc)
-    learner.env.labels.set_labels(doc, *labels)
-    learner.set_as_labeled(doc)
-
-
-class Estimator(ManualEnsemble[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+class Estimator(ManualEnsemble[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
     def __init__(self,
-                 learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
+                 learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]],
                  probabilities: Optional[List[float]] = None, 
                  rng: Any = None, *_, **__) -> None:
         probs = [1.0 / len(learners)] * \
@@ -63,9 +49,9 @@ class Estimator(ManualEnsemble[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT])
     
 
 
-class RetryEstimator(Estimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+class RetryEstimator(Estimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
 
-    def __next__(self) -> Instance[KT, DT, VT, RT]:
+    def __next__(self) -> IT:
         # Choose the next random learners
         learner = self._choose_learner()
 
@@ -86,20 +72,20 @@ class RetryEstimator(Estimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT])
         return ins
 
 
-class CycleEstimator(Estimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+class CycleEstimator(Estimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
     def __init__(self,
-                 learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
+                 learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]],
                  probabilities: Optional[List[float]] = None, rng: Any = None, *_, **__) -> None:
         super().__init__(learners, probabilities, rng)
         self.learnercycle = itertools.cycle(self.learners)
 
-    def _choose_learner(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
+    def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         return next(self.learnercycle)
 
 
-class MultipleEstimator(ManualEnsemble[KT, DT, VT, RT, LT],  Generic[KT, DT, VT, RT, LT]):
+class MultipleEstimator(ManualEnsemble[IT, KT, DT, VT, RT, LT],  Generic[IT, KT, DT, VT, RT, LT]):
     def __init__(self,
-                 learners: List[ActiveLearner[KT, DT, VT, RT, LT]],
+                 learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]],
                  probabilities: Optional[List[float]] = None, rng: Any = None, *_, **__) -> None:
         probs = [1.0 / len(learners)] * \
             len(learners) if probabilities is None else probabilities

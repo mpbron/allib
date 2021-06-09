@@ -302,7 +302,7 @@ class EMRaschRidgePython(
         pass
           
     def calculate_estimate(self, 
-                           estimator: Estimator[KT, DT, VT, RT, LT], 
+                           estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                            label: LT) -> Tuple[float, float, float]:
         pos_count = estimator.env.labels.document_count(label)
         dataset_size = len(estimator.env.dataset)

@@ -1,11 +1,8 @@
-from typing import Any, TypeVar
-
 import numpy as np # type: ignore
 from scipy.stats import entropy # type:ignore
 
 from .catalog import ALCatalog
 from .ml_based import AbstractSelectionCriterion
-from .labelmethods import LabelProbabilityBased
 
 class MostCertainSampling(AbstractSelectionCriterion):
     """Selects the training examples most far away from the 

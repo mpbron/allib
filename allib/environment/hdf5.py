@@ -4,8 +4,8 @@ from typing import Generic, Sequence, TypeVar, Iterable, Dict, Any, Set
 
 import numpy as np # type: ignore
 
-from ..instances.hdf5 import HDF5BucketProvider, HDF5Instance, HDF5Provider 
-from ..labels.memory import MemoryLabelProvider
+from instancelib.instances.hdf5 import HDF5BucketProvider, HDF5Instance, HDF5Provider 
+from instancelib.labels.memory import MemoryLabelProvider
 from ..history import MemoryLogger
 
 from .base import AbstractEnvironment

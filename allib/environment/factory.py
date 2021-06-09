@@ -1,5 +1,5 @@
 from .catalog import EnvironmentCatalog as ENV
-from .memory import MemoryEnvironment
+from .memory import DataPointEnvironment
 
 from ..factory import AbstractBuilder, ObjectFactory
 from ..module.component import Component
@@ -14,4 +14,4 @@ class EnvironmentFactory(ObjectFactory):
     def __init__(self) -> None:
         super().__init__()
         self.register_builder(Component.ENVIRONMENT, EnvironmentBuilder())
-        self.register_constructor(ENV.Type.MEMORY, MemoryEnvironment)
+        self.register_constructor(ENV.Type.MEMORY, DataPointEnvironment)

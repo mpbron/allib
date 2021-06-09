@@ -8,21 +8,17 @@ from typing import (FrozenSet, Generic, Iterable, Iterator, List, Optional,
                     Sequence, Set, Tuple, TypeVar, Any)
 
 from ..environment import AbstractEnvironment
-from ..instances import Instance
+from instancelib.instances import Instance
 
-KT = TypeVar("KT")
-DT = TypeVar("DT")
-VT = TypeVar("VT")
-LVT = TypeVar("LVT")
-LT = TypeVar("LT")
-PVT = TypeVar("PVT")
+from ..typehints import KT, VT, LT, LVT, PVT
+
 
 class AbstractClassifier(ABC, Generic[KT, VT, LT, LVT, PVT]):
     _name = "AbstractClassifier"
 
     @abstractmethod
     def __call__(self, 
-            environment: AbstractEnvironment[KT, Any, VT, Any, LT]
+            environment: AbstractEnvironment[Any, KT, Any, VT, Any, LT]
         ) -> AbstractClassifier[KT, VT, LT, LVT, PVT]:
         """Initialize the classifier by supplying the target labels
         

@@ -1,23 +1,22 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from allib.labels.memory import MemoryLabelProvider
 
 import collections
 import itertools
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import datetime
-from typing import (Any, Deque, Dict, Generic, Optional, Set, Tuple,
-                    TypeVar, Union, Sequence, Iterable, FrozenSet)
+from typing import (Any, Deque, Dict, FrozenSet, Generic, Iterable, Optional,
+                    Sequence, Set, Tuple, TypeVar, Union)
 
-import pandas as pd # type: ignore
+import pandas as pd  # type: ignore
+from instancelib import Instance
+from instancelib.labels import LabelProvider
+from instancelib.labels.memory import MemoryLabelProvider
+from instancelib.utils.to_key import to_key
+from instancelib.typehints import KT, LT
 
-from ..utils.to_key import to_key
-from ..instances import Instance
-from ..labels import LabelProvider
 from .base import BaseLogger
 
-KT = TypeVar("KT")
-LT = TypeVar("LT")
 MT = TypeVar("MT")
 ST = TypeVar("ST")
 
@@ -99,7 +98,7 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT,ST])
         labels_copy = MemoryLabelProvider[KT, LT].from_provider(labels)
         self.snapshots.append(Snapshot[KT, LT](ordering, metrics, labeled, labels_copy))
 
-    def log_sample(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: SampleMethod) -> None:
+    def log_sample(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: SampleMethod[ST, LT]) -> None:
         key = to_key(x)
         self.sample_dict.setdefault(key, set()).add(sample_method)
         self.sample_dict_inv.setdefault(sample_method, set()).add(key)
@@ -107,7 +106,7 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT,ST])
         self.sample_history.append(event)
         self.event_history.append(event)
 
-    def log_label(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: SampleMethod, *labels: LT):
+    def log_label(self, x: Union[KT, Instance[KT, Any, Any, Any]], sample_method: SampleMethod[ST, LT], *labels: LT):
         key = to_key(x)
         event = LabelEvent[KT, LT, ST](key, sample_method, *labels)
         self.event_history.append(event)
@@ -123,7 +122,7 @@ class MemoryLogger(BaseLogger[KT, LT, SampleMethod[ST, LT]], Generic[KT, LT,ST])
         key = to_key(x)
         return frozenset(self.sample_dict.setdefault(key, set()))
 
-    def get_instances_by_method(self, sample_method: SampleMethod):
+    def get_instances_by_method(self, sample_method: SampleMethod[ST, LT]):
         return frozenset(self.sample_dict_inv.setdefault(sample_method, set()))
 
     def get_label_table(self) -> pd.DataFrame:

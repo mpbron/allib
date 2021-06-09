@@ -18,7 +18,7 @@ from .analysis import process_performance
 
 LT = TypeVar("LT")
 
-def name_formatter(learner: ActiveLearner[Any, Any, Any, Any, Any]) -> str:
+def name_formatter(learner: ActiveLearner[Any, Any, Any, Any, Any, Any]) -> str:
     name, label = learner.name
     if label is not None:
         return f"{name}_{label}"
@@ -27,7 +27,7 @@ def name_formatter(learner: ActiveLearner[Any, Any, Any, Any, Any]) -> str:
 class AbstractPlotter(ABC, Generic[LT]):
     @abstractmethod
     def update(self,
-               activelearner: ActiveLearner[Any, Any, Any, Any, LT]
+               activelearner: ActiveLearner[Any, Any, Any, Any, Any, LT]
                ) -> None:
         raise NotImplementedError
     
@@ -44,7 +44,7 @@ class MultilabelPlotter(AbstractPlotter[LT], Generic[LT]):
         self.result_frame = pd.DataFrame()
 
     def update(self,
-               activelearner: ActiveLearner[Any, Any, Any, Any, LT]
+               activelearner: ActiveLearner[Any, Any, Any, Any, Any, LT]
                ) -> None:
                
         stats: Dict[str, float] = dict()
@@ -71,16 +71,16 @@ class MultilabelPlotter(AbstractPlotter[LT], Generic[LT]):
 class BinaryPlotter(AbstractPlotter[LT], Generic[LT]):
     result_frame: pd.DataFrame
 
-    def __init__(self, pos_label: LT, neg_label: LT, *estimators: AbstractEstimator[Any, Any, Any, Any, LT]):
+    def __init__(self, pos_label: LT, neg_label: LT, *estimators: AbstractEstimator[Any, Any, Any, Any, Any, LT]):
         self.result_frame = pd.DataFrame()
         self.pos_label = pos_label
         self.neg_label = neg_label
         self.estimators = list(estimators)
 
     def update(self,
-               activelearner: ActiveLearner[Any, Any, Any, Any, LT]
+               activelearner: ActiveLearner[Any, Any, Any, Any, Any, LT]
                ) -> None:
-        def get_learner_results(learner: ActiveLearner[Any, Any, Any, Any, LT], root = True) -> Dict[str, Optional[Union[int, float]]]:
+        def get_learner_results(learner: ActiveLearner[Any, Any, Any, Any, Any, LT], root = True) -> Dict[str, Optional[Union[int, float]]]:
             name = name_formatter(learner)
             pos_docs = learner.env.labels.get_instances_by_label(
                 self.pos_label).intersection(learner.env.labeled)

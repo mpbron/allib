@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import itertools
 from collections import Counter
 import pandas as pd # type: ignore
-from typing import FrozenSet, Generic, Optional, Tuple, TypeVar, List, Sequence, Set
+from typing import Any, FrozenSet, Generic, Optional, Tuple, TypeVar, List, Sequence, Set
 from ..environment import AbstractEnvironment
 from ..activelearning.ml_based import MLBased
 from ..machinelearning import AbstractClassifier
@@ -13,20 +13,13 @@ from sklearn.linear_model import LogisticRegression # type: ignore
 
 import numpy as np # type: ignore
 
-KT = TypeVar("KT")
-VT = TypeVar("VT")
-DT = TypeVar("DT")
-RT = TypeVar("RT")
-LT = TypeVar("LT")
-PVT = TypeVar("PVT")
-LVT = TypeVar("LVT")
+from ..typehints import IT, KT, DT, VT, RT, LT
 
-
-class AbstractEstimator(ABC, Generic[KT, DT, VT, RT, LT]):
+class AbstractEstimator(ABC, Generic[IT, KT, DT, VT, RT, LT]):
     name = "AbstractEstimator"
     @abstractmethod
     def __call__(self, 
-                 learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT
+                 learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT
                 ) -> Tuple[float, Optional[float], Optional[float]]:
         raise NotImplementedError
 
@@ -38,10 +31,10 @@ class DecisionRow(Generic[KT]):
     pos_labeled: bool
     order: Optional[int]
 
-class SemiEstimator(AbstractEstimator[KT, DT, np.ndarray, RT, LT]):
+class SemiEstimator(AbstractEstimator[IT, KT, DT, np.ndarray, RT, LT]):
     @abstractmethod
     def semi(self, 
-             learner: MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], 
+             learner: MLBased[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], 
              pos_label: LT) -> Tuple[float, Optional[float], Optional[float]]:
         def temporary_label_indices(y_pred_proba: np.ndarray) -> List[int]:
             order = np.argsort(y_pred_proba)[::-1]
@@ -119,7 +112,7 @@ class SemiEstimator(AbstractEstimator[KT, DT, np.ndarray, RT, LT]):
 
 
 
-def semi(learner: MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], pos_label: LT, neg_label: LT) -> int:
+def semi(learner: MLBased[IT, Any, Any, np.ndarray, Any, LT, np.ndarray, np.ndarray], pos_label: LT, neg_label: LT) -> int:
     def temporary_label_indices(y_pred_proba: np.ndarray) -> List[int]:
         order = np.argsort(y_pred_proba)[::-1]
         print(f"{y_pred_proba[order[0]]}, {y_pred_proba[order[-1]]}")

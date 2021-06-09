@@ -3,6 +3,9 @@ import random
 from typing import Any, Dict, List, Sequence, Tuple, TypeVar
 
 import numpy as np  # type: ignore
+from instancelib.feature_extraction.base import BaseVectorizer
+from instancelib.functions.vectorize import vectorize
+from instancelib.instances.base import Instance
 
 from ..activelearning.base import ActiveLearner
 from ..analysis.analysis import process_performance
@@ -10,33 +13,26 @@ from ..analysis.stopping import AbstractStopCriterion
 from ..environment.base import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
 from ..factory.factory import ObjectFactory
-from ..feature_extraction.base import BaseVectorizer
-from ..functions.vectorize import vectorize
-from ..instances.base import Instance
 from ..module.component import Component
+from ..typehints import DT, IT, KT, LT, RT, VT
 from ..utils.chunks import divide_sequence
 from .initialization import Initializer
 from .plotter import AbstractPlotter, BinaryPlotter
 
-KT = TypeVar("KT")
-DT = TypeVar("DT")
-VT = TypeVar("VT")
-RT = TypeVar("RT")
-LT = TypeVar("LT")
 
-def reset_environment(vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, Any]], 
-                      environment: AbstractEnvironment[KT, DT, np.ndarray, Any, LT]
-                      ) -> AbstractEnvironment[KT, DT, np.ndarray, Any, LT]:
-    env = MemoryEnvironment[KT, DT, np.ndarray, LT].from_environment_only_data(environment)
+def reset_environment(vectorizer: BaseVectorizer[IT], 
+                      environment: AbstractEnvironment[IT, KT, DT, np.ndarray, RT, LT]
+                      ) -> AbstractEnvironment[IT, KT, DT, np.ndarray, RT, LT]:
+    env = MemoryEnvironment.from_environment_only_data(environment)
     vectorize(vectorizer, env, True, 200)
     return env
 
 def initialize(factory: ObjectFactory,
                al_config: Dict[str, Any], 
                fe_config: Dict[str, Any],
-               initializer: Initializer[KT, LT], 
-               env: AbstractEnvironment[KT, DT, np.ndarray, DT, LT]
-              ) -> Tuple[ActiveLearner[KT, DT, np.ndarray, DT, LT],
+               initializer: Initializer[IT, KT, LT], 
+               env: AbstractEnvironment[IT, KT, DT, np.ndarray, DT, LT]
+              ) -> Tuple[ActiveLearner[IT, KT, DT, np.ndarray, DT, LT],
                             BaseVectorizer[Instance[KT, DT, np.ndarray, DT]]]:
     """Build and initialize an Active Learning method.
 
@@ -65,15 +61,13 @@ def initialize(factory: ObjectFactory,
             to the configuration in `fe_config`
     """    
     # Build the active learners and feature extraction models
-    learner: ActiveLearner[KT, DT, np.ndarray, DT, LT] = factory.create(
+    learner: ActiveLearner[IT, KT, DT, np.ndarray, DT, LT] = factory.create(
         Component.ACTIVELEARNER, **al_config)
-    vectorizer: BaseVectorizer[Instance[KT, DT, np.ndarray, DT]] = factory.create(
+    vectorizer: BaseVectorizer[IT] = factory.create(
         Component.FEATURE_EXTRACTION, **fe_config)
     
     ## Copy the data to memory
-    start_env = MemoryEnvironment[KT, DT, np.ndarray, LT].from_environment_only_data(env)
-    # Vectorize the dataset
-    vectorize(vectorizer, start_env)
+    start_env = reset_environment(vectorizer, env)
 
     # Attach the environment to the active learner
     learner = learner(start_env)
@@ -83,16 +77,16 @@ def initialize(factory: ObjectFactory,
     return learner, vectorizer
 
 
-def simulate(learner: ActiveLearner[KT, DT, VT, RT, LT],
+def simulate(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
              stop_crit: AbstractStopCriterion[LT],
              plotter: AbstractPlotter[LT],
-             batch_size: int) -> Tuple[ActiveLearner[KT, DT, VT, RT, LT],
+             batch_size: int) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT],
                          AbstractPlotter[LT]]:
     """Simulates the Active Learning 
 
     Parameters
     ----------
-    learner : ActiveLearner[KT, DT, VT, RT, LT]
+    learner : ActiveLearner[IT, KT, DT, VT, RT, LT]
         [description]
     stop_crit : AbstractStopCriterion[LT]
         [description]
@@ -103,7 +97,7 @@ def simulate(learner: ActiveLearner[KT, DT, VT, RT, LT],
 
     Returns
     -------
-    Tuple[ActiveLearner[KT, DT, VT, RT, LT], BinaryPlotter[LT]]
+    Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], BinaryPlotter[LT]]
         [description]
     """    
     while not stop_crit.stop_criterion:
@@ -124,17 +118,17 @@ def simulate(learner: ActiveLearner[KT, DT, VT, RT, LT],
     
     return learner, plotter
 
-def simulate_stop_iteration(learner: ActiveLearner[KT, DT, VT, RT, LT],
+def simulate_stop_iteration(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
              stop_crit: AbstractStopCriterion[LT],
              plotter: AbstractPlotter[LT],
              batch_size: int,
-             check_stop: int = 10) -> Tuple[ActiveLearner[KT, DT, VT, RT, LT],
+             check_stop: int = 10) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT],
                          AbstractPlotter[LT]]:
     """Simulates the Active Learning 
 
     Parameters
     ----------
-    learner : ActiveLearner[KT, DT, VT, RT, LT]
+    learner : ActiveLearner[IT, KT, DT, VT, RT, LT]
         [description]
     stop_crit : AbstractStopCriterion[LT]
         [description]
@@ -145,7 +139,7 @@ def simulate_stop_iteration(learner: ActiveLearner[KT, DT, VT, RT, LT],
 
     Returns
     -------
-    Tuple[ActiveLearner[KT, DT, VT, RT, LT], BinaryPlotter[LT]]
+    Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], BinaryPlotter[LT]]
         [description]
     """
     it = 0
@@ -169,22 +163,22 @@ def simulate_stop_iteration(learner: ActiveLearner[KT, DT, VT, RT, LT],
     
     return learner, plotter
 
-def multilabel_all_non_empty(learner: ActiveLearner[Any, Any, Any, Any, Any], count: int) -> bool:
+def multilabel_all_non_empty(learner: ActiveLearner[Any, Any, Any, Any, Any, Any], count: int) -> bool:
     provider = learner.env.labels
     non_empty = all(
         [provider.document_count(label) > count for label in provider.labelset])
     return non_empty
 
-def simulate_with_cold_start(learner: ActiveLearner[KT, DT, VT, RT, LT],
+def simulate_with_cold_start(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
              stop_crit: AbstractStopCriterion[LT],
              plotter: AbstractPlotter[LT],
-             batch_size: int, start_count=2) -> Tuple[ActiveLearner[KT, DT, VT, RT, LT],
+             batch_size: int, start_count=2) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT],
                          AbstractPlotter[LT]]:
     """Simulates the Active Learning 
 
     Parameters
     ----------
-    learner : ActiveLearner[KT, DT, VT, RT, LT]
+    learner : ActiveLearner[IT, KT, DT, VT, RT, LT]
         [description]
     stop_crit : AbstractStopCriterion[LT]
         [description]
@@ -195,7 +189,7 @@ def simulate_with_cold_start(learner: ActiveLearner[KT, DT, VT, RT, LT],
 
     Returns
     -------
-    Tuple[ActiveLearner[KT, DT, VT, RT, LT], BinaryPlotter[LT]]
+    Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], BinaryPlotter[LT]]
         [description]
     """
     learner.update_ordering()

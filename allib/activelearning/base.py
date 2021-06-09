@@ -1,7 +1,7 @@
 from __future__ import annotations
 import collections
 
-from allib.machinelearning.base import AbstractClassifier
+from instancelib.instances.base import Instance
 
 import functools
 import itertools
@@ -12,9 +12,7 @@ from typing import (Any, Callable, Deque, Dict, FrozenSet, Generic, Iterator,
 
 
 from ..exceptions import NotInitializedException
-from ..environment import AbstractEnvironment
-from ..instances import Instance, InstanceProvider
-from ..labels.base import LabelProvider
+from ..environment.base import AbstractEnvironment, IT
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")
@@ -31,7 +29,7 @@ LabelPrediction = FrozenSet[LT]
 
 LOGGER = logging.getLogger(__name__)
 
-class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT, RT, LT]):
+class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
     """The **Abstract Base Class** `ActiveLearner` specifies the design for all 
     Active Learning algorithms. 
 
@@ -72,7 +70,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
     """The internal name for this Active Learner"""
     ordering: Optional[Deque[KT]]
     """The ordering of the Active Learner"""
-    _env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]]
+    _env: Optional[AbstractEnvironment[IT, KT, DT, VT, RT, LT]]
     """The internal environment"""
     identifier: Optional[str]
     
@@ -90,19 +88,19 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
             return self.identifier, None          
         return self._name, None
    
-    def __iter__(self) -> ActiveLearner[KT, DT, VT, RT, LT]:
+    def __iter__(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         """The Active Learning class is an iterator, iterating
         over instances
 
         Returns
         -------
-        ActiveLearner[KT, DT, VT, RT, LT]
+        ActiveLearner[IT, KT, DT, VT, RT, LT]
             The same Active Learner is already an iterator, so ``iter(al) == al``
         """        
         return self
 
     @property
-    def env(self) -> AbstractEnvironment[KT, DT, VT, RT, LT]:
+    def env(self) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
         """Every ActiveLearner has an Environment that is based on the
         `allib.environment.base.AbstractEnvironment`. The Environment 
         contains the dataset, and the current label state (i.e., which 
@@ -149,7 +147,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         raise NotImplementedError
 
     @abstractmethod
-    def __next__(self) -> Instance[KT, DT, VT, RT]:
+    def __next__(self) -> IT:
         """Return the next instance based on the ordering
 
         Returns
@@ -192,9 +190,9 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         """        
         @functools.wraps(func)
         def wrapper(
-                self: ActiveLearner[KT, DT, VT, RT, LT], 
+                self: ActiveLearner[IT, KT, DT, VT, RT, LT], 
                 *args: Any, **kwargs: Dict[str, Any]) -> F:
-            result: Union[Any,Instance[KT, DT, VT, RT]] = func(self, *args, **kwargs)
+            result: Union[Any, IT] = func(self, *args, **kwargs)
             if isinstance(result, Instance):
                 LOGGER.info("Sampled document %i with method %s",
                             result.identifier, self.name) # type: ignore
@@ -217,7 +215,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
             The same function with a logger wrapped around it
         """        
         @functools.wraps(func)
-        def wrapper(self: ActiveLearner[KT, DT, VT, RT, LT], 
+        def wrapper(self: ActiveLearner[IT, KT, DT, VT, RT, LT], 
                     instance: Instance[KT, DT, VT, RT], 
                     *args: Any, **kwargs: Any):
             labels = self.env.labels.get_labels(instance)
@@ -240,7 +238,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
             The same function with a logger wrapped around it
         """        
         @functools.wraps(func)
-        def wrapper(self: ActiveLearner, *args: Any, **kwargs: Dict[str, Any]) -> FT:
+        def wrapper(self: ActiveLearner, *args: Any, **kwargs: Dict[str, Any]) -> F:
             ordering, ordering_metric = func(self, *args, **kwargs)
             self.env.logger.log_ordering(ordering, ordering_metric, 
                                          self.env.labeled.key_list,
@@ -250,8 +248,8 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
 
     @abstractmethod
     def __call__(self, 
-                 environment: AbstractEnvironment[KT, DT, VT, RT, LT]
-                ) -> ActiveLearner[KT, DT, VT, RT, LT]:
+                 environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
+                ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         """Attach an environment to the Active Learner, so it can sample instances
         for labeling
 
@@ -262,7 +260,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
 
         Returns
         -------
-        ActiveLearner[KT, DT, VT, RT, LT]
+        ActiveLearner[IT, KT, DT, VT, RT, LT]
             The learner with an attached environment
 
         Examples
@@ -273,7 +271,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         """        
         raise NotImplementedError
 
-    def query(self) -> Optional[Instance[KT, DT, VT, RT]]:
+    def query(self) -> Optional[IT]:
         """Query the most informative instance
 
         Returns
@@ -285,7 +283,7 @@ class ActiveLearner(ABC, Iterator[Instance[KT, DT, VT, RT]], Generic[KT, DT, VT,
         return next(self, None)
 
    
-    def query_batch(self, batch_size: int) -> Sequence[Instance[KT, DT, VT, RT]]:
+    def query_batch(self, batch_size: int) -> Sequence[IT]:
         """Query the `batch_size` most informative instances
 
         Parameters

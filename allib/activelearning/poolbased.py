@@ -10,23 +10,17 @@ from allib.machinelearning.base import AbstractClassifier
 
 from ..environment import AbstractEnvironment
 from ..exceptions import NoOrderingException
-from ..instances import Instance, InstanceProvider
-from ..labels.base import LabelProvider
+from instancelib import Instance, InstanceProvider, LabelProvider
 from .base import ActiveLearner
 
-DT = TypeVar("DT")
-VT = TypeVar("VT")
-KT = TypeVar("KT")
-LT = TypeVar("LT")
-RT = TypeVar("RT")
-LVT = TypeVar("LVT")
-PVT = TypeVar("PVT")
+from ..typehints import KT, DT, VT, RT, LT, LVT, PVT, IT
+
 FT = TypeVar("FT")
 F = TypeVar("F", bound=Callable[..., Any])
 
 LOGGER = logging.getLogger(__name__)
 
-class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+class PoolBasedAL(ActiveLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
     """PoolBasedAL specifies the basis for a poolbased Active Learning algorithm. 
     Any algorithm that determines an ordering for *n* instances, can be based on 
     this class.
@@ -68,13 +62,13 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
 
     def __init__(self, *_, identifier: Optional[str] = None, **__) -> None:
         self.initialized = False
-        self._env: Optional[AbstractEnvironment[KT, DT, VT, RT, LT]] = None
+        self._env: Optional[AbstractEnvironment[IT, KT, DT, VT, RT, LT]] = None
         self.ordering = None
         self.sampled: Set[KT] = set()
         self.identifier = identifier
      
 
-    def __call__(self, environment: AbstractEnvironment[KT, DT, VT, RT, LT]) -> PoolBasedAL[KT, DT, VT, RT, LT]:
+    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> PoolBasedAL[IT, KT, DT, VT, RT, LT]:
         """Initialze the active learner with an environment. After the environment is attached, the learner is 
         usable for sampling.
         
@@ -121,7 +115,7 @@ class PoolBasedAL(ActiveLearner[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]
         return self.ordering is not None
 
     @ActiveLearner.iterator_log
-    def __next__(self) -> Instance[KT, DT, VT, RT]:
+    def __next__(self) -> IT:
         """Query the next instance according to the ordering.
         If the instances has already been sampled during the 
         current iteration. The sampled set is cleared after

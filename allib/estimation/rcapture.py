@@ -66,7 +66,7 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
         R["source"](r_script_file)
        
     def get_label_matrix(self, 
-                         estimator: Estimator[KT, DT, VT, RT, LT], 
+                         estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                          label: LT) -> pd.DataFrame:
         rows = {ins_key: {
             l_key: ins_key in learner.env.labeled
@@ -79,7 +79,7 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
         return dataframe
 
     def get_contingency_list(self, 
-                         estimator: Estimator[KT, DT, VT, RT, LT], 
+                         estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                          label: LT) -> Dict[FrozenSet[int], int]:
         learner_sets = {
             learner_key: learner.env.labels.get_instances_by_label(
@@ -97,7 +97,7 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
         return result
 
     def get_matrix(self, 
-                   estimator: Estimator[KT, DT, VT, RT, LT], 
+                   estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                    label: LT) -> np.ndarray:
         learner_sets = {
             learner_key: learner.env.labels.get_instances_by_label(
@@ -115,7 +115,7 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
                     matrix[i, j] = len(intersection)
         return matrix
 
-    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+    def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df = self.get_label_matrix(estimator, label)
         with localconverter(ro.default_converter + pandas2ri.converter):
@@ -126,7 +126,7 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
         return res_df
 
     def calculate_abundance(self, 
-                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                             label: LT) -> Tuple[float, float]:
         res_df = self.calculate_abundance_R(estimator, label)
         ok_fit = res_df[res_df.infoFit == 0]
@@ -137,14 +137,14 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
         best_np = best_result.values
         return best_np[0, 0], best_np[0, 1]
 
-    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
+    def __call__(self, learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
             return 0.0, 0.0, 0.0
         abundance, error = self.calculate_abundance(learner, label)
         return abundance, abundance-error, abundance + error
 
     def all_estimations(self, 
-                        estimator: Estimator[KT, DT, VT, RT, LT], 
+                        estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                         label: LT) -> Sequence[Tuple[str, float, float]]:
         res_df = self.calculate_abundance_R(estimator, label)
         ok_fit = res_df[res_df.infoFit == 0]
@@ -158,7 +158,7 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
         return tuples
     
     def get_contingency_sets(self, 
-                         estimator: Estimator[KT, DT, VT, RT, LT], 
+                         estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                          label: LT) -> Dict[FrozenSet[int], FrozenSet[KT]]:
         learner_sets = {
             learner_key: learner.env.labels.get_instances_by_label(
@@ -175,7 +175,7 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
         return filtered_result
 
     def get_occasion_history(self, 
-                             estimator: Estimator[KT, DT, VT, RT, LT], 
+                             estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                              label: LT) -> pd.DataFrame:
         contingency_sets = self.get_contingency_sets(estimator, label)
         learner_keys = union(*contingency_sets.keys())
@@ -197,7 +197,7 @@ class AbundanceEstimator(AbstractEstimator, Generic[KT, DT, VT, RT, LT]):
 
 class MeanAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     name = "MeanAbundance"
-    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
+    def __call__(self, learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
             return 0.0, 0.0, 0.0
         _, estimations, errors = list_unzip3(self.all_estimations(learner, label))
@@ -208,7 +208,7 @@ class MeanAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT,
 class WeightedMeanAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     name = "WeightedBICEstimator"
     def calculate_abundance(self, 
-                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                             label: LT) -> Tuple[float, float]:
         res_df = self.calculate_abundance_R(estimator, label)
         ok_fit = res_df[res_df.infoFit == 0]
@@ -227,7 +227,7 @@ class WeightedMeanAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Gen
 
 class MedianAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     name = "MedianAbundanceEstimator"
-    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
+    def __call__(self, learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
             return 0.0, 0.0, 0.0
         _, estimations, errors = list_unzip3(self.all_estimations(learner, label))
@@ -240,7 +240,7 @@ class NegativeAbundanceEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic
         super().__init__()
         self.neg_label = neg_label
     
-    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
+    def __call__(self, learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
             return 0.0, 0.0, 0.0
         neg_docs = learner.env.labels.document_count(self.neg_label)
@@ -262,7 +262,7 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         R["source"](r_script_file)
 
     def get_occasion_history(self, 
-                             estimator: Estimator[KT, DT, VT, RT, LT], 
+                             estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                              label: LT) -> pd.DataFrame:
         contingency_sets = self.get_contingency_sets(estimator, label)
         learner_keys = union(*contingency_sets.keys())
@@ -285,7 +285,7 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         self.matrix_history.append(df)
         return df
 
-    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+    def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df = self.get_occasion_history(estimator, label)
         with localconverter(ro.default_converter + pandas2ri.converter):
@@ -297,7 +297,7 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
 
     
     def calculate_abundance(self, 
-                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                             label: LT) -> Tuple[float, float]:
         res_df = self.calculate_abundance_R(estimator, label)
         estimate_missing = res_df.values[0,0]
@@ -305,7 +305,7 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         total_found = estimator.env.labels.document_count(label)
         return (total_found + estimate_missing), estimate_error * 2
 
-    def all_estimations(self, estimator: Estimator[KT, DT, VT, RT, LT], label: LT) -> Sequence[Tuple[str, float, float]]:
+    def all_estimations(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT) -> Sequence[Tuple[str, float, float]]:
         return []
     
     

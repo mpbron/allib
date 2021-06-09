@@ -1,9 +1,9 @@
 from typing import Dict, Generic, Optional, Sequence, Tuple
 from .random import PoolBasedAL
 
-from ..typehints import KT, DT, VT, RT, LT
+from ..typehints import KT, DT, VT, RT, LT, IT
 
-class FixedOrdering(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+class FixedOrdering(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
 
     _name = "FixedOrdering"
 

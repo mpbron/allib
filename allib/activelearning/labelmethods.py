@@ -1,41 +1,32 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import (Any, Callable, Dict, Generic, Iterator, List, Optional, Sequence,
-                    Tuple, TypeVar)
+from typing import (Any, Callable, Dict, Generic, Iterator, List, Optional,
+                    Sequence, Tuple, TypeVar)
 
 import numpy as np  # type: ignore
 
 from ..environment import AbstractEnvironment
-from ..instances.base import Instance
 from ..machinelearning import AbstractClassifier
+from ..typehints import DT, IT, KT, LT, RT
 from .base import ActiveLearner
-from .ml_based import MLBased, ProbabilityBased, FeatureMatrix, AbstractSelectionCriterion
-from .random import RandomSampling
 from .ensembles import AbstractEnsemble
-
-DT = TypeVar("DT")
-VT = TypeVar("VT")
-KT = TypeVar("KT")
-LT = TypeVar("LT")
-RT = TypeVar("RT")
-LVT = TypeVar("LVT")
-PVT = TypeVar("PVT")
-FT = TypeVar("FT")
+from .ml_based import (AbstractSelectionCriterion, FeatureMatrix, MLBased,
+                       ProbabilityBased)
+from .random import RandomSampling
 
 
-
-class LabelProbabilityBased(ProbabilityBased[KT, DT, RT, LT], ABC, Generic[KT, DT, RT, LT]):
+class LabelProbabilityBased(ProbabilityBased[IT, KT, DT, RT, LT], ABC, Generic[IT, KT, DT, RT, LT]):
     def __init__(self, 
                  classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray], 
                  selection_criterion: AbstractSelectionCriterion,
-                 label: LT, fallback = RandomSampling[KT, DT, np.ndarray, RT, LT](),
+                 label: LT, fallback = RandomSampling[IT, KT, DT, np.ndarray, RT, LT](),
                  identifier: Optional[str] = None,  *_, **__) -> None:
         super().__init__(classifier, selection_criterion, fallback, identifier=identifier)
         self.label = label
         self.labelposition: Optional[int] = None
 
-    def __call__(self, environment: AbstractEnvironment[KT, DT, np.ndarray, RT, LT]) -> LabelProbabilityBased[KT, DT, RT, LT]:
+    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, np.ndarray, RT, LT]) -> LabelProbabilityBased[IT, KT, DT, RT, LT]:
         super().__call__(environment)
         self.labelposition = self.classifier.get_label_column_index(self.label)
         return self
@@ -55,21 +46,21 @@ class LabelProbabilityBased(ProbabilityBased[KT, DT, RT, LT], ABC, Generic[KT, D
         return keys, sliced_prob_vec
 
 
-class LabelEnsemble(AbstractEnsemble[KT, DT, np.ndarray, RT, LT], MLBased[KT,DT, np.ndarray, RT, LT, np.ndarray, np.ndarray],Generic[KT, DT, RT, LT]):
+class LabelEnsemble(AbstractEnsemble[IT, KT, DT, np.ndarray, RT, LT], MLBased[IT, KT,DT, np.ndarray, RT, LT, np.ndarray, np.ndarray],Generic[IT, KT, DT, RT, LT]):
     _name = "LabelEnsemble"
 
     def __init__(self,
                  classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray],
-                 al_method: Callable[..., LabelProbabilityBased[KT, DT, RT, LT]],
+                 al_method: Callable[..., LabelProbabilityBased[IT, KT, DT, RT, LT]],
                  *_, **__
                  ) -> None:
         self._al_builder = al_method
         self.label_dict: Dict[LT, int] = dict()
-        self.learners: List[ActiveLearner[KT, DT, np.ndarray, RT, LT]] = list()
+        self.learners: List[ActiveLearner[IT, KT, DT, np.ndarray, RT, LT]] = list()
         self.classifier = classifier
         self._has_ordering = False
     
-    def __call__(self, environment: AbstractEnvironment[KT, DT, np.ndarray, RT, LT]) -> LabelEnsemble[KT, DT, RT, LT]:
+    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, np.ndarray, RT, LT]) -> LabelEnsemble[IT, KT, DT, RT, LT]:
         super().__call__(environment)
         labelset = self.env.labels.labelset
         self.label_dict = {label: idx for idx, label in enumerate(labelset)}
@@ -78,7 +69,7 @@ class LabelEnsemble(AbstractEnsemble[KT, DT, np.ndarray, RT, LT], MLBased[KT,DT,
         ]
         return self
 
-    def _choose_learner(self) -> ActiveLearner[KT, DT, np.ndarray, RT, LT]:
+    def _choose_learner(self) -> ActiveLearner[IT, KT, DT, np.ndarray, RT, LT]:
         labelcounts = [(self.env.labels.document_count(label), label)
                        for label in self.env.labels.labelset]
         min_label = min(labelcounts)[1]

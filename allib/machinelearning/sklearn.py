@@ -11,7 +11,7 @@ from sklearn.base import ClassifierMixin, TransformerMixin  # type: ignore
 
 from ..balancing import BaseBalancer, IdentityBalancer
 from ..environment import AbstractEnvironment
-from ..instances import Instance
+from instancelib.instances import Instance
 from ..utils import SaveableInnerModel
 from ..utils.func import list_unzip
 from .base import AbstractClassifier
@@ -31,7 +31,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
         self._target_labels: FrozenSet[str] = frozenset()
         self.balancer = balancer
 
-    def __call__(self, environment: AbstractEnvironment[int, Any, np.ndarray, Any, str]) -> SkLearnClassifier:
+    def __call__(self, environment: AbstractEnvironment[Any, int, Any, np.ndarray, Any, str]) -> SkLearnClassifier:
         self._target_labels = frozenset(environment.labels.labelset)
         self.encoder.fit(list(self._target_labels)) # type: ignore
         return self
@@ -130,7 +130,7 @@ class SkLearnClassifier(SaveableInnerModel, AbstractClassifier[int, np.ndarray, 
 
 class MultilabelSkLearnClassifier(SkLearnClassifier):
     _name = "Multilabel Sklearn"
-    def __call__(self, environment: AbstractEnvironment[int, Any, np.ndarray, Any, str]) -> SkLearnClassifier:
+    def __call__(self, environment: AbstractEnvironment[Any, int, Any, np.ndarray, Any, str]) -> SkLearnClassifier:
         self._target_labels = frozenset(environment.labels.labelset)
         self.encoder.fit(list(map(lambda x: {x}, self._target_labels))) # type: ignore
         return self

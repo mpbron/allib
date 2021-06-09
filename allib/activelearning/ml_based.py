@@ -11,27 +11,21 @@ from typing import (Any, Callable, Dict, FrozenSet, Generic, Iterator,
                     Optional, Sequence, Tuple, TypeVar)
 
 import numpy as np  # type: ignore
+from instancelib.instances.base import Instance, InstanceProvider
 from sklearn.exceptions import NotFittedError  # type: ignore
 
 from ..environment import AbstractEnvironment
 from ..exceptions import NoOrderingException, NotInitializedException
 from ..exceptions.base import NoLabeledDataException, NoVectorsException
-from ..instances.base import Instance, InstanceProvider
 from ..machinelearning import AbstractClassifier
 from ..utils import divide_sequence, mapsnd
 from ..utils.func import filter_snd_none, list_unzip, sort_on
-
 from .base import ActiveLearner
 from .poolbased import PoolBasedAL
 from .random import RandomSampling
 
-DT = TypeVar("DT")
-VT = TypeVar("VT")
-KT = TypeVar("KT")
-LT = TypeVar("LT")
-RT = TypeVar("RT")
-LVT = TypeVar("LVT")
-PVT = TypeVar("PVT")
+from ..typehints import KT, DT, VT, LT, RT, IT, LVT, PVT
+
 FT = TypeVar("FT")
 
 LOGGER = logging.getLogger(__name__)
@@ -48,7 +42,7 @@ class FeatureMatrix(Generic[KT]):
         return self.indices[row_idx]
 
     @classmethod
-    def generator_from_provider_mp(cls, provider: InstanceProvider[KT, Any, np.ndarray, Any], batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
+    def generator_from_provider_mp(cls, provider: InstanceProvider[Any, KT, Any, np.ndarray, Any], batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
         for key_batch in divide_sequence(provider.key_list, batch_size):
             ret_keys, vectors = provider.bulk_get_vectors(key_batch)
             matrix = cls(ret_keys, vectors)
@@ -56,7 +50,7 @@ class FeatureMatrix(Generic[KT]):
 
     @classmethod
     def generator_from_provider(cls,
-                                provider: InstanceProvider[KT, Any, np.ndarray, Any],
+                                provider: InstanceProvider[Any, KT, Any, np.ndarray, Any],
                                 batch_size: int = 100) -> Iterator[FeatureMatrix[KT]]:
         for tuple_batch in provider.vector_chunker(batch_size):
             keys, vectors = list_unzip(tuple_batch)
@@ -64,11 +58,11 @@ class FeatureMatrix(Generic[KT]):
             yield matrix
 
 
-class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, PVT]):
+class MLBased(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT, LVT, PVT]):
    
     def __init__(self,
                  classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
-                 fallback: PoolBasedAL[KT, DT, VT, RT, LT] = RandomSampling[KT, DT, VT, RT, LT](),
+                 fallback: PoolBasedAL[IT, KT, DT, VT, RT, LT] = RandomSampling[IT, KT, DT, VT, RT, LT](),
                  batch_size = 200,
                  *_, identifier: Optional[str] = None, **__
                  ) -> None:
@@ -105,8 +99,8 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         return self._uses_fallback
 
     def __call__(self, 
-            environment: AbstractEnvironment[KT, DT, VT, RT, LT]
-        ) -> MLBased[KT, DT, VT, RT, LT, LVT, PVT]:
+            environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
+        ) -> MLBased[IT, KT, DT, VT, RT, LT, LVT, PVT]:
         super().__call__(environment)
         self.fallback = self.fallback(self.env)
         self.classifier = self.classifier(self.env)
@@ -201,8 +195,8 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
         return f"{self._name} :: {self.classifier.name}", None
 
     @staticmethod
-    def iterator_fallback(func: Callable[..., Instance[KT, DT, VT, RT]]
-                        ) -> Callable[..., Instance[KT, DT, VT, RT]]:
+    def iterator_fallback(func: Callable[..., IT]
+                        ) -> Callable[..., IT]:
         """A decorator for fallback. If the ``__next__`` function
         fails, the fallback model's ``__next__`` will be used instead.
 
@@ -226,9 +220,9 @@ class MLBased(PoolBasedAL[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT, LVT, 
             The same method with an fallback
         """        
         @functools.wraps(func)
-        def wrapper(self: MLBased[KT, DT, VT, RT, LT, LVT, PVT],
+        def wrapper(self: MLBased[IT, KT, DT, VT, RT, LT, LVT, PVT],
                     *args: Any,
-                    **kwargs: Dict[str, Any]) -> Instance[KT, DT, VT, RT]:
+                    **kwargs: Dict[str, Any]) -> IT:
             if not self.uses_fallback:
                 try:
                     return func(self, *args, **kwargs)
@@ -267,7 +261,7 @@ class AbstractSelectionCriterion(ABC):
         """
         raise NotImplementedError
 
-class ProbabilityBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], ABC, Generic[KT, DT, RT, LT]):
+class ProbabilityBased(MLBased[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], ABC, Generic[IT, KT, DT, RT, LT]):
     """
     An Active Learner that uses information in the probability matrix (i.e., the
     results of the classifier on the *unlabeled*  set of instances).
@@ -295,7 +289,7 @@ class ProbabilityBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarra
     def __init__(self,
                  classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray],
                  selection_criterion: AbstractSelectionCriterion,
-                 fallback: PoolBasedAL[KT, DT, np.ndarray, RT, LT] = RandomSampling[KT, DT, np.ndarray, RT, LT](),
+                 fallback: PoolBasedAL[IT, KT, DT, np.ndarray, RT, LT] = RandomSampling[IT, KT, DT, np.ndarray, RT, LT](),
                  batch_size = 200,
                  *_, identifier: Optional[str] = None, **__
                  ) -> None:
@@ -406,8 +400,7 @@ class ProbabilityBased(MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarra
             return True
 
     @MLBased.iterator_fallback # type: ignore
-    def __next__(self):
-        value: Instance[KT, DT, np.ndarray, RT] = super(
-            ProbabilityBased, self).__next__()
+    def __next__(self) -> IT:
+        value = super().__next__()
         return value
 

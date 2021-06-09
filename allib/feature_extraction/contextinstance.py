@@ -4,7 +4,7 @@ from typing import Sequence, Any, Generic, TypeVar
 
 import numpy as np # type: ignore
 
-from ..instances.base import ContextInstance
+from instancelib.instances.base import ContextInstance
 from ..utils.func import list_unzip
 
 from .base import BaseVectorizer, SeparateContextVectorizer

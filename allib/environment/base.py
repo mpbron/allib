@@ -3,44 +3,19 @@ from __future__ import annotations
 from typing import Generic, Sequence, TypeVar, Any
 from abc import ABC, abstractmethod, abstractclassmethod
 from ..history import BaseLogger
-from ..instances import InstanceProvider
-from ..labels import LabelProvider
+from instancelib import InstanceProvider, Instance
+from instancelib.typehints import KT, DT, VT, RT, LT
+from instancelib.labels import LabelProvider
 
-KT = TypeVar("KT")
-LT = TypeVar("LT")
-VT = TypeVar("VT")
-DT = TypeVar("DT")
-RT = TypeVar("RT")
+import instancelib as ins
 
-class AbstractEnvironment(ABC, Generic[KT, DT, VT, RT, LT]):
-    @abstractmethod
-    def create_empty_provider(self) -> InstanceProvider[KT, DT, VT, RT]:
-        """Use this method to create an empty `InstanceProvider`
+IT = TypeVar("IT", bound="Instance[Any, Any, Any, Any]", covariant=True)
 
-        Returns
-        -------
-        InstanceProvider[KT, DT, VT, RT]
-            The newly created provider
-        """        
-        raise NotImplementedError
-
+class AbstractEnvironment(ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT], 
+                          ABC, Generic[IT, KT, DT, VT, RT, LT]):
     @property
     @abstractmethod
-    def dataset(self) -> InstanceProvider[KT, DT, VT, RT]:
-        """This property contains the `InstanceProvider` that contains
-        the whole dataset. This provider should include all instances
-        that are contained in the other providers.
-
-        Returns
-        -------
-        InstanceProvider[KT, DT, VT, RT]
-            The dataset `InstanceProvider`
-        """        
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def unlabeled(self) -> InstanceProvider[KT, DT, VT, RT]:
+    def unlabeled(self) -> InstanceProvider[IT, KT, DT, VT, RT]:
         """This `InstanceProvider` contains all unlabeled instances.
         `ActiveLearner` methods sample instances from this provider/
 
@@ -53,7 +28,7 @@ class AbstractEnvironment(ABC, Generic[KT, DT, VT, RT, LT]):
 
     @property
     @abstractmethod
-    def labeled(self) -> InstanceProvider[KT, DT, VT, RT]:
+    def labeled(self) -> InstanceProvider[IT, KT, DT, VT, RT]:
         """This `InstanceProvider` contains all labeled instances.
         `ActiveLearner` may use this provider to train a classifier
         to sample instances from the `unlabeled` provider.
@@ -80,19 +55,6 @@ class AbstractEnvironment(ABC, Generic[KT, DT, VT, RT, LT]):
 
     @property
     @abstractmethod
-    def labels(self) -> LabelProvider[KT, LT]:
-        """This property contains provider that maps instances to labels and
-        vice-versa. 
-
-        Returns
-        -------
-        LabelProvider[KT, LT]
-            The label provider
-        """        
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
     def truth(self) -> LabelProvider[KT, LT]:
         """This property contains a `LabelProvider` that maps 
         instances to *ground truth* labels and vice-versa. 
@@ -107,73 +69,11 @@ class AbstractEnvironment(ABC, Generic[KT, DT, VT, RT, LT]):
         """
         raise NotImplementedError
 
-    @abstractmethod
-    def store(self, key: str, value: Any) -> None:
-        """Use this method to store some data in this environment's 
-        Key Value storage that can be retrieved later. 
-
-        Parameters
-        ----------
-        key : str
-            An identification key for the data
-        value : Any
-            The data that should be stored
-        """        
-        raise NotImplementedError
-
-    @abstractmethod
-    def storage_exists(self, key: str) -> bool:
-        """Check if documents with `key` exist in this Environment/
-
-        Parameters
-        ----------
-        key : str
-            The identification key
-
-        Returns
-        -------
-        bool
-            True if there is data stored for `key`
-        """        
-        raise NotImplementedError
-
-    @abstractmethod
-    def retrieve(self, key: str) -> Any:
-        """Retrieve the data stored with key `key`.
-
-        Parameters
-        ----------
-        key : str
-            The identification key
-
-        Returns
-        -------
-        Any
-            The data stored for key `key`
-        """        
-        raise NotImplementedError
-
-    def add_vectors(self, keys: Sequence[KT], vectors: Sequence[VT]) -> None:
-        """This method adds feature vectors or embeddings to instances 
-        associated with the keys in the first parameters. The sequences
-        `keys` and `vectors` should have the same length.
-
-
-        Parameters
-        ----------
-        keys : Sequence[KT]
-            A sequence of keys
-        vectors : Sequence[VT]
-            A sequence of vectors that should be associated with the instances 
-            of the sequence `keys`
-        """        
-        self.dataset.bulk_add_vectors(keys, vectors)
-
     @abstractclassmethod
     def from_environment(cls, 
-                         environment: AbstractEnvironment[KT, DT, VT, RT, LT],
+                         environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
                          *args, **kwargs
-                        ) -> AbstractEnvironment[KT, DT, VT, RT, LT]:
+                        ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
         """Create a new independent environment with the same state.
         Implementations may enable conversion from and to several types
         of Enviroments.
@@ -190,3 +90,4 @@ class AbstractEnvironment(ABC, Generic[KT, DT, VT, RT, LT]):
         """        
         raise NotImplementedError
 
+    

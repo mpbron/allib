@@ -68,7 +68,7 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         return final_row
 
     def get_occasion_history(self, 
-                             estimator: Estimator[KT, DT, VT, RT, LT], 
+                             estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                              label: LT) -> pd.DataFrame:
         contingency_sets = self.get_contingency_sets(estimator, label)
         learner_keys = union(*contingency_sets.keys())
@@ -81,7 +81,7 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         self.matrix_history.append(df)
         return df
 
-    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+    def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df = self.get_occasion_history(estimator, label)
         with localconverter(ro.default_converter + pandas2ri.converter):
@@ -93,7 +93,7 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
 
     
     def calculate_abundance(self, 
-                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                             label: LT) -> Tuple[float, float]:
         res_df = self.calculate_abundance_R(estimator, label)
         estimate_missing = res_df.values[0,0]
@@ -101,10 +101,10 @@ class RaschEstimator(AbundanceEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         total_found = estimator.env.labels.document_count(label)
         return (total_found + estimate_missing), estimate_error * 2
 
-    def all_estimations(self, estimator: Estimator[KT, DT, VT, RT, LT], label: LT) -> Sequence[Tuple[str, float, float]]:
+    def all_estimations(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT) -> Sequence[Tuple[str, float, float]]:
         return []
 
-    def __call__(self, learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
+    def __call__(self, learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
             return 0.0, 0.0, 0.0
         abundance, error = self.calculate_abundance(learner, label)
@@ -121,7 +121,7 @@ class NonParametricRasch(RaschEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
 
     
 
-    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+    def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df = self.get_occasion_history(estimator, label)
         with localconverter(ro.default_converter + pandas2ri.converter):
@@ -132,7 +132,7 @@ class NonParametricRasch(RaschEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         return res_df
 
     def calculate_estimate(self, 
-                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                             label: LT) -> Tuple[float, float, float]:
         res_df = self.calculate_abundance_R(estimator, label)
         horizon = res_df.values[0,0]
@@ -141,7 +141,7 @@ class NonParametricRasch(RaschEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
         return horizon, horizon_lowerbound, horizon_upperbound
     
     def __call__(self, 
-        learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
+        learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
             return 0.0, 0.0, 0.0
         estimate, lower_bound, upper_bound = self.calculate_estimate(learner, label)
@@ -149,7 +149,7 @@ class NonParametricRasch(RaschEstimator[KT, DT, VT, RT, LT], Generic[KT, DT, VT,
 
 class ParametricRasch(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     name = "RaschParametric"
-    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+    def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df = self.get_occasion_history(estimator, label)
         with localconverter(ro.default_converter + pandas2ri.converter):
@@ -222,7 +222,7 @@ class EMRasch(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT
         r_script_file = os.path.join(filedir, "rasch_em.R")
         R["source"](r_script_file)
 
-    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+    def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df_pos = self.get_occasion_history(estimator, label)
         df_neg = self.get_occasion_history(estimator, self.neg_label)
@@ -236,14 +236,14 @@ class EMRasch(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT
         return res_df
 
     def calculate_estimate(self, 
-                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                             label: LT) -> Tuple[float, float, float]:
         res_df = self.calculate_abundance_R(estimator, label)
         horizon = res_df.values[0,0]
         return horizon, horizon, horizon
     
     def __call__(self, 
-        learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
+        learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
             return 0.0, 0.0, 0.0
         estimate, lower_bound, upper_bound = self.calculate_estimate(learner, label)
@@ -252,7 +252,7 @@ class EMRasch(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT
 class EMRaschCombined(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     name = "EMRaschCombined"
     def get_contingency_sets_negative(self, 
-                                      estimator: Estimator[KT, DT, VT, RT, LT], 
+                                      estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                                       label: LT) -> Dict[FrozenSet[int], FrozenSet[KT]]:
         learner_sets = {
                 learner_key: (
@@ -307,7 +307,7 @@ class EMRaschCombined(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT
         return final_row
 
     def get_occasion_history(self, 
-                             estimator: Estimator[KT, DT, VT, RT, LT], 
+                             estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                              label: LT) -> pd.DataFrame:
         contingency_sets_pos = self.get_contingency_sets(estimator, label)
         contingency_sets_neg = self.get_contingency_sets_negative(estimator, label)
@@ -336,7 +336,7 @@ class EMRaschCombined(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT
         r_script_file = os.path.join(filedir, "rasch_em_comb.R")
         R["source"](r_script_file)
 
-    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+    def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df_pos = self.get_occasion_history(estimator, label)
         dataset_size = len(estimator.env.dataset)
@@ -348,14 +348,14 @@ class EMRaschCombined(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT
         return res_df
 
     def calculate_estimate(self, 
-                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                             label: LT) -> Tuple[float, float, float]:
         res_df = self.calculate_abundance_R(estimator, label)
         horizon = res_df.values[0,0]
         return horizon, horizon, horizon
     
     def __call__(self, 
-        learner: ActiveLearner[KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
+        learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Tuple[float, float, float]:
         if not isinstance(learner, Estimator):
             return 0.0, 0.0, 0.0
         estimate, lower_bound, upper_bound = self.calculate_estimate(learner, label)
@@ -392,7 +392,7 @@ class EMAlternative(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT,
         return final_row
 
 class EMRaschRidge(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
-    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+    def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df_pos = self.get_occasion_history(estimator, label)
         dataset_size = len(estimator.env.dataset)
@@ -404,7 +404,7 @@ class EMRaschRidge(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, 
         return res_df
 
 class EMRaschCombinedBootstrap(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
-    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+    def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df_pos = self.get_occasion_history(estimator, label)
         dataset_size = len(estimator.env.dataset)
@@ -416,7 +416,7 @@ class EMRaschCombinedBootstrap(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, 
         return res_df
 
     def calculate_estimate(self, 
-                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                             label: LT) -> Tuple[float, float, float]:
         res_df = self.calculate_abundance_R(estimator, label)
         horizon = res_df.values[0,0]
@@ -425,7 +425,7 @@ class EMRaschCombinedBootstrap(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, 
         return horizon, lowerbound, upperbound
 
 class EMRaschRidgeCombinedBootstrap(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
-    def calculate_abundance_R(self, estimator: Estimator[KT, DT, VT, RT, LT], 
+    def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
         df_pos = self.get_occasion_history(estimator, label)
         dataset_size = len(estimator.env.dataset)
@@ -437,7 +437,7 @@ class EMRaschRidgeCombinedBootstrap(EMRaschCombined[KT, DT, VT, RT, LT], Generic
         return res_df
 
     def calculate_estimate(self, 
-                            estimator: Estimator[KT, DT, VT, RT, LT], 
+                            estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                             label: LT) -> Tuple[float, float, float]:
         res_df = self.calculate_abundance_R(estimator, label)
         horizon = res_df.values[0,0]

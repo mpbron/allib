@@ -4,7 +4,7 @@ from typing import Sequence, Any
 
 import numpy as np # type: ignore
 
-from ..instances import Instance
+from instancelib import Instance
 
 from .base import BaseVectorizer
 
