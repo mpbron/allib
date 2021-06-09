@@ -2,7 +2,7 @@ from logging import currentframe
 from typing import Any, Generic, Sequence, Tuple
 
 import itertools
-
+import warnings
 from numpy.linalg import LinAlgError
 import pandas as pd
 
@@ -17,11 +17,15 @@ def l2(b0: np.ndarray,
        counts: np.ndarray,
        N: int,
        lam: float = 0, 
-       tolerance: float = 1e-8
+       tolerance: float = 1e-8,
+       max_it: int = 10000
        ) -> np.ndarray:
     current_tolerance = 1
     b = b0
-    while current_tolerance > tolerance:
+    it = 0
+    while current_tolerance > tolerance and it < max_it:
+        it = it + 1
+
         mu = np.exp(design_mat @ b0)
         all_but_first_b0: np.ndarray = b0[1:]
         lbpart: np.ndarray = 2 * np.concatenate(
@@ -44,6 +48,8 @@ def l2(b0: np.ndarray,
             b = b0 + invI @ db
             current_tolerance = np.sum(np.abs(b0 - b))
             b0 = b
+    if it >= max_it:
+        warnings.warn(f"Exceeded maximum L2 iterations ({max_it}). Estimate might not be accurate")
     return b
 
 def calc_deviance(y: np.ndarray, y_hat: np.ndarray) -> float:
@@ -165,6 +171,7 @@ def rasch_estimate(freq_df: pd.DataFrame,
             np.exp(design_mat @ beta))
         current_tolerance = old_deviance - deviance
         if it > max_it:
+            warnings.warn(f"Exceeded maximum EM iterations ({max_it}). Estimate might not be accurate")
             return float("nan"), float("nan"), float("nan")
 
 
