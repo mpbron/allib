@@ -100,7 +100,7 @@ def calculate_ci_rasch(intercept: float,
 def rasch_estimate(freq_df: pd.DataFrame, 
                 n_dataset: int,
                 proportion: float = 0.1,
-                tolerance: float = 1e-5) -> Tuple[float, float, float]:
+                tolerance: float = 1e-5, max_it: int = 1000) -> Tuple[float, float, float]:
     # Calculate general frequency statistics
     n_notread = n_dataset - np.sum(freq_df["count"].values)
     n_pos = proportion * n_notread
@@ -154,6 +154,7 @@ def rasch_estimate(freq_df: pd.DataFrame,
     current_tolerance = 1
     
     # Expectation Maximization 
+    it = 0
     while current_tolerance > tolerance:
         old_deviance = deviance
         mfit = np.exp(design_mat @ beta)
@@ -163,6 +164,8 @@ def rasch_estimate(freq_df: pd.DataFrame,
             obs_counts, 
             np.exp(design_mat @ beta))
         current_tolerance = old_deviance - deviance
+        if it > max_it:
+            return float("nan"), float("nan"), float("nan")
 
 
     # Calculate final results
@@ -184,13 +187,119 @@ def rasch_estimate(freq_df: pd.DataFrame,
     
     return positive_estimate, lower_bound, upper_bound
 
+def rasch_estimate_delta_method(freq_df: pd.DataFrame, 
+                n_dataset: int,
+                proportion: float = 0.1,
+                tolerance: float = 1e-5) -> Tuple[float, float, float]:
+    # Calculate general frequency statistics
+    n_notread = n_dataset - np.sum(freq_df["count"].values)
+    n_pos = proportion * n_notread
+    n_neg = (1 - proportion) * n_dataset
+
+    # Add place holder rows for the counts that we aim to estimate
+    df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
+    
+    # Change the dataframe in the correct format for the L2 algorithm
+    learner_cols = list(df_w_missing
+        .filter(regex=r"^(?:(?!positive$).)+$")
+        .filter(regex=r"^learner")
+        )
+    df_formatted = l2_format(df_w_missing, learner_cols)
+    
+    # Gather some column indices that we need below to access data from the matrices
+    positive_col_idx = list(df_formatted.columns).index("positive")
+    all_pos_cols = list(df_formatted
+        .filter(regex=r"positive"))
+
+    # Calculate row masks to select data from the matrices and vectors
+    obs_mask = list(df_formatted[learner_cols].sum(axis=1) > 0)
+    est_mask = list(df_formatted[learner_cols].sum(axis=1) <= 0)
+    pos_mask = list(df_formatted.positive > 0)
+    neg_mask = list(df_formatted.positive <= 0)
+    neg_est_mask = [est & neg for est, neg in zip(est_mask, neg_mask)]
+    pos_est_mask = [est & pos for est, pos in zip(est_mask, pos_mask)]
+
+    design_mat = (
+        df_formatted.loc[:, df_formatted.columns != 'count'] # type: ignore
+            .values) # type: ignore
+    
+    # Calculate start values
+    obs_counts = df_formatted["count"].values
+    efit = df_formatted["count"].values
+    efit[pos_est_mask] = n_pos
+    efit[neg_est_mask] = n_neg
+    mfit = efit
+
+    # Calculate initial fit
+    b0 = np.hstack(
+        [
+            np.log([n_dataset]), 
+            np.repeat(0,design_mat.shape[1] - 1)
+        ])
+    beta = l2(b0, design_mat, efit, n_dataset)
+    deviance = calc_deviance(
+            obs_counts, 
+            np.exp(np.matmul(design_mat, beta)))
+    
+    current_tolerance = 1
+    
+    # Expectation Maximization 
+    while current_tolerance > tolerance:
+        old_deviance = deviance
+        mfit = np.exp(design_mat @ beta)
+        efit[est_mask] = mfit[est_mask] * n_notread / np.sum(mfit[est_mask])
+        beta = l2(beta, design_mat, efit, n_dataset)
+        deviance = calc_deviance(
+            obs_counts, 
+            np.exp(design_mat @ beta))
+        current_tolerance = old_deviance - deviance
+
+
+    # Calculate final results
+    fitted = np.exp(design_mat @ beta)
+    positive_estimate: float = fitted[pos_est_mask][0]
+
+    # Calculate standard error on predictors using the delta method
+    mat_w = np.diag(fitted)
+    design_mat_t = design_mat.conj().transpose()
+    vcov = np.linalg.inv(design_mat_t @ mat_w @ design_mat)
+
+    
+    design_mat_pos = np.vstack([
+        design_mat[pos_mask], design_mat[pos_mask]
+    ])
+    design_mat_neg = np.vstack([
+        design_mat[neg_mask], design_mat[neg_mask]
+    ])
+    pred_pos = design_mat_pos @ beta
+    pred_neg = design_mat_neg @ beta
+
+    deriv_pos = np.exp(pred_pos)
+    deriv_neg = np.exp(pred_neg)
+
+    jacobian_pos = deriv_pos @ design_mat_pos / design_mat_pos.shape[0]
+    jacobian_neg = deriv_neg @ design_mat_neg / design_mat_neg.shape[0]
+
+    variance_pos = jacobian_pos @ vcov @ jacobian_pos.transpose()
+    variance_neg = jacobian_neg @ vcov @ jacobian_neg.transpose()
+    
+    se_pos = np.sqrt(variance_pos)
+    
+
+    # Calculate confidence interval on estimates    
+    lower_bound = positive_estimate - 2 * se_pos
+    upper_bound = positive_estimate + 2 * se_pos
+    
+    return positive_estimate, lower_bound, upper_bound
+
 
 
 
 class EMRaschRidgePython(
             EMRaschCombined[KT, DT, VT, RT, LT], 
             Generic[KT, DT, VT, RT, LT]):
-
+    def _start_r(self) -> None:
+        pass
           
     def calculate_estimate(self, 
                            estimator: Estimator[KT, DT, VT, RT, LT], 

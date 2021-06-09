@@ -54,6 +54,28 @@ al_config_lgbm = {
         }
     }
 }
+al_config_svm_random = {
+    "paradigm": Cat.AL.Paradigm.PROBABILITY_BASED_ENSEMBLE,
+    "strategies": [
+        { "query_type": Cat.AL.QueryType.MAX_ENTROPY},
+        { "query_type": Cat.AL.QueryType.MOST_CONFIDENCE},
+    ],
+    "machinelearning": {
+        "sklearn_model": Cat.ML.SklearnModel.SVC,
+        "model_configuration": {
+            "kernel": "linear", 
+            "probability": True, 
+            "class_weight": "balanced"
+        },
+        "task": Cat.ML.Task.MULTILABEL,
+        "balancer": {
+            "type": Cat.BL.Type.IDENTITY,
+            "config": {}
+        },
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
+    },
+}
+
 al_config_ensemble_prob = {
     "paradigm": Cat.AL.Paradigm.PROBABILITY_BASED_ENSEMBLE,
     "strategies": [
@@ -207,6 +229,27 @@ rasch_estimator = {
     ]
 }
 
+rasch_random_estimator = {
+    "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+    "learners": [
+        add_identifier(al_config_nb, "NaiveBayes"),
+        add_identifier(al_config_svm, "SVM"),
+        add_identifier(al_config_rf, "RandomForest"),
+        add_identifier(al_config_random, "Random3"),
+    ]
+}
+
+# rasch_random_estimator = {
+#     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+#     "learners": [
+#         add_identifier(al_config_random, "Random1"),
+#         add_identifier(al_config_random, "Random2"),
+#         add_identifier(al_config_random, "Random3"),
+#     ]
+# }
+
+
+
 al_config_est3 = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
     "learners": [
@@ -216,6 +259,17 @@ al_config_est3 = {
         add_identifier(al_config_nb, "NaiveBayes4"),
     ]
 }
+al_config_est5 = {
+    "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+    "learners": [
+        add_identifier(al_config_nb, "NaiveBayes1"),
+        add_identifier(al_config_svm, "SVM"),
+        add_identifier(al_config_rf, "RandomForest"),
+        add_identifier(al_config_svm, "SVM2"),
+        add_identifier(al_config_svm, "SVM3"),
+    ]
+}
+
 al_config_ens = {
     "paradigm": Cat.AL.Paradigm.ENSEMBLE,
     "learners": [
