@@ -39,7 +39,7 @@ class AbstractMemoryEnvironment(AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         return self._public_dataset
 
     @property
-    def all_datapoints(self) -> InstanceProvider[IT, KT, DT, VT, RT]:
+    def all_instances(self) -> InstanceProvider[IT, KT, DT, VT, RT]:
         return self._dataset
     
     @property

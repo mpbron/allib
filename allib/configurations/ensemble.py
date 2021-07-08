@@ -24,6 +24,29 @@ al_config_svm = {
         }
     }
 }
+
+al_config_lr = {
+    "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,
+    "query_type": Cat.AL.QueryType.LABELMAXIMIZER,
+    "label": "Relevant",
+    "machinelearning": {
+        "sklearn_model": Cat.ML.SklearnModel.LOGISTIC,
+        "model_configuration": {
+            "solver":"liblinear",
+            "C": 1.0,
+            "class_weight":{
+                0: 1.0,
+                1: 1.0,
+            },
+        },
+        "task": Cat.ML.Task.BINARY,
+        "balancer": {
+            "type": Cat.BL.Type.DOUBLE,
+            "config": {}
+        }
+    }
+}
+
 al_config_nb = {
     "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,
     "query_type": Cat.AL.QueryType.LABELMAXIMIZER,
@@ -226,6 +249,22 @@ rasch_estimator = {
         add_identifier(al_config_nb, "NaiveBayes"),
         add_identifier(al_config_svm, "SVM"),
         add_identifier(al_config_rf, "RandomForest"),
+    ]
+}
+rasch_lr = {
+    "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+    "learners": [
+        add_identifier(al_config_nb, "NaiveBayes"),
+        add_identifier(al_config_svm, "SVM"),
+        add_identifier(al_config_lr, "LogisticRegression"),
+    ]
+}
+rasch_rf = {
+    "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+    "learners": [
+        add_identifier(al_config_rf, "RandomForest1"),
+        add_identifier(al_config_rf, "RandomForest2"),
+        add_identifier(al_config_rf, "RandomForest3"),
     ]
 }
 

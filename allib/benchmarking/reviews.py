@@ -14,12 +14,11 @@ from ..analysis.analysis import process_performance
 from ..analysis.initialization import SeparateInitializer
 from ..analysis.plotter import AbstractPlotter, BinaryPlotter
 from ..analysis.simulation import initialize, simulate
-from ..analysis.stopping import RaschCaptureCriterion
-from ..configurations.base import AL_REPOSITORY, FE_REPOSITORY
-from ..configurations.catalog import ALConfiguration, FEConfiguration
+from ..analysis.stopping import CombinedStopCriterion, RaschCaptureCriterion
 from ..environment import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
 from ..estimation.rasch import ParametricRasch
+from ..estimation.rasch_python import EMRaschRidgePython
 from ..module.factory import MainFactory
 from ..utils.func import list_unzip3
 
@@ -101,8 +100,8 @@ def benchmark(path: PathLike,
     factory = MainFactory()
     # TODO: Enable creation from parameters
     initializer = SeparateInitializer(environment, 1)
-    rasch = ParametricRasch[int, str, np.ndarray, str, str]()
-    stop = RaschCaptureCriterion[str](rasch, "Relevant", 3, 1.0)
+    rasch = EMRaschRidgePython[int, str, np.ndarray, str, str]()
+    stop = CombinedStopCriterion[str](rasch, "Relevant", 3, 1.0, 0.01)
     
     # Simulate the annotation workflow
     plotter = BinaryPlotter[str]("Relevant", "Irrelevant", rasch)

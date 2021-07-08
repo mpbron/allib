@@ -165,7 +165,7 @@ class BinaryPlotter(AbstractPlotter[LT], Generic[LT]):
             total_learner = int(pos_counts[col].iloc[-1]) # type: ignore
             plt.plot(n_documents_read, 
                      pos_counts[col], 
-                     label=f"# found by $L_{i}$ ({total_learner})")
+                     label="# found by $\\mathcal{C}" f"_{i}$ ({total_learner})")
         if all_estimations:
             # Plotting estimations
             estimations = df.filter(regex="estimation$") #type: ignore
@@ -188,7 +188,7 @@ class BinaryPlotter(AbstractPlotter[LT], Generic[LT]):
             upper_colname = f"{col}_up"
             lower_bounds = np.array(df[low_colname])
             upper_bounds = np.array(df[upper_colname])
-            plt.plot(n_documents_read, ests, "-.", label=f"Estimate ({i})") # type: ignore
+            plt.plot(n_documents_read, ests, "-.", label=f"Estimate") # type: ignore
             plt.fill_between(n_documents_read, # type: ignore
                              lower_bounds, # type: ignore
                              upper_bounds, # type: ignore

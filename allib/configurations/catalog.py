@@ -5,6 +5,8 @@ class ALConfiguration(Enum):
     SVMEstimator = "SVMEstimator"
     MixedEstimator = "MixedEstimator"
     RaschEstimator = "RaschEstimator"
+    RaschLR = "RaschLR"
+    RaschRF = "RaschRF"
     EntropySamplingNB = "EntropySamplingNB"
     ProbabilityEnsemble = "ProbabilityEnsemble"
 

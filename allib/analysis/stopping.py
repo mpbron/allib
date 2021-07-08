@@ -198,3 +198,84 @@ class EnsembleConvergenceCriterion(SameStateCount[LT], Generic[LT]):
                 return False 
             return self.has_been_different and self.same_count and self.within_margin
         return super().stop_criterion
+
+class CombinedStopCriterion(RaschCaptureCriterion[LT], Generic[LT]):
+    def __init__(self, 
+                 calculator: AbundanceEstimator[Any, Any, Any, Any, LT],
+                 label: LT, same_state_count: int, margin: float, convergence_margin: float):
+        super().__init__(calculator, label, same_state_count, margin)
+        self.convergence_margin = convergence_margin
+        self.missing_history: Deque[float] = collections.deque()
+
+    def add_missing(self, value: float) -> None:
+        if len(self.missing_history) > self.same_state_count:
+            self.missing_history.pop()
+        self.missing_history.appendleft(value)
+
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
+        super().update(learner)
+        if isinstance(learner, Estimator):
+            common_positive = learner.env.labels.get_instances_by_label(self.label)
+
+            positive_sets = intersection(*[
+                    (member.env.labels
+                        .get_instances_by_label(self.label)
+                        .intersection(member.env.labeled)) 
+                    for member in learner.learners
+                ])
+            missing_percentage = 1.0 - len(positive_sets) / len(common_positive)
+            self.add_missing(missing_percentage)
+
+    @property
+    def missing_ratio(self) -> float:
+        return self.missing_history[0]
+
+    @property
+    def within_margin(self) -> bool:
+        return self.missing_ratio <= self.convergence_margin
+
+    @property
+    def stop_criterion(self) -> bool:
+        if self.missing_history:
+            if len(self.pos_history) < self.same_state_count:
+                return False 
+            return self.has_been_different and self.same_count and self.within_margin or super().stop_criterion
+        return super().stop_criterion
+
+class TwoCombinedStopCriterion(CombinedStopCriterion, Generic[LT]):
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
+        super().update(learner)
+        if isinstance(learner, Estimator):
+            common_positive = learner.env.labels.get_instances_by_label(self.label)
+            common_positives = np.array(([len(common_positive) * len(learner.learners)]))
+            positive_sets = np.array([len(member.env.labels
+                                .get_instances_by_label(self.label)
+                                .intersection(member.env.labeled)) 
+                            for member in learner.learners
+                            ])
+            missing_percentages = 1.0 - positive_sets / common_positives
+            missing_percentage = 1.0 - len(positive_sets) / len(common_positive)
+            self.add_missing(missing_percentage)
+
+class UpperboundCombinedCritertion(CombinedStopCriterion[LT], Generic[LT]):
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
+        self.add_count(learner.env.labels.document_count(self.label))
+        if isinstance(learner, Estimator):
+            estimate, lower, upper = self.calculator(learner, self.label)
+            dataset_size = len(learner.env.dataset)
+            if upper < dataset_size:
+                self.add_estimate(upper)
+            common_positive = learner.env.labels.get_instances_by_label(self.label)
+            positive_sets = intersection(*[
+                    (member.env.labels
+                        .get_instances_by_label(self.label)
+                        .intersection(member.env.labeled)) 
+                    for member in learner.learners
+                ])
+            missing_percentage = 1.0 - len(positive_sets) / len(common_positive)
+            self.add_missing(missing_percentage)
+    
+    @property
+    def estimate_match(self) -> bool:
+        projected_recall = (self.count / self.estimate)
+        return projected_recall >= 0.95

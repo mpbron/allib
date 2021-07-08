@@ -1,5 +1,5 @@
 from logging import currentframe
-from typing import Any, Generic, Sequence, Tuple
+from typing import Any, Generic, List, Optional, Sequence, Tuple
 
 import itertools
 import warnings
@@ -18,8 +18,10 @@ def l2(b0: np.ndarray,
        N: int,
        lam: float = 0, 
        tolerance: float = 1e-8,
-       max_it: int = 10000
+       max_it: int = 10000,
+       epsilon: float = 0.1
        ) -> np.ndarray:
+    counts = counts + epsilon
     current_tolerance = 1
     b = b0
     it = 0
@@ -132,8 +134,8 @@ def rasch_estimate(freq_df: pd.DataFrame,
     est_mask = list(df_formatted[learner_cols].sum(axis=1) <= 0)
     pos_mask = list(df_formatted.positive > 0)
     neg_mask = list(df_formatted.positive <= 0)
-    neg_est_mask = [est & neg for est, neg in zip(est_mask, neg_mask)]
-    pos_est_mask = [est & pos for est, pos in zip(est_mask, pos_mask)]
+    neg_est_mask: List[bool] = [est & neg for est, neg in zip(est_mask, neg_mask)]
+    pos_est_mask: List[bool] = [est & pos for est, pos in zip(est_mask, pos_mask)]
 
     design_mat = (
         df_formatted.loc[:, df_formatted.columns != 'count'] # type: ignore
@@ -142,8 +144,8 @@ def rasch_estimate(freq_df: pd.DataFrame,
     
     obs_counts = df_formatted["count"].values
     efit = df_formatted["count"].values
-    efit[pos_est_mask] = n_pos
-    efit[neg_est_mask] = n_neg
+    efit[pos_est_mask] = n_pos # type: ignore
+    efit[neg_est_mask] = n_neg # type: ignore
     mfit = efit
 
     # Calculate initial fit
@@ -305,6 +307,13 @@ def rasch_estimate_delta_method(freq_df: pd.DataFrame,
 class EMRaschRidgePython(
             EMRaschCombined[KT, DT, VT, RT, LT], 
             Generic[KT, DT, VT, RT, LT]):
+    def __init__(self):
+        super().__init__()
+        self.df: Optional[pd.DataFrame] = None
+        self.est = float("nan")
+        self.est_low = float("nan")
+        self.est_high = float("nan")
+    
     def _start_r(self) -> None:
         pass
           
@@ -314,8 +323,10 @@ class EMRaschRidgePython(
         pos_count = estimator.env.labels.document_count(label)
         dataset_size = len(estimator.env.dataset)
         df = self.get_occasion_history(estimator, label)
-        est, est_low, est_up = rasch_estimate(df, dataset_size)
-        horizon = est + pos_count
-        horizon_low = est_low + pos_count
-        horizon_up = est_up + pos_count
+        if self.df is None or not self.df.equals(df):
+            self.df = df        
+            self.est, self.est_low, self.est_up = rasch_estimate(df, dataset_size)
+        horizon = self.est + pos_count
+        horizon_low = self.est_low + pos_count
+        horizon_up = self.est_up + pos_count
         return horizon, horizon_low, horizon_up

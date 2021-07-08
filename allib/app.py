@@ -1,3 +1,4 @@
+from allib.analysis.plotter import BinaryPlotter
 from pathlib import Path
 
 from os import PathLike
@@ -38,6 +39,7 @@ def run_benchmark(dataset_path: PathLike,
     # Save the plot table
     df_filename = target_path / f"run_{uuid}.csv"
     plot_filename = target_path / f"run_{uuid}.pdf"
+    assert isinstance(plot, BinaryPlotter)
     plot.result_frame.to_csv(df_filename)
 
     plot.show(filename=plot_filename)

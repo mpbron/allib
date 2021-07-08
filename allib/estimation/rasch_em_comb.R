@@ -41,7 +41,7 @@ rasch.em.comb <- function(freq.df, N, proportion=0.1, tolerance=1e-5){
     efit[!s] <- mfit[!s] * N0 / sum(mfit[!s]) 
     
     # Store new frequencies in data frame
-    df.em$count <- efit
+    df.em$count <- round(efit)
     
     # Fit log linear model and calculate deviance
     mstep <- glm(count ~ ., "poisson", df.em)
@@ -184,7 +184,7 @@ rasch.ridge.em.comb <- function(freq.df, N, proportion=0.1, tolerance=1e-5){
     deviance=devold,
     est.pos=mfit[s.pos,1],
     est.neg=mfit[s.neg,1],
-    std.err = se,#SE,
+    std.err = SE,#SE,
     cvm = cvm#cvm
   )
   return(ret)
