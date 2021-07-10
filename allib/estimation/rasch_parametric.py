@@ -56,13 +56,14 @@ def rasch_estimate(freq_df: pd.DataFrame,
     
     results = [glm(design_mat, np.array(m_count)) for m_count in only_observable_counts]
     estimates = [np.exp(result[0][0]) for result in results]
+    middle_estimate = np.percentile(estimates, 50)
     low_estimate = np.percentile(estimates, 2.5)
     high_estimate = np.percentile(estimates, 97.5)
 
     lower_bound = low_estimate
     upper_bound = high_estimate
    
-    return estimate, lower_bound, upper_bound
+    return middle_estimate, lower_bound, upper_bound
 
 
 class ParametricRaschPython(NonParametricRasch[KT, DT, VT, RT, LT], 
