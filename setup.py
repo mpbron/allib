@@ -1,3 +1,12 @@
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 import pathlib
 import setuptools # type: ignore
 
@@ -10,17 +19,31 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setuptools.setup( # type: ignore
     name="allib",
-    version="0.0.1",
-    description="A type-safe Active Learning library",
+    version="0.1.0.0",
+    description="A typed Active Learning Library",
     long_description=README,
     long_description_content_type="text/markdown",
     author="Michiel Bron",
     author_email="m.p.bron@uu.nl",
     license="GNU LGPL v3",
     classifiers=[
-        "License :: OSI Approved :: GNU LGPL v3",
+        "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
         "Programming Language :: Python"
     ],
+    package_data={"allib": ["py.typed"]},
     packages=setuptools.find_packages(), # type: ignore
-    python_requires=">=3.8"
+    python_requires=">=3.8",
+    install_requires=[
+        "numpy", 
+        "pandas", 
+        "h5py", 
+        "tables", 
+        "scikit-learn",
+        "scipy" 
+        "openpyxl", 
+        "xlrd",
+        "more-itertools"],
+    extra_requires={
+        "doc2vec": ["gensim"] 
+    }
 )
