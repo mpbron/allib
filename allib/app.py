@@ -1,3 +1,6 @@
+from allib.stopcriterion.catalog import StopCriterionCatalog
+from allib.configurations.catalog import EstimationConfiguration
+from .configurations.base import ESTIMATION_REPOSITORY, STOP_REPOSITORY
 from allib.analysis.plotter import BinaryPlotter
 from pathlib import Path
 
@@ -7,23 +10,36 @@ from .configurations import ALConfiguration, FEConfiguration, AL_REPOSITORY, FE_
 from uuid import uuid4
 
 import pandas as pd
-import pickle
 
 def run_benchmark(dataset_path: PathLike, 
                   target_dir: PathLike, 
                   al_choice: str, 
-                  fe_choice: str) -> None:
+                  fe_choice: str,
+                  estimation_choice: str,
+                  stop_choice: str
+                  ) -> None:
     # Parse Configuration
     al_setup = ALConfiguration(al_choice)
     fe_setup = FEConfiguration(fe_choice)
+    estimation_setup = EstimationConfiguration(estimation_choice)
+    stop_setup = StopCriterionCatalog(stop_choice)
     
     # Retrieve Configuration
     al_config = AL_REPOSITORY[al_setup]
     fe_config = FE_REPOSITORY[fe_setup]
+    estimation_config = ESTIMATION_REPOSITORY[estimation_setup] 
+    stop_constructor = STOP_REPOSITORY[stop_setup]
+    
+    
     
     # Run Benchmark
     uuid = uuid4()
-    result, plot = benchmark(dataset_path, al_config, fe_config, uuid)
+    result, plot = benchmark(dataset_path, 
+                             al_config, 
+                             fe_config, 
+                             estimation_config,
+                             stop_constructor, 
+                             uuid)
 
     target_path = Path(target_dir)
     

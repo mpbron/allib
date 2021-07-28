@@ -14,9 +14,10 @@ from ..analysis.analysis import process_performance
 from ..analysis.initialization import SeparateInitializer
 from ..analysis.plotter import AbstractPlotter, BinaryPlotter
 from ..analysis.simulation import initialize, simulate
-from ..analysis.stopping import CombinedStopCriterion, RaschCaptureCriterion
+from ..stopcriterion.base import AbstractStopCriterion
 from ..environment import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
+from ..estimation.base import AbstractEstimator
 from ..estimation.rasch import ParametricRasch
 from ..estimation.rasch_python import EMRaschRidgePython
 from ..module.factory import MainFactory
@@ -69,6 +70,8 @@ class BenchmarkResult:
 def benchmark(path: PathLike, 
               al_config: Dict[str, Any], 
               fe_config: Dict[str, Any], 
+              estimation_config: AbstractEstimator[Any, Any, Any, Any, Any, str],
+              stop_constructor: Callable[[AbstractEstimator, Any], AbstractStopCriterion],
               uuid: UUID) -> Tuple[BenchmarkResult, AbstractPlotter[str]]:
     """Run a single benchmark test for the given configuration
 
@@ -100,11 +103,10 @@ def benchmark(path: PathLike,
     factory = MainFactory()
     # TODO: Enable creation from parameters
     initializer = SeparateInitializer(environment, 1)
-    rasch = EMRaschRidgePython[int, str, np.ndarray, str, str]()
-    stop = CombinedStopCriterion[str](rasch, "Relevant", 3, 1.0, 0.01)
+    stop: AbstractStopCriterion[str] = stop_constructor(estimation_config, "Relevant")    
     
     # Simulate the annotation workflow
-    plotter = BinaryPlotter[str]("Relevant", "Irrelevant", rasch)
+    plotter = BinaryPlotter[str]("Relevant", "Irrelevant", estimation_config)
     al, _ = initialize(factory, al_config, fe_config, initializer, environment)
     al_result, plotter_result = simulate(al, stop, plotter, 10)
 

@@ -12,3 +12,7 @@ class ALConfiguration(Enum):
 
 class FEConfiguration(Enum):
     TFIDF5000 = "TfIDF5000"
+
+class EstimationConfiguration(str, Enum):
+    RaschRidge = "RaschRidge"
+    RaschParametric = "RaschParametric"

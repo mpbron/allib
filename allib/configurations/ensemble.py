@@ -298,6 +298,15 @@ al_config_est3 = {
         add_identifier(al_config_nb, "NaiveBayes4"),
     ]
 }
+al_config_est4 = {
+    "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+    "learners": [
+        add_identifier(al_config_nb, "NaiveBayes1"),
+        add_identifier(al_config_svm, "SVM"),
+        add_identifier(al_config_rf, "RandomForest"),
+        add_identifier(al_config_lr, "LogisticRegression"),
+    ]
+}
 al_config_est5 = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
     "learners": [

@@ -1,4 +1,6 @@
-from typing import Any, Generic, List, Optional, Sequence, Tuple
+from instancelib.utils.func import all_subsets
+import multiprocessing as mp
+from typing import Any, Dict, FrozenSet, Generic, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -51,19 +53,25 @@ def rasch_estimate(freq_df: pd.DataFrame,
     fitted: np.ndarray = np.concatenate((np.array([estimate]), mfit))
     p_vals = fitted / np.sum(fitted)
 
-    multinomial_fits: np.ndarray = np.random.multinomial(horizon_estimate, p_vals, max_it)
-    only_observable_counts: List[List[float]] = multinomial_fits[:,1:].tolist()
-    
-    results = [glm(design_mat, np.array(m_count)) for m_count in only_observable_counts]
-    estimates = [np.exp(result[0][0]) for result in results]
-    middle_estimate = np.percentile(estimates, 50)
-    low_estimate = np.percentile(estimates, 2.5)
-    high_estimate = np.percentile(estimates, 97.5)
+    if not np.isnan(estimate):
+        multinomial_fits: np.ndarray = np.random.multinomial(horizon_estimate, p_vals, max_it)
+        only_observable_counts: List[List[float]] = multinomial_fits[:,1:].tolist()
+        
+        workload = [(design_mat, np.array(m_count)) for m_count in only_observable_counts]
+        with mp.Pool(7) as pool:
+            results = pool.starmap(glm, workload)
+        
+        estimates = [np.exp(result[0][0]) for result in results]
+        
+        middle_estimate = np.percentile(estimates, 50)
+        low_estimate = np.percentile(estimates, 2.5)
+        high_estimate = np.percentile(estimates, 97.5)
 
-    lower_bound = low_estimate
-    upper_bound = high_estimate
-   
-    return middle_estimate, lower_bound, upper_bound
+        lower_bound = low_estimate
+        upper_bound = high_estimate
+    
+        return middle_estimate, lower_bound, upper_bound
+    return horizon_estimate, horizon_estimate, horizon_estimate
 
 
 class ParametricRaschPython(NonParametricRasch[KT, DT, VT, RT, LT], 
@@ -92,3 +100,50 @@ class ParametricRaschPython(NonParametricRasch[KT, DT, VT, RT, LT],
         horizon_low = self.est_low + pos_count
         horizon_up = self.est_up + pos_count
         return horizon, horizon_low, horizon_up
+
+class ParametricRaschHMore(ParametricRaschPython[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    
+    @staticmethod
+    def rasch_row(combination: Tuple[FrozenSet[int], FrozenSet[Any]], 
+              all_learners: FrozenSet[int],
+              positive: bool) -> Dict[str, int]:
+        learner_set, instances = combination
+        learner_cols = {
+            f"learner_{learner_key}": int(learner_key in learner_set) 
+            for learner_key in all_learners
+        }
+        count_col = {"count": len(instances)}
+        interaction_cols = {
+            f"h{i-1}": len(all_subsets(learner_set, i, i)) 
+            for i in range(2, len(all_learners) + 1)
+        }
+        final_row = {
+            **learner_cols,
+            **interaction_cols,
+            **count_col
+        }
+        return final_row
+
+class ParametricRaschSingle(ParametricRaschPython[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
+    
+    @staticmethod
+    def rasch_row(combination: Tuple[FrozenSet[int], FrozenSet[Any]], 
+              all_learners: FrozenSet[int],
+              positive: bool) -> Dict[str, int]:
+        learner_set, instances = combination
+        learner_cols = {
+            f"learner_{learner_key}": int(learner_key in learner_set) 
+            for learner_key in all_learners
+        }
+        count_col = {"count": len(instances)}
+        interaction_col = {"h1": len(
+            all_subsets(
+                learner_set, 
+                2, len(all_learners) - 1)) 
+        }
+        final_row = {
+            **learner_cols,
+            **interaction_col,
+            **count_col
+        }
+        return final_row

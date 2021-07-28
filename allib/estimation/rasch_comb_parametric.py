@@ -1,0 +1,281 @@
+from dataclasses import dataclass
+from logging import currentframe
+from typing import Any, Generic, List, Optional, Sequence, Tuple
+
+import multiprocessing as mp
+import itertools
+import functools
+import warnings
+import instancelib
+from numpy.linalg import LinAlgError
+import pandas as pd
+
+from ..activelearning.estimator import Estimator
+import numpy as np
+from .rasch import EMRaschCombined
+
+from ..typehints.typevars import KT, DT, VT, RT, LT
+
+class Masks:
+    def __init__(self, positive: List[bool], estimate: List[bool]):
+        self.positive = positive
+        self.estimate = estimate
+        self.negative = [not(m) for m in self.positive]
+        self.observed = [not(m) for m in self.estimate]
+        self.positive_estimate = [est & pos for est, pos in zip(self.estimate, self.positive)]
+        self.negative_estimate = [est & neg for est, neg in zip(self.estimate, self.negative)]
+        self.positive_observed = [obs & pos for obs, pos in zip(self.observed, self.positive)]
+        self.negative_observed = [obs & neg for obs, neg in zip(self.observed, self.negative)]
+
+
+def l2(b0: np.ndarray,
+       design_mat: np.ndarray,
+       counts: np.ndarray,
+       lam: float = 0,
+       tolerance: float = 1e-8,
+       max_it: int = 10000,
+       epsilon: float = 0.1
+       ) -> np.ndarray:
+    counts = counts + epsilon
+    current_tolerance = 1
+    b = b0
+    it = 0
+    while current_tolerance > tolerance and it < max_it:
+        it = it + 1
+
+        mu = np.exp(design_mat @ b0)
+        all_but_first_b0: np.ndarray = b0[1:]
+        lbpart: np.ndarray = 2 * np.concatenate(
+            [
+                np.array([0]),
+                (lam * all_but_first_b0)
+            ])
+        design_mat_t = design_mat.conj().transpose()
+        db = design_mat_t @ counts - design_mat_t @ mu - lbpart
+        repeat_count = b0.shape[0] - 1
+        other_lb_part = np.hstack([[0], np.repeat(lam, repeat_count)])
+        I = (design_mat_t @ np.diag(mu)) @ design_mat + \
+            2 * np.diag(other_lb_part)
+        try:
+            invI = np.linalg.inv(I)
+        except LinAlgError:
+            # Change lambda if the matrix is not invertible
+            lam = 1e-6 if lam == 0 else 10 * lam
+        else:
+            # If inversion succeeded, calculate new coefficients b
+            b = b0 + invI @ db
+            current_tolerance = np.sum(np.abs(b0 - b))
+            b0 = b
+    if it >= max_it:
+        warnings.warn(
+            f"Exceeded maximum L2 iterations ({max_it}). Estimate might not be accurate")
+    return b
+
+
+def calc_deviance(y: np.ndarray, y_hat: np.ndarray) -> float:
+    pos_y_idx = np.where(y > 0)
+    pos_y = y[pos_y_idx]
+    deviance = (
+        2 * np.sum(pos_y * np.log(pos_y / y_hat[pos_y_idx])) -
+        2 * np.sum(y - y_hat))
+    return deviance
+
+
+def add_missing_count_rows(freq_df: pd.DataFrame, n_pos: float, n_neg: float) -> pd.DataFrame:
+    pos_dict = {
+        **{col: 0 for col in freq_df.columns},
+        **{"count": n_pos, "positive": 1}
+    }
+    neg_dict = {
+        **{col: 0 for col in freq_df.columns},
+        **{"count": n_neg, "positive": 0}
+    }
+    new_freq_df = (
+        freq_df
+        .append(pos_dict, ignore_index=True)
+        .append(neg_dict, ignore_index=True)
+    )
+    return new_freq_df
+
+
+def l2_format(freq_df: pd.DataFrame, learner_cols: Sequence[str]) -> pd.DataFrame:
+    order_cols = ["positive", *learner_cols]
+    df = freq_df.sort_values(order_cols)
+    df.insert(0, "intercept", 1)
+    return df
+
+
+def parameter_ci(estimate: float, se: float) -> Tuple[float, float]:
+    var_min = estimate - 2 * se
+    var_max = estimate + 2 * se
+    return var_max, var_min
+
+
+def calculate_estimate(intercept: float, pos: float) -> float:
+    return np.exp(intercept + pos)
+
+
+def calculate_ci_rasch(intercept: float,
+                       positive: float,
+                       intercept_se: float,
+                       positive_se: float) -> Tuple[float, float]:
+    intercepts = parameter_ci(intercept, intercept_se)
+    positive_par = parameter_ci(positive, positive_se)
+    combinations = itertools.product(intercepts, positive_par)
+    results = list(itertools.starmap(calculate_estimate, combinations))
+    min_result = min(results)
+    max_result = max(results)
+    return min_result, max_result
+
+
+def initial_fit(n_not_read: float, design_mat: np.ndarray) -> np.ndarray:
+    b0 = np.hstack(
+        [
+            np.log([n_not_read]),
+            np.repeat(0, design_mat.shape[1] - 1)
+        ])
+    return b0
+
+
+def rasch_glm(design_mat: np.ndarray,
+              efit: np.ndarray,
+              counts: np.ndarray,
+              b0: np.ndarray,
+              masks: Masks
+              ) -> Tuple[np.ndarray, np.ndarray, float]:
+    obs_counts = counts[masks.observed]
+    beta = l2(b0, design_mat, counts)
+    mfit = np.exp(design_mat @ beta)
+    obs_fitted = mfit[masks.observed]
+    deviance = calc_deviance(obs_counts, obs_fitted)
+    return beta, mfit, deviance
+
+
+
+
+
+
+def rasch_em(design_mat: np.ndarray, 
+             counts: np.ndarray,
+             n_dataset: float,
+             masks: Masks,
+             proportion: float,
+             tolerance: float = 1e-5,
+             max_it=1000) -> Tuple[np.ndarray, np.ndarray, float]:
+    orig_counts = counts[masks.observed]
+    n_not_read = n_dataset - np.sum(orig_counts)
+    
+    n_pos = proportion * n_not_read
+    n_neg = (1 - proportion) * n_not_read
+    efit = counts
+
+    efit[masks.positive_estimate] = n_pos
+    efit[masks.negative_estimate] = n_neg
+
+    b0 = initial_fit(n_not_read, design_mat)
+    beta, mfit, deviance = rasch_glm(design_mat, efit, counts, b0, masks)
+    current_tolerance = 1
+    # Expectation Maximization
+    it = 0
+    while current_tolerance > tolerance:
+        old_deviance = deviance
+        efit[masks.estimate] = mfit[masks.estimate] * n_not_read / np.sum(mfit[masks.estimate])
+        beta, mfit, deviance = rasch_glm(design_mat, efit, counts, beta, masks)
+        current_tolerance = old_deviance - deviance
+        if it > max_it:
+            warnings.warn(
+                f"Exceeded maximum EM iterations ({max_it}). Estimate might not be accurate")
+            return beta, mfit, deviance
+    return beta, mfit, deviance
+
+
+def rasch_numpy(design_mat: np.ndarray,
+                counts: np.ndarray,
+                n_dataset: float,
+                masks: Masks,
+                tolerance: float = 1e-5,
+                max_it=1000
+                ) -> Tuple[np.ndarray, np.ndarray, float]:
+    proportions = [0.001, 0.01, 0.1, 0.5, 0.75, 0.9]
+    workload = [(design_mat, counts, n_dataset, masks, p, tolerance, max_it) for p in proportions]
+    results = itertools.starmap(rasch_em, workload)
+    best_model = min(results, key=lambda x: x[2])
+    return best_model
+
+
+def rasch_estimate(freq_df: pd.DataFrame,
+                   n_dataset: int,
+                   tolerance: float = 1e-5,
+                   max_it: int = 2000,
+                   multinomial_size: int = 50) -> Tuple[float, float, float]:
+    # Calculate general frequency statistics
+    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    # Add place holder rows for the counts that we aim to estimate
+    df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
+
+    # Change the dataframe in the correct format for the L2 algorithm
+    learner_cols = list(df_w_missing
+                        .filter(regex=r"^(?:(?!positive$).)+$")
+                        .filter(regex=r"^learner")
+                        )
+    df_formatted = l2_format(df_w_missing, learner_cols)
+
+    # Calculate row masks to select data from the matrices and vectors
+    est_mask: List[bool] = list(df_formatted[learner_cols].sum(axis=1) <= 0)
+    pos_mask: List[bool] = list(df_formatted.positive > 0)
+    masks = Masks(pos_mask, est_mask)
+    
+    design_mat: np.ndarray = (
+        df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
+        .values)  # type: ignore
+
+    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+
+    beta, mfit, deviance = rasch_numpy(
+        design_mat, counts, n_dataset, masks, tolerance=tolerance, max_it=max_it)
+    positive_estimate: float = mfit[masks.positive_estimate][0]
+    p_vals = mfit / np.sum(mfit)
+    multinomial_fits: np.ndarray = np.random.multinomial(
+        n_dataset, p_vals, multinomial_size)
+    low_estimate = positive_estimate
+    high_estimate = positive_estimate
+    if positive_estimate <= 2:
+        workload = [
+            (design_mat, np.array(sample), n_dataset, masks) 
+            for sample in multinomial_fits.tolist()]
+        with mp.Pool(7) as pool:
+            results = pool.starmap(rasch_numpy, workload)
+        estimates: List[float] = [fitted[masks.positive_estimate][0]
+                                for (_, fitted, _) in results]
+        low_estimate = np.percentile(estimates, 2.5)
+        high_estimate = np.percentile(estimates, 97.5)
+    return positive_estimate, low_estimate, high_estimate
+
+
+class EMRaschRidgeParametricPython(
+        EMRaschCombined[KT, DT, VT, RT, LT],
+        Generic[KT, DT, VT, RT, LT]):
+    def __init__(self):
+        super().__init__()
+        self.df: Optional[pd.DataFrame] = None
+        self.est = float("nan")
+        self.est_low = float("nan")
+        self.est_high = float("nan")
+
+    def _start_r(self) -> None:
+        pass
+
+    def calculate_estimate(self,
+                           estimator: Estimator[Any, KT, DT, VT, RT, LT],
+                           label: LT) -> Tuple[float, float, float]:
+        pos_count = estimator.env.labels.document_count(label)
+        dataset_size = len(estimator.env.dataset)
+        df = self.get_occasion_history(estimator, label)
+        if self.df is None or not self.df.equals(df):
+            self.df = df
+            self.est, self.est_low, self.est_up = rasch_estimate(
+                df, dataset_size)
+        horizon = self.est + pos_count
+        horizon_low = self.est_low + pos_count
+        horizon_up = self.est_up + pos_count
+        return horizon, horizon_low, horizon_up

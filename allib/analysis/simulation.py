@@ -8,16 +8,14 @@ from instancelib.functions.vectorize import vectorize
 from instancelib.instances.base import Instance
 
 from ..activelearning.base import ActiveLearner
-from ..analysis.analysis import process_performance
-from ..analysis.stopping import AbstractStopCriterion
 from ..environment.base import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
 from ..factory.factory import ObjectFactory
 from ..module.component import Component
+from ..stopcriterion.base import AbstractStopCriterion
 from ..typehints import DT, IT, KT, LT, RT, VT
-from ..utils.chunks import divide_sequence
 from .initialization import Initializer
-from .plotter import AbstractPlotter, BinaryPlotter
+from .plotter import AbstractPlotter
 
 
 def reset_environment(vectorizer: BaseVectorizer[IT], 

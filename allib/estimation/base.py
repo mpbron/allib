@@ -20,7 +20,7 @@ class AbstractEstimator(ABC, Generic[IT, KT, DT, VT, RT, LT]):
     @abstractmethod
     def __call__(self, 
                  learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT
-                ) -> Tuple[float, Optional[float], Optional[float]]:
+                ) -> Tuple[float, float, float]:
         raise NotImplementedError
 
 @dataclass
