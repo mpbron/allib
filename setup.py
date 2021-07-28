@@ -39,7 +39,7 @@ setuptools.setup( # type: ignore
         "h5py", 
         "tables", 
         "scikit-learn",
-        "scipy" 
+        "scipy", 
         "openpyxl", 
         "xlrd",
         "more-itertools"],
