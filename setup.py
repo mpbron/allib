@@ -18,7 +18,7 @@ README = (HERE / "README.md").read_text()
 
 # This call to setup() does all the work
 setuptools.setup( # type: ignore
-    name="allib",
+    name="python-allib",
     version="0.1.0.0",
     description="A typed Active Learning Library",
     long_description=README,
@@ -28,7 +28,8 @@ setuptools.setup( # type: ignore
     license="GNU LGPL v3",
     classifiers=[
         "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
-        "Programming Language :: Python"
+        "Programming Language :: Python",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     package_data={"allib": ["py.typed"]},
     packages=setuptools.find_packages(), # type: ignore
@@ -42,8 +43,9 @@ setuptools.setup( # type: ignore
         "scipy", 
         "openpyxl", 
         "xlrd",
+        "instancelib",
         "more-itertools"],
-    extra_requires={
+    extras_require={
         "doc2vec": ["gensim"] 
     }
 )
