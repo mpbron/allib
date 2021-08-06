@@ -47,7 +47,8 @@ setuptools.setup( # type: ignore
         "imblearn",
         "lightgbm",
         "gensim",
-        "more-itertools"],
+        "more-itertools",
+        "numba"],
     extras_require={
         "doc2vec": ["gensim"] 
     }
