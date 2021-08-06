@@ -10,7 +10,7 @@ import warnings
 import instancelib
 from numpy.linalg import LinAlgError
 from numba.experimental import jitclass
-from numba import jit, types, typed, int32
+from numba import jit, types, typed, int32, prange
 from numba.typed import List as NumbaList
 import pandas as pd
 
@@ -236,12 +236,64 @@ def rasch_numpy(design_mat: np.ndarray,
                 counts: np.ndarray,
                 n_dataset: float,
                 masks: Masks,
+                proportions: np.ndarray = np.array([0.001, 0.01, 0.1, 0.5, 0.75, 0.9]),
                 tolerance: float = 1e-5,
                 max_it=1000
-                ) -> List[Tuple[np.ndarray, np.ndarray, float]]:
-    proportions = [0.001, 0.01, 0.1, 0.5, 0.75, 0.9]
-    results = [rasch_em(design_mat, counts, n_dataset, masks, p, tolerance, max_it) for p in proportions]
-    return results
+                ) -> Tuple[np.ndarray, np.ndarray, float]:
+    deviances = np.zeros(proportions.shape)
+    betas = np.zeros((proportions.shape[0], design_mat.shape[1]))
+    mfits = np.zeros((proportions.shape[0], design_mat.shape[0]))
+    num_proportions = proportions.shape[0]
+    for idx in prange(num_proportions):
+        proportion = proportions[idx]
+        beta, mfit, deviance = rasch_em(design_mat, counts, n_dataset, masks, proportion, tolerance, max_it)
+        betas[idx,:] = beta
+        mfits[idx,:] = mfit
+        deviances[idx] = deviance
+    best_beta = np.zeros((design_mat.shape[1],))
+    best_mfit = np.zeros((design_mat.shape[0],))
+    best_deviance = 2000000.0
+    for idx in range(num_proportions):
+        current_beta = betas[idx,:]
+        current_mfit = mfits[idx,:]
+        current_deviance = deviances[idx]
+        if current_deviance < best_deviance:
+            best_deviance = current_deviance
+            best_beta = current_beta
+            best_mfit = current_mfit
+    return best_beta, best_mfit, best_deviance
+
+@jit(nopython=True) # type: ignore
+def rasch_numpy_single_thread(design_mat: np.ndarray,
+                counts: np.ndarray,
+                n_dataset: float,
+                masks: Masks,
+                proportions: np.ndarray = np.array([0.001, 0.01, 0.1, 0.5, 0.75, 0.9]),
+                tolerance: float = 1e-5,
+                max_it=1000
+                ) -> Tuple[np.ndarray, np.ndarray, float]:
+    deviances = np.zeros(proportions.shape)
+    betas = np.zeros((proportions.shape[0], design_mat.shape[1]))
+    mfits = np.zeros((proportions.shape[0], design_mat.shape[0]))
+    num_proportions = proportions.shape[0]
+    for idx in range(num_proportions):
+        proportion = proportions[idx]
+        beta, mfit, deviance = rasch_em(design_mat, counts, n_dataset, masks, proportion, tolerance, max_it)
+        betas[idx,:] = beta
+        mfits[idx,:] = mfit
+        deviances[idx] = deviance
+    best_beta = np.zeros((design_mat.shape[1],))
+    best_mfit = np.zeros((design_mat.shape[0],))
+    best_deviance = 2000000.0
+    for idx in range(num_proportions):
+        current_beta = betas[idx,:]
+        current_mfit = mfits[idx,:]
+        current_deviance = deviances[idx]
+        if current_deviance < best_deviance:
+            best_deviance = current_deviance
+            best_beta = current_beta
+            best_mfit = current_mfit
+    return best_beta, best_mfit, best_deviance
 
 
 def rasch_estimate_parametric(freq_df: pd.DataFrame,
@@ -294,16 +346,24 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
 
 @jit(nopython=True, parallel=True) # type: ignore
 def rasch_parallel(design_mat: np.ndarray, 
-                   rounded_mfits: List[np.ndarray], 
+                   rounded_mfits: np.ndarray, 
                    n_dataset: int, masks: Masks):
-    results = [rasch_numpy(design_mat, mfit_sample, n_dataset, masks) 
-               for mfit_sample in rounded_mfits]
+    deviances = np.zeros(rounded_mfits.shape[0])
+    betas = np.zeros((rounded_mfits.shape[0], design_mat.shape[1]))
+    mfits = np.zeros((rounded_mfits.shape[0], design_mat.shape[0]))
+    num_mfits = rounded_mfits.shape[0]
+    for idx in prange(num_mfits):
+        mfit_sample = rounded_mfits[idx,:]
+        beta, mfit, deviance = rasch_numpy_single_thread(design_mat, mfit_sample, n_dataset, masks) 
+        betas[idx,:] = beta
+        mfits[idx,:] = mfit
+        deviances[idx] = deviance
+    results = NumbaList()
+    for idx in range(num_mfits):
+        result = (betas[idx,:], mfits[idx,:], deviances[idx])
+        results.append(result)
     return results
         
-def get_best_model(model_results: List[Tuple[np.ndarray, np.ndarray, float]]) -> Tuple[np.ndarray, np.ndarray, float]:
-    best_model = min(model_results, key=lambda x: x[2])
-    return best_model
-
 def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
                    n_dataset: int,
                    tolerance: float = 1e-5,
@@ -333,8 +393,8 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
     counts: np.ndarray = df_formatted["count"].values  # type: ignore
 
        
-    beta, mfit, deviance = get_best_model(rasch_numpy(
-        design_mat, counts, n_dataset, masks, tolerance=tolerance, max_it=max_it))
+    beta, mfit, deviance = rasch_numpy(
+        design_mat, counts, n_dataset, masks, tolerance=tolerance, max_it=max_it)
     positive_estimate: float = mfit[masks.positive_estimate][0]
     
     # Calculate standard error on predictors
@@ -344,15 +404,14 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
     
     predictors_sampled: np.ndarray = np.random.multivariate_normal(beta, vcov, size=50)
     sampled_mfits = np.exp(design_mat @ predictors_sampled.T).T
-    rounded_mfits = [np.array(sample) for sample in np.round(sampled_mfits).tolist()]
+    rounded_mfits = np.round(sampled_mfits)
     low_estimate = positive_estimate
     high_estimate = positive_estimate
     obs_pos = np.sum(counts[masks.positive_observed])
-    if obs_pos / (obs_pos + positive_estimate) >= 0.90:
+    if True:
         results = rasch_parallel(design_mat, rounded_mfits, n_dataset, masks)
-        best_models = map(get_best_model, results)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
-                                for (_, fitted, _) in best_models]
+                                for (_, fitted, _) in results]
         low_estimate = np.percentile(estimates, 2.5)
         high_estimate = np.percentile(estimates, 97.5)
     return positive_estimate, low_estimate, high_estimate
