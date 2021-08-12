@@ -17,3 +17,4 @@ class EstimationConfiguration(str, Enum):
     RaschRidge = "RaschRidge"
     RaschParametric = "RaschParametric"
     RaschApproxParametric = "RaschApproxParametric"
+    RaschApproxConvParametric = "RaschApproxConvParametric"

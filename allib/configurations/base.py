@@ -4,6 +4,7 @@ import numpy as np
 
 from ..estimation.base import AbstractEstimator
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
+from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
 from ..estimation.rasch_parametric import ParametricRaschPython
 from ..estimation.rasch_python import EMRaschRidgePython
 from ..stopcriterion.base import AbstractStopCriterion
@@ -34,6 +35,7 @@ ESTIMATION_REPOSITORY = {
     EstimationConfiguration.RaschRidge: EMRaschRidgePython[int, str, np.ndarray, str, str](),
     EstimationConfiguration.RaschParametric: ParametricRaschPython[int, str, np.ndarray, str, str](),
     EstimationConfiguration.RaschApproxParametric: EMRaschRidgeParametricPython[int, str, np.ndarray, str, str](),
+    EstimationConfiguration.RaschApproxConvParametric: EMRaschRidgeParametricConvPython[int,str, np.ndarray, str, str](),
 }
 
 STOP_REPOSITORY: Dict[StopCriterionCatalog, Callable[[AbstractEstimator, Any], AbstractStopCriterion]] = {
