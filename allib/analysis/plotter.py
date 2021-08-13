@@ -76,6 +76,8 @@ class BinaryPlotter(AbstractPlotter[LT], Generic[LT]):
         self.pos_label = pos_label
         self.neg_label = neg_label
         self.estimators = list(estimators)
+        self.needed_burden: Optional[int] = None
+        self.additional_burden: float = 0.0
 
     def update(self,
                activelearner: ActiveLearner[Any, Any, Any, Any, Any, LT]
@@ -107,14 +109,20 @@ class BinaryPlotter(AbstractPlotter[LT], Generic[LT]):
             return parent_results # type: ignore
         
         performance = process_performance(activelearner, self.pos_label)
+        doc_count = len(activelearner.env.labeled)
+        if performance.recall >= 0.95 and self.needed_burden is None:
+            self.needed_burden = doc_count
+        additional_burden = 0 if self.needed_burden is None else doc_count - self.needed_burden
         stats = {
             "true_pos_count" : activelearner.env.truth.document_count(self.pos_label),
             "true_neg_count" : activelearner.env.truth.document_count(self.neg_label),
             "dataset_size": len(activelearner.env.dataset),
             "wss": performance.wss,
-            "recall": performance.recall
+            "recall": performance.recall,
+            "additional_burden": additional_burden,
+            "additional_burden_pc": additional_burden / len(activelearner.env.dataset)
         }
-
+        self.additional_burden = additional_burden / len(activelearner.env.dataset)
         name = name_formatter(activelearner)
         count_results = get_learner_results(activelearner)
         estimation_results: Dict[str, Optional[float]] = {}

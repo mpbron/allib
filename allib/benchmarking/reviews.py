@@ -34,7 +34,8 @@ DLT = TypeVar("DLT")
 LT = TypeVar("LT")
 
 def read_review_dataset(path: "PathLike[str]") -> AbstractEnvironment[
-    TextInstance[int, np.ndarray], Union[int, UUID], str, np.ndarray, str, str]:
+                                                    TextInstance[Union[int, UUID], np.ndarray], 
+                                                    Union[int, UUID], str, np.ndarray, str, str]:
     """Convert a CSV file with a Systematic Review dataset to a MemoryEnvironment.
 
     Parameters
@@ -66,6 +67,7 @@ class BenchmarkResult:
     uuid: UUID
     wss: float
     recall: float
+    additional_burden: float
 
 def benchmark(path: PathLike, 
               al_config: Dict[str, Any], 
@@ -112,6 +114,8 @@ def benchmark(path: PathLike,
 
     # Assess the performance
     performance = process_performance(al_result, "Relevant")
+    additional_burden = plotter.additional_burden
     result = BenchmarkResult(path, uuid, 
-                             performance.wss, performance.recall)
+                             performance.wss, performance.recall, 
+                             additional_burden)
     return result, plotter_result
