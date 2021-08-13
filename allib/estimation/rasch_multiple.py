@@ -380,10 +380,12 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
     design_mat_t = design_mat.conj().transpose()
     try:
         vcov = np.linalg.inv(design_mat_t @ mat_w @ design_mat)
+        predictors_sampled: np.ndarray = np.random.multivariate_normal(
+            beta, vcov, size=multinomial_size)
     except LinAlgError:
         warnings.warn("Could not determine confidence interval")
         return positive_estimate, positive_estimate, positive_estimate
-    predictors_sampled: np.ndarray = np.random.multivariate_normal(beta, vcov, size=multinomial_size)
+    
     sampled_mfits = np.exp(design_mat @ predictors_sampled.T).T
     rounded_mfits = np.round(sampled_mfits)
     low_estimate = positive_estimate
