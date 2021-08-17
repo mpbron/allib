@@ -370,7 +370,8 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
     counts: np.ndarray = df_formatted["count"].values  # type: ignore
 
     only_pos_estimate = rasch_estimate_only_pos(freq_df)
-    proportion = only_pos_estimate / (n_dataset - np.sum(counts[masks.observed]))
+    only_pos_proportion: float = only_pos_estimate / (n_dataset - np.sum(counts[masks.observed]))
+    proportion = max(0.5, only_pos_proportion)
     beta, mfit, deviance = rasch_em(design_mat, counts, n_dataset, masks, proportion, tolerance, max_it)
     positive_estimate: float = mfit[masks.positive_estimate][0]
     

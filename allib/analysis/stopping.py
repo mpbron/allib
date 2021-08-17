@@ -266,9 +266,7 @@ class UpperboundCombinedCritertion(CombinedStopCriterion[LT], Generic[LT]):
         self.add_count(learner.env.labels.document_count(self.label))
         if isinstance(learner, Estimator):
             estimate, lower, upper = self.calculator(learner, self.label)
-            dataset_size = len(learner.env.dataset)
-            if upper < dataset_size:
-                self.add_estimate(upper)
+            self.add_estimate(upper)
             common_positive = learner.env.labels.get_instances_by_label(self.label)
             positive_sets = intersection(*[
                     (member.env.labels
