@@ -158,6 +158,21 @@ class MemoryEnvironment(
         truth =  MemoryLabelProvider[KT, LT].from_provider(environment.labels)
         return cls(dataset, unlabeled, labeled, labels, logger, truth)
 
+    @classmethod
+    def from_instancelib_simulation_heldout(cls, 
+                                            environment: ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+                                            train_set: ins.InstanceProvider[IT, KT, DT, VT, RT]
+                                            )-> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
+        dataset = environment.all_datapoints
+        unlabeled = MemoryBucketProvider(dataset, train_set.key_list)
+        labeled = MemoryBucketProvider(dataset, [])
+        labels = MemoryLabelProvider[KT, LT].from_data(
+            environment.labels.labelset, [], []
+        )        
+        logger = MemoryLogger[KT, LT, Any](labels)
+        truth =  MemoryLabelProvider[KT, LT].from_provider(environment.labels)
+        return cls(dataset, unlabeled, labeled, labels, logger, truth)
+
 
 
 

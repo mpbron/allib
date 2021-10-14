@@ -29,6 +29,17 @@ class AbstractStopCriterion(ABC, Generic[LT]):
     def stop_criterion(self) -> bool:
         pass
 
+class AllDocsCriterion(AbstractStopCriterion[LT], Generic[LT]):
+    def __init__(self) -> None:
+        self.remaining = 2000
+
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
+        self.remaining = len(learner.env.unlabeled)
+    
+    @property
+    def stop_criterion(self) -> bool:
+        return self.remaining <= 0
+
 class DocCountStopCritertion(AbstractStopCriterion[LT], Generic[LT]):
     def __init__(self, max_docs: int):
         self.max_docs = max_docs

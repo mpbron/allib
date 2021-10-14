@@ -3,10 +3,15 @@ import functools
 from os import PathLike
 from typing import (Any, Dict, Generic, Optional, Sequence, Tuple, TypeVar,
                     Union)
+from instancelib.instances.base import InstanceProvider
+from instancelib.labels.base import LabelProvider
+from instancelib.typehints.typevars import KT
 
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np  # type: ignore
-import pandas as pd  # type: ignore
+import pandas as pd
+
+from allib.activelearning.ml_based import MLBased  # type: ignore
 
 from ..activelearning import ActiveLearner
 from ..activelearning.ensembles import AbstractEnsemble
@@ -14,7 +19,7 @@ from ..activelearning.estimator import Estimator
 from ..estimation.base import AbstractEstimator
 from ..estimation.rcapture import AbundanceEstimator
 from ..utils.func import flatten_dicts
-from .analysis import process_performance
+from .analysis import classifier_performance, process_performance
 
 LT = TypeVar("LT")
 
@@ -38,6 +43,27 @@ class AbstractPlotter(ABC, Generic[LT]):
              all_estimations: bool = False,
              filename: Optional[PathLike] = None) -> None:
         raise NotImplementedError
+
+class ClassificationPlotter(AbstractPlotter[LT], Generic[KT, LT]):
+    def __init__(self, test_set: InstanceProvider[Any, KT, Any, Any, Any], ground_truth: LabelProvider[KT, LT]):
+        self.test_set = list(test_set.values())
+        self.ground_truth = ground_truth
+        self.result_frame = pd.DataFrame()
+
+    def update(self, activelearner: ActiveLearner[Any, KT, Any, Any, Any, LT]) -> None:
+        assert isinstance(activelearner, MLBased)
+        results = classifier_performance(activelearner, self.ground_truth, self.test_set)
+        labelset = activelearner.env.labels.labelset
+        stats: Dict[str, float] = dict()
+        for label in labelset:
+            label_performance = results[label]
+            stats[f"{label}_f1"] = label_performance.f1
+            stats[f"{label}_docs"] = activelearner.env.labels.document_count(label)
+        stats["n_labeled"] = len(activelearner.env.labeled)
+        self.result_frame = self.result_frame.append(stats, ignore_index=True)
+
+
+
 
 class MultilabelPlotter(AbstractPlotter[LT], Generic[LT]):
     def __init__(self):
