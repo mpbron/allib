@@ -53,8 +53,8 @@ class ClassificationPlotter(AbstractPlotter[LT], Generic[KT, LT]):
         stats: Dict[str, float] = dict()
         for label in self.labelset:
             label_performance = results[label]
-            stats[f"metric_{label}_recall"] = label_performance.recall
-            stats[f"metric_{label}_precision"] = label_performance.precision
+            stats[f"{label}_recall"] = label_performance.recall
+            stats[f"{label}_precision"] = label_performance.precision
             stats[f"{label}_f1"] = label_performance.f1
             stats[f"{label}_docs"] = activelearner.env.labels.document_count(label)
             stats[f"{label}_ratio"] = (activelearner.env.labels.document_count(label) / len(activelearner.env.labeled))
@@ -64,14 +64,16 @@ class ClassificationPlotter(AbstractPlotter[LT], Generic[KT, LT]):
     def show(self, metrics: Iterable[str] = ["f1", "recall"], filename:Optional[str] = None) -> None:
         # Gathering intermediate results
         df = self.result_frame
-        n_labeled= self.result_frame["n_labeled"]
+        n_labeled= df["n_labeled"]
         for metric in metrics:
             for label in self.labelset:
-                plt.plot(n_labeled, f"{label}_{metric}", label=f"{label} :: {metric}")
+                metric_values = df[f"{label}_{metric}"]
+                plt.plot(n_labeled, metric_values, label=f"{label} :: {metric}")
         # Plotting positive document counts
         plt.xlabel(f"number of labeled instances")
         plt.ylabel(f"metric score")
         plt.title(f"Learning curves")
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         if filename is not None:
             plt.savefig(filename, bbox_inches='tight')
 
