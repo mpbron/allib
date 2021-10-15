@@ -220,23 +220,25 @@ def simulate_classification(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
              plotter: AbstractPlotter[LT],
              batch_size: int, start_count=2) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT],
                          AbstractPlotter[LT]]:
-    """Simulates the Active Learning 
+    """Simulates the Active Learning procedure
 
     Parameters
     ----------
     learner : ActiveLearner[IT, KT, DT, VT, RT, LT]
-        [description]
+        The Active Learning object
     stop_crit : AbstractStopCriterion[LT]
-        [description]
+        The stopping criterion
     plotter : BinaryPlotter[LT]
-        [description]
+        A plotter that tracks the results
     batch_size : int
-        [description]
+        The batch size of each sample 
+    start_count : int
+        The number of instances that each class recieves before training the classification process. 
 
     Returns
     -------
-    Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], BinaryPlotter[LT]]
-        [description]
+    Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], AbstractPlotter[LT]]
+        A tuple consisting of the final model and the plot of the process
     """
     learner.update_ordering()
     while not multilabel_all_non_empty(learner, start_count):
@@ -253,7 +255,8 @@ def simulate_classification(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
         for instance in sample:
             # Retrieve the labels from the oracle
             oracle_labels = learner.env.truth.get_labels(instance)
-
+            print(instance)
+            print(oracle_labels)
             # Set the labels in the active learner
             learner.env.labels.set_labels(instance, *oracle_labels)
             learner.set_as_labeled(instance)
