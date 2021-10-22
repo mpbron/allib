@@ -6,8 +6,8 @@ from typing import (Any, Callable, Dict, Generic, Iterator, List, Optional,
 
 import numpy as np  # type: ignore
 
-from ..environment import AbstractEnvironment
-from ..machinelearning import AbstractClassifier
+from ..environment.base import AbstractEnvironment
+from ..machinelearning.base import AbstractClassifier
 from ..typehints import DT, IT, KT, LT, RT
 from .base import ActiveLearner
 from .ensembles import AbstractEnsemble

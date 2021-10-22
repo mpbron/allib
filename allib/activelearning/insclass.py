@@ -16,7 +16,8 @@ from sklearn.exceptions import NotFittedError  # type: ignore
 
 from ..environment import AbstractEnvironment
 from ..exceptions import NoOrderingException, NotInitializedException
-from ..exceptions.base import NoLabeledDataException, NoVectorsException
+from ..exceptions.base import NoLabeledDataException
+from instancelib.exceptions.base import NoVectorsException
 from instancelib.machinelearning import AbstractClassifier
 from ..utils import divide_sequence, mapsnd
 from ..utils.func import filter_snd_none, list_unzip, sort_on
@@ -319,7 +320,7 @@ class ILProbabilityBased(ILMLBased[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, n
 
 class ILLabelProbabilityBased(ILProbabilityBased[IT, KT, DT, RT, LT], ABC, Generic[IT, KT, DT, RT, LT]):
     def __init__(self, 
-                 classifier: AbstractClassifier[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray],, 
+                 classifier: AbstractClassifier[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], 
                  selection_criterion: AbstractSelectionCriterion,
                  label: LT, fallback = RandomSampling[IT, KT, DT, np.ndarray, RT, LT](),
                  identifier: Optional[str] = None,  *_, **__) -> None:
@@ -338,11 +339,7 @@ class ILLabelProbabilityBased(ILProbabilityBased[IT, KT, DT, RT, LT], ABC, Gener
             return f"{self.identifier}", self.label
         return f"{self._name} :: {self.classifier.name}", self.label
 
-    def _get_predictions(self, matrix: FeatureMatrix[KT]) -> Tuple[Sequence[KT], np.ndarray]:
-        prob_vec: np.ndarray = self.classifier.predict_proba(
-            matrix.matrix)  # type: ignore
-        # type: ignore
-        sliced_prob_vec: np.ndarray = prob_vec[:, self.labelposition] # type: ignore
-        keys = matrix.indices
-        return keys, sliced_prob_vec
+    def selection_criterion(self, prob_mat: np.ndarray) -> np.ndarray:
+        sliced = prob_mat[:, self.labelposition]
+        return self._selection_criterion(sliced)
 

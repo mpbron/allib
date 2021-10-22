@@ -7,9 +7,9 @@ from typing import (Any, Callable, Dict, Generic, Iterable, List, Optional,
                     Sequence, Set, Tuple, TypeVar, Union)
 
 import numpy as np  # type: ignore
+from instancelib import Instance, InstanceProvider
 
-from ..environment.base import AbstractEnvironment, IT
-from instancelib.instances import Instance, InstanceProvider
+from ..environment.base import IT, AbstractEnvironment
 from ..machinelearning import AbstractClassifier
 from ..utils import get_random_generator
 from .base import ActiveLearner

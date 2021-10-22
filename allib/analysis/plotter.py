@@ -11,15 +11,17 @@ import matplotlib.pyplot as plt  # type: ignore
 import numpy as np  # type: ignore
 import pandas as pd
 
-from allib.activelearning.ml_based import MLBased  # type: ignore
+from allib.activelearning.ml_based import MLBased, ProbabilityBased  # type: ignore
 
 from ..activelearning import ActiveLearner
+from ..activelearning.insclass import ILMLBased
 from ..activelearning.ensembles import AbstractEnsemble
 from ..activelearning.estimator import Estimator
 from ..estimation.base import AbstractEstimator
 from ..estimation.rcapture import AbundanceEstimator
 from ..utils.func import flatten_dicts
-from .analysis import classifier_performance, process_performance
+from .analysis import process_performance
+from instancelib.analysis.base import classifier_performance
 
 LT = TypeVar("LT")
 
@@ -48,8 +50,8 @@ class ClassificationPlotter(AbstractPlotter[LT], Generic[KT, LT]):
         self.labelset = ground_truth.labelset
 
     def update(self, activelearner: ActiveLearner[Any, KT, Any, Any, Any, LT]) -> None:
-        assert isinstance(activelearner, MLBased)
-        results = classifier_performance(activelearner, self.ground_truth, self.test_set)
+        assert isinstance(activelearner, ILMLBased)
+        results = classifier_performance(activelearner.classifier, self.test_set, self.ground_truth)
         stats: Dict[str, float] = dict()
         for label in self.labelset:
             label_performance = results[label]
@@ -58,6 +60,7 @@ class ClassificationPlotter(AbstractPlotter[LT], Generic[KT, LT]):
             stats[f"{label}_f1"] = label_performance.f1
             stats[f"{label}_docs"] = activelearner.env.labels.document_count(label)
             stats[f"{label}_ratio"] = (activelearner.env.labels.document_count(label) / len(activelearner.env.labeled))
+        stats["n_generated_docs"] = len(activelearner.env.all_instances) - len(activelearner.env.dataset)
         stats["n_labeled"] = len(activelearner.env.labeled)
         self.result_frame = self.result_frame.append(stats, ignore_index=True)
     
