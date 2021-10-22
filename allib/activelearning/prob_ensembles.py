@@ -23,7 +23,8 @@ from ..utils.func import filter_snd_none, fst, list_unzip, multisort, sort_on
 from ..utils.random import get_random_generator
 from .base import ActiveLearner, ProbabilityPrediction
 from .ensembles import AbstractEnsemble
-from .ml_based import (AbstractSelectionCriterion, FeatureMatrix, MLBased,
+from .selectioncriterion import AbstractSelectionCriterion
+from .ml_based import (FeatureMatrix, MLBased,
                        ProbabilityBased)
 from .fixed import FixedOrdering
 from .random import RandomSampling

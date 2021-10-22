@@ -2,7 +2,7 @@ import numpy as np # type: ignore
 from scipy.stats import entropy # type:ignore
 
 from .catalog import ALCatalog
-from .ml_based import AbstractSelectionCriterion
+from .selectioncriterion import AbstractSelectionCriterion
 
 class MostCertainSampling(AbstractSelectionCriterion):
     """Selects the training examples most far away from the 

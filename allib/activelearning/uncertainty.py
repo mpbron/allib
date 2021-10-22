@@ -1,10 +1,10 @@
-from allib.utils.random import get_random_generator
+from ..utils.random import get_random_generator
 from typing import Generic, Optional, TypeVar, Any
 
 import numpy as np # type: ignore
 from scipy.stats import entropy #type: ignore
 
-from .ml_based import AbstractSelectionCriterion
+from .selectioncriterion import AbstractSelectionCriterion
 from .labelmethods import LabelProbabilityBased
 from .catalog import ALCatalog
 

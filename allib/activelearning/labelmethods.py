@@ -11,8 +11,8 @@ from ..machinelearning import AbstractClassifier
 from ..typehints import DT, IT, KT, LT, RT
 from .base import ActiveLearner
 from .ensembles import AbstractEnsemble
-from .ml_based import (AbstractSelectionCriterion, FeatureMatrix, MLBased,
-                       ProbabilityBased)
+from .selectioncriterion import AbstractSelectionCriterion
+from .ml_based import (FeatureMatrix, MLBased, ProbabilityBased)
 from .random import RandomSampling
 
 

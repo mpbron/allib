@@ -24,6 +24,7 @@ from .base import ActiveLearner
 from .poolbased import PoolBasedAL
 from .random import RandomSampling
 from ..typehints import IT
+from .selectioncriterion import AbstractSelectionCriterion
 
 from instancelib.typehints import KT, DT, VT, RT, LT, LMT, PMT
 
@@ -191,32 +192,6 @@ class ILMLBased(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT,
             return fallback_value
         return wrapper
 
-
-class AbstractSelectionCriterion(ABC):
-    name: str = "AbstractSelectionCriterion"
-
-    def __init__(self, *_, **__) -> None:
-        pass
-
-    @abstractmethod
-    def __call__(self, prob_mat: np.ndarray) -> np.ndarray:
-        """Calculates the selection metric given a probability matrix
-
-        Parameters
-        ----------
-        prob_mat : np.ndarray
-            The probability matrix with rows of class probabilities. 
-            Shape should be ``(n_instances, n_classes)``
-
-        Returns
-        -------
-        np.ndarray
-            The result of the selection metrix. This has as shape
-            ``(n_instances, )``
-
-        """
-        raise NotImplementedError
-
 class ILProbabilityBased(ILMLBased[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], ABC, Generic[IT, KT, DT, RT, LT]):
     """
     An Active Learner that uses information in the probability matrix (i.e., the
@@ -228,7 +203,7 @@ class ILProbabilityBased(ILMLBased[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, n
 
     >>> classifier = SklearnClassifier(MultinomialNB(), LabelBinarizer())
     >>> sel_crit = EntropySampling() # Uncertainty Sampling
-    >>> al = ProbabilityBased(classifier, sel_crit)
+    >>> al = ILProbabilityBased(classifier, sel_crit)
     >>> # Assume env contains your environment
     >>> al = al(env)
     >>> # Update the ordering
@@ -337,8 +312,37 @@ class ILProbabilityBased(ILMLBased[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, n
             self._set_ordering(ordering)
             return True
 
-    @MLBased.iterator_fallback # type: ignore
+    @ILMLBased.iterator_fallback # type: ignore
     def __next__(self) -> IT:
         value = super().__next__()
         return value
+
+class ILLabelProbabilityBased(ILProbabilityBased[IT, KT, DT, RT, LT], ABC, Generic[IT, KT, DT, RT, LT]):
+    def __init__(self, 
+                 classifier: AbstractClassifier[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray],, 
+                 selection_criterion: AbstractSelectionCriterion,
+                 label: LT, fallback = RandomSampling[IT, KT, DT, np.ndarray, RT, LT](),
+                 identifier: Optional[str] = None,  *_, **__) -> None:
+        super().__init__(classifier, selection_criterion, fallback, identifier=identifier)
+        self.label = label
+        self.labelposition: Optional[int] = None
+
+    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, np.ndarray, RT, LT]) -> ILLabelProbabilityBased[IT, KT, DT, RT, LT]:
+        super().__call__(environment)
+        self.labelposition = self.classifier.get_label_column_index(self.label)
+        return self
+
+    @property
+    def name(self) -> Tuple[str, LT]:
+        if self.identifier is not None:
+            return f"{self.identifier}", self.label
+        return f"{self._name} :: {self.classifier.name}", self.label
+
+    def _get_predictions(self, matrix: FeatureMatrix[KT]) -> Tuple[Sequence[KT], np.ndarray]:
+        prob_vec: np.ndarray = self.classifier.predict_proba(
+            matrix.matrix)  # type: ignore
+        # type: ignore
+        sliced_prob_vec: np.ndarray = prob_vec[:, self.labelposition] # type: ignore
+        keys = matrix.indices
+        return keys, sliced_prob_vec
 

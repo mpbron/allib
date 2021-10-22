@@ -10,7 +10,8 @@ from .catalog import ALCatalog as AL
 from .ensembles import StrategyEnsemble
 from .estimator import CycleEstimator, Estimator, RetryEstimator
 from .labelmethods import LabelProbabilityBased
-from .ml_based import AbstractSelectionCriterion, ProbabilityBased
+from .selectioncriterion import AbstractSelectionCriterion
+from .ml_based import ProbabilityBased
 from .mostcertain import LabelMaximizer, LabelMaximizerNew, MostCertainSampling, MostConfidence
 from .prob_ensembles import LabelProbEnsemble, ProbabilityBasedEnsemble, LabelMinProbEnsemble
 from .random import RandomSampling
