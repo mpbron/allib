@@ -53,13 +53,17 @@ class ClassificationPlotter(AbstractPlotter[LT], Generic[KT, LT]):
         assert isinstance(activelearner, ILMLBased)
         results = classifier_performance(activelearner.classifier, self.test_set, self.ground_truth)
         stats: Dict[str, float] = dict()
+        labeled = activelearner.env.labeled
         for label in self.labelset:
+            seen_label_docs = activelearner.env.labels.get_instances_by_label(label).intersection(labeled)
+            gen_label_docs = activelearner.env.labels.get_instances_by_label(label).difference(labeled)
             label_performance = results[label]
             stats[f"{label}_recall"] = label_performance.recall
             stats[f"{label}_precision"] = label_performance.precision
             stats[f"{label}_f1"] = label_performance.f1
-            stats[f"{label}_docs"] = activelearner.env.labels.document_count(label)
-            stats[f"{label}_ratio"] = (activelearner.env.labels.document_count(label) / len(activelearner.env.labeled))
+            stats[f"{label}_docs"] = len(seen_label_docs)
+            stats[f"{label}_ratio"] = len(seen_label_docs) / len(labeled)
+            stats[f"{label}_n_generated"] = len(gen_label_docs)
         stats["n_generated_docs"] = len(activelearner.env.all_instances) - len(activelearner.env.dataset)
         stats["n_labeled"] = len(activelearner.env.labeled)
         self.result_frame = self.result_frame.append(stats, ignore_index=True)
