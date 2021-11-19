@@ -314,11 +314,13 @@ class ILProbabilityBased(ILMLBased[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, n
         # Everything went ok! We than try to calculate the ordering
         try:
             ordering, _ = self.calculate_ordering()
+        except IndexError:
+            LOGGER.error("[%s] There is no more training data")
         except (NotFittedError, IndexError, 
                 ValueError, NoLabeledDataException, 
                 NoVectorsException) as ex:
             self._uses_fallback = True
-            LOGGER.error("[%s] Falling back to model %s, because of: %s",
+            LOGGER.error("[%s] Determining the ordering Falling back to model %s, because of: %s",
                                  self.name, self.fallback.name, ex, exc_info=ex)
             self.fallback.update_ordering()
             self._set_ordering([])
