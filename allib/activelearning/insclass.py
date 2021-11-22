@@ -184,11 +184,15 @@ class ILMLBased(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT,
             if not self.uses_fallback:
                 try:
                     return func(self, *args, **kwargs)
+                except (StopIteration, IndexError) as ex:
+                    LOGGER.error("[%s] There is no unlabeled data for this learner ")
                 except (NotFittedError, IndexError, ValueError, 
                         StopIteration, NoOrderingException, NoVectorsException) as ex:
                     LOGGER.error("[%s] Falling back to model %s, because of: %s",
                                  self.name, self.fallback.name, ex, exc_info=ex)
-            LOGGER.warn("[%s] Falling back to model %s, because it is not fitted", self.name, self.fallback.name)
+            else:
+                LOGGER.warn("[%s] Falling back to model %s, because it the classifier"
+                            " has not been fitted", self.name, self.fallback.name)
             fallback_value = next(self.fallback)
             return fallback_value
         return wrapper
@@ -298,12 +302,25 @@ class ILProbabilityBased(ILMLBased[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, n
         """        
         try:
             self.retrain()
+        except (ValueError, IndexError, NoLabeledDataException, ValueError, NoVectorsException) as ex:
+            LOGGER.error("[%s] Retraining the model failed %s, because of: %s"
+                         "\n We will fallback to %s",
+                          self.name, ex, self.fallback.name, ex, exc_info=ex)
+            self._uses_fallback = True
+        if self._uses_fallback:
+            self.fallback.update_ordering()
+            self._set_ordering([])
+            return False
+        # Everything went ok! We than try to calculate the ordering
+        try:
             ordering, _ = self.calculate_ordering()
+        except IndexError:
+            LOGGER.error("[%s] There is no more training data")
         except (NotFittedError, IndexError, 
                 ValueError, NoLabeledDataException, 
                 NoVectorsException) as ex:
             self._uses_fallback = True
-            LOGGER.error("[%s] Falling back to model %s, because of: %s",
+            LOGGER.error("[%s] Determining the ordering Falling back to model %s, because of: %s",
                                  self.name, self.fallback.name, ex, exc_info=ex)
             self.fallback.update_ordering()
             self._set_ordering([])
