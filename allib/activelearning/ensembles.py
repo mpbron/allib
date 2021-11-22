@@ -7,7 +7,11 @@ from typing import (Any, Callable, Dict, Generic, Iterable, List, Optional,
                     Sequence, Set, Tuple, TypeVar, Union)
 
 import numpy as np  # type: ignore
+import instancelib as il
 from instancelib import Instance, InstanceProvider
+from instancelib.typehints.typevars import PMT, LMT
+
+from allib.activelearning.insclass import ILMLBased
 
 from ..environment.base import IT, AbstractEnvironment
 from ..machinelearning import AbstractClassifier
@@ -163,6 +167,66 @@ class StrategyEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT],
         self.sampled: Set[KT] = set()
         self._has_ordering: bool = False 
     
+    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> StrategyEnsemble[IT, KT, DT, VT, RT, LT, LVT, PVT]:
+        """Initialize the learner with an environment
+
+        Parameters
+        ----------
+        environment : AbstractEnvironment[IT, KT, DT, VT, RT, LT]
+            The chozen environment
+
+        Returns
+        -------
+        StrategyEnsemble[IT, KT, DT, VT, RT, LT, LVT, PVT]
+            The Initizialized learner
+        """        
+        super().__call__(environment)
+        for learner in self.learners:
+            learner(self.env)
+        self.initialized = True
+        return self
+
+    def update_ordering(self) -> bool:
+        successful = super().update_ordering()
+        if successful:
+            self.sampled = set()
+        return successful
+
+    def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
+        """Internal functions that selects the next active learner for the next query
+
+        Returns:
+            ActiveLearner[IT, KT, DT, VT, RT, LT]: One of the learners from the ensemble
+        """        
+        idxs = np.arange(len(self.learners))
+        al_idx: int = self._rng.choice(idxs, size=1, p=self.probabilities)[0]
+        learner = self.learners[al_idx]
+        return learner
+    
+    def __next__(self) -> IT:
+        result = super().__next__()
+        while result.identifier in self.sampled:
+            result = super().__next__()
+        self.sampled.add(result.identifier)
+        return result
+
+
+class ILStrategyEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT], 
+                         ILMLBased[IT, KT, DT, VT, RT, LT, LMT, PMT],
+                         Generic[IT, KT, DT, VT, RT, LT,  LMT, PMT]):
+    def __init__(self,
+                 classifier: il.AbstractClassifier[IT, KT, DT, VT, RT, LT, LMT, PMT],
+                 learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]],
+                 probabilities: List[float], 
+                 rng: Any = None, *_, identifier: Optional[str] = None, **__) -> None:
+        super().__init__(classifier, identifier=identifier)
+        self.learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]] = learners
+        self.probabilities = probabilities
+        self._rng = get_random_generator(rng)
+        self.sampled: Set[KT] = set()
+        self._has_ordering: bool = False 
+
+
     def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> StrategyEnsemble:
         """Initialize the learner with an environment
 
@@ -185,10 +249,13 @@ class StrategyEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT],
         return successful
 
     def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
-        """Internal functions that selects the next active learner for the next query
+        """Choose an Active Learning from the options according to 
+        the given probabilities
 
-        Returns:
-            ActiveLearner[IT, KT, DT, VT, RT, LT]: One of the learners from the ensemble
+        Returns
+        -------
+        ActiveLearner[IT, KT, DT, VT, RT, LT]
+            The chosen ActiveLearner
         """        
         idxs = np.arange(len(self.learners))
         al_idx: int = self._rng.choice(idxs, size=1, p=self.probabilities)[0]
