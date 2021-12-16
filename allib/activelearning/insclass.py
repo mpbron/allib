@@ -186,12 +186,12 @@ class ILMLBased(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT,
                     return func(self, *args, **kwargs)
                 except (StopIteration, IndexError) as ex:
                     LOGGER.error("[%s] There is no unlabeled data for this learner ")
-                except (NotFittedError, IndexError, ValueError, 
-                        StopIteration, NoOrderingException, NoVectorsException) as ex:
+                except (NotFittedError, ValueError, 
+                        NoOrderingException, NoVectorsException) as ex:
                     LOGGER.error("[%s] Falling back to model %s, because of: %s",
                                  self.name, self.fallback.name, ex, exc_info=ex)
             else:
-                LOGGER.warn("[%s] Falling back to model %s, because it the classifier"
+                LOGGER.warn("[%s] Falling back to model %s, because the classifier"
                             " has not been fitted", self.name, self.fallback.name)
             fallback_value = next(self.fallback)
             return fallback_value
@@ -220,7 +220,7 @@ class ILProbabilityBased(ILMLBased[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, n
     >>> al.env.labels.set_labels(instance, doc_label)
     >>> al.set_as_labeled(instance)
     """
-    _name  = "ProbabilityBased"
+    _name  = "ILProbabilityBased"
     
     def __init__(self,
                  classifier: AbstractClassifier[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray],
