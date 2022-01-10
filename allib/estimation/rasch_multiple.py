@@ -345,7 +345,7 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
                    n_dataset: int,
                    tolerance: float = 1e-5,
                    max_it: int = 2000,
-                   multinomial_size: int = 200) -> Tuple[float, float, float]:
+                   multinomial_size: int = 2000) -> Tuple[float, float, float]:
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate

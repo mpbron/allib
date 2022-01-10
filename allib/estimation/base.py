@@ -15,12 +15,19 @@ import numpy as np # type: ignore
 
 from ..typehints import IT, KT, DT, VT, RT, LT
 
+@dataclass
+class Estimation:
+    estimate: float
+    stddev: float
+    lower_bound: float
+    upper_bound: float
+
 class AbstractEstimator(ABC, Generic[IT, KT, DT, VT, RT, LT]):
     name = "AbstractEstimator"
     @abstractmethod
     def __call__(self, 
                  learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT
-                ) -> Tuple[float, float, float]:
+                ) -> Estimation:
         raise NotImplementedError
 
 @dataclass
