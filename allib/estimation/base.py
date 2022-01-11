@@ -17,8 +17,7 @@ from ..typehints import IT, KT, DT, VT, RT, LT
 
 @dataclass
 class Estimation:
-    estimate: float
-    stddev: float
+    point: float
     lower_bound: float
     upper_bound: float
 

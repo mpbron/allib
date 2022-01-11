@@ -6,13 +6,12 @@ from abc import ABC, abstractmethod
 from typing import (Any, Callable, Dict, Generic, Iterable, List, Optional,
                     Sequence, Set, Tuple, TypeVar, Union)
 
-import numpy as np  # type: ignore
 import instancelib as il
+import numpy as np  # type: ignore
 from instancelib import Instance, InstanceProvider
-from instancelib.typehints.typevars import PMT, LMT
+from instancelib.typehints.typevars import LMT, PMT
 
-from allib.activelearning.insclass import ILMLBased
-
+from ..activelearning.insclass import ILMLBased
 from ..environment.base import IT, AbstractEnvironment
 from ..machinelearning import AbstractClassifier
 from ..utils import get_random_generator

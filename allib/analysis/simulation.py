@@ -97,6 +97,8 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
 
     def __init__(self, 
                  learner: ActiveLearner[IT, KT, DT, VT, RT ,LT],
+                 pos_label: LT,
+                 neg_label: LT,
                  stopping_criteria: Mapping[str,AbstractStopCriterion[LT]],
                  estimators: Mapping[str, AbstractEstimator[IT, KT, DT, VT, RT, LT]],
                  batch_size: int = 1, 
@@ -108,6 +110,10 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         self.learner = learner
         self.stopping_criteria = stopping_criteria
         self.estimators = estimators
+
+        # Labels
+        self.pos_label = pos_label
+        self.neg_label = neg_label
         
         # Estimation tracker
         self.estimation_tracker: Dict[str, Estimation]= dict()
@@ -132,7 +138,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
     def _estimate_recall(self) -> Mapping[str, Estimation]:
         for k, estimator in self.estimators.items():
             if self.it % self.estimation_interval[k] == 0:
-                estimation = estimator(self.learner)
+                estimation = estimator(self.learner, self.pos_label)
                 self.estimation_tracker[k] = estimation
         return self.estimation_tracker
 
@@ -156,11 +162,11 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         self.it += 1
 
     def __call__(self) -> Mapping[str, bool]:
-        self.iter_increment()
         self._retrain()
         self._query_and_label()
         self._estimate_recall()
         stop_result = self.determine_stop()
+        self.iter_increment()
         return stop_result
 
         
@@ -227,9 +233,9 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         estimation_results: Dict[str, Optional[float]] = {}
         crit_estimation_results: Dict[str, Optional[float]] = dict()
         for estimator_name, estimate  in exp_iterator.recall_estimate.items():
-            crit_estimation_results[f"{name}_{estimator_name}_stopcriterion"] = estimate.estimate
-            crit_estimation_results[f"{name}_{estimator_name}_stopcriterion_low"] = estimate.lower_bound
-            crit_estimation_results[f"{name}_{estimator_name}_stopcriterion_up"] = estimate.upperbound
+            crit_estimation_results[f"Estimation_{estimator_name}_point"] = estimate.point
+            crit_estimation_results[f"Estimation_{estimator_name}_low"] = estimate.lower_bound
+            crit_estimation_results[f"Estimation_{estimator_name}_up"] = estimate.upper_bound
         results = {**count_results, **estimation_results, **crit_estimation_results, **stats}
         self.data[exp_iterator.it] = results
     
@@ -264,19 +270,17 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
             plt.plot(n_documents_read, 
                      pos_counts[col], 
                      label="# found by $\\mathcal{C}" f"_{i}$ ({total_learner})")
-        if all_estimations:
-            # Plotting estimations
-            estimations = df.filter(regex="estimation$") #type: ignore
-            for col in estimations.columns:
-                
-                    ests = estimations[col]
-                    error_colname = f"{col}_error"
-                    errors = df[error_colname]
-                    plt.plot(n_documents_read, ests, "-.", label="Estimate") # type: ignore
-                    plt.fill_between(n_documents_read, # type: ignore
-                                    ests - errors, # Lower bound
-                                    ests + errors, # Upper bound
-                                    color='gray', alpha=0.2)
+        
+        estimations = df.filter(regex="Estimation$") #type: ignore
+        for col in estimations.columns:
+            ests = estimations[col]
+            error_colname = f"{col}_error"
+            errors = df[error_colname]
+            plt.plot(n_documents_read, ests, "-.", label="Estimate") # type: ignore
+            plt.fill_between(n_documents_read, # type: ignore
+                            ests - errors, # Lower bound
+                            ests + errors, # Upper bound
+                            color='gray', alpha=0.2)
 
         # Plotting estimations for main stop criterion
         stopcriterion = df.filter(regex="stopcriterion$") # type: ignore
@@ -322,14 +326,22 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
     plotter: ExperimentPlotter[LT]
     experiment: ExperimentIterator
 
-    def __init__(self, experiment: ExperimentPlotter, plotter: ExperimentPlotter) -> None:
+    def __init__(self, experiment: ExperimentPlotter, 
+                       plotter: ExperimentPlotter,
+                       max_it: Optional[int]=None) -> None:
         self.experiment = experiment
         self.plotter = plotter
+        self.max_it = max_it
     
+    @property
+    def _debug_finished(self) -> bool:
+        if self.max_it is None:
+            return False
+        return self.experiment.it > self.max_it
+     
     def simulate(self) -> None:
-        while not self.experiment.finished:
+        while not self.experiment.finished and not self._debug_finished:
             result = self.experiment()
-            print(result)
             self.plotter.update(self.experiment)
     
    

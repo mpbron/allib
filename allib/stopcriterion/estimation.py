@@ -184,10 +184,10 @@ class UpperboundCombinedCritertion(CombinedStopCriterion[LT], Generic[LT]):
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
         self.add_count(learner.env.labels.document_count(self.label))
         if isinstance(learner, Estimator):
-            estimate, lower, upper = self.calculator(learner, self.label)
+            estimation = self.calculator(learner, self.label)
             dataset_size = len(learner.env.dataset)
-            if upper < dataset_size:
-                self.add_estimate(upper)
+            if estimation.upper_bound < dataset_size:
+                self.add_estimate(estimation.upper_bound)
             common_positive = learner.env.labels.get_instances_by_label(self.label)
             positive_sets = intersection(*[
                     (member.env.labels
