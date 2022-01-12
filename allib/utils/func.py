@@ -1,11 +1,14 @@
 import functools
 import itertools
 
-from typing import Any, Dict, FrozenSet, Iterable, List, TypeVar, Callable,  Tuple, Optional, Sequence
+from typing import Any, Dict, FrozenSet, Iterable, List, Mapping, TypeVar, Callable,  Tuple, Optional, Sequence
 
 _T = TypeVar("_T")
 _U = TypeVar("_U")
 _V = TypeVar("_V")
+
+def prepend_keys(mapping: Mapping[str, _T], prefix: str) -> Mapping[str, _T]:
+    return {f"{prefix}{key}": value for key, value in mapping.items()}
 
 def powerset(iterable: Iterable[_T]) -> FrozenSet[FrozenSet[_T]]:
     """Calculates the powerset of an interable.

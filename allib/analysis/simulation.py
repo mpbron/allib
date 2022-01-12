@@ -1,9 +1,11 @@
+from dataclasses import dataclass
 import functools
 import itertools
 import random
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from os import PathLike
-from typing import (Any, Dict, Generic, List, Mapping, Optional, Sequence,
+from typing import (Any, Dict, FrozenSet, Generic, List, Mapping, Optional, Sequence,
                     Tuple, TypeVar, Union)
 
 import instancelib as il
@@ -20,12 +22,12 @@ from ..activelearning.ensembles import AbstractEnsemble
 from ..analysis.analysis import process_performance
 from ..environment.base import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
-from ..estimation.base import AbstractEstimator, Estimation
+from ..estimation.base import AbstractEstimator, Estimate
 from ..factory.factory import ObjectFactory
 from ..module.component import Component
 from ..stopcriterion.base import AbstractStopCriterion
 from ..typehints import DT, IT, KT, LT, RT, VT
-from ..utils.func import flatten_dicts  # type: ignore
+from ..utils.func import flatten_dicts, prepend_keys  # type: ignore
 from .initialization import Initializer
 from .plotter import AbstractPlotter, name_formatter
 
@@ -116,7 +118,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         self.neg_label = neg_label
         
         # Estimation tracker
-        self.estimation_tracker: Dict[str, Estimation]= dict()
+        self.estimation_tracker: Dict[str, Estimate]= dict()
 
         # Batch sizes
         self.batch_size = batch_size
@@ -135,7 +137,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
             result[k] = crit.stop_criterion
         return result
 
-    def _estimate_recall(self) -> Mapping[str, Estimation]:
+    def _estimate_recall(self) -> Mapping[str, Estimate]:
         for k, estimator in self.estimators.items():
             if self.it % self.estimation_interval[k] == 0:
                 estimation = estimator(self.learner, self.pos_label)
@@ -147,7 +149,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         return self.learner.env.labeled.empty
 
     @property
-    def recall_estimate(self) -> Mapping[str, Estimation]:
+    def recall_estimate(self) -> Mapping[str, Estimate]:
         return self.estimation_tracker
 
     def _query_and_label(self) -> None:
@@ -183,78 +185,100 @@ class ExperimentPlotter(ABC, Generic[LT]):
     def show(self, *args: Any, **kwargs: Any) -> None:
         raise NotImplementedError
 
+@dataclass
+class DatasetStats:
+    pos_count: int
+    neg_count: int
+    size: int
+    prevalence: float
+
+    @classmethod
+    def from_learner(cls, 
+                     learner: ActiveLearner[Any, Any, Any, Any, Any, LT],
+                     pos_label: LT,
+                     neg_label: LT) -> DatasetStats:
+        pos_count = learner.env.truth.document_count(pos_label)
+        neg_count = learner.env.truth.document_count(neg_label)
+        size = len(learner.env.dataset)
+        prevalence = pos_count / size
+        return DatasetStats(pos_count, neg_count, size, prevalence)
+
+@dataclass
+class TemporalRecallStats:
+    name: float
+    wss: float
+    recall: float
+    pos_docs_found: int
+    neg_docs_found: int
+    effort: int
+    child_statistics: Sequence[Tuple[str, TemporalRecallStats]]
+
+    @classmethod
+    def from_learner(cls,  
+                     learner: ActiveLearner[Any, Any, Any, Any, Any, LT],
+                     pos_label: LT,
+                     neg_label: LT
+                     ) -> TemporalRecallStats:
+        perf = process_performance(learner, pos_label)
+        pos_docs = learner.env.get_subset_by_labels(learner.env.labeled, pos_label)
+        neg_docs = learner.env.get_subset_by_labels(learner.env.labeled, neg_label)
+        effort = len(learner.env.labeled)
+        if isinstance(learner, AbstractEnsemble):
+            subresults = tuple([(learner.name, cls.from_learner(learner)) for learner  in learner.learners])
+        else:
+            subresults = tuple([])
+        return TemporalRecallStats(perf.wss, perf.recall, pos_docs, neg_docs, effort, subresults)
+
+
 class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
-    data : Dict[int, Dict[str, Any]]
     pos_label: LT
     neg_label: LT
+
+    dataset_stats: Dict[int, DatasetStats]
+    recall_stats: Dict[int, TemporalRecallStats]
+    estimates: Dict[int, Dict[str, Estimate]]
+    stop_results: Dict[int, Dict[str, bool]]
 
     def __init__(self, pos_label: LT, neg_label: LT) -> None:
         self.pos_label = pos_label
         self.neg_label = neg_label
-        self.data = dict()
+        
+        self.dataset_stats = dict()
+        self.recall_stats = dict()
+        self.estimates = dict()
+        self.stop_results = dict()
+        self.it = 0
 
-    def update(self, exp_iterator: ExperimentIterator[Any, Any, Any, Any, Any, LT]) -> None:
-        def get_learner_results(learner: ActiveLearner[Any, Any, Any, Any, Any, LT], root = True) -> Dict[str, Optional[Union[int, float]]]:
-            name = name_formatter(learner)
-            pos_docs = learner.env.get_subset_by_labels(learner.env.labeled, self.pos_label)
-            neg_docs = learner.env.get_subset_by_labels(learner.env.labeled, self.neg_label)
-            if root:
-                parent_results = {
-                    f"positives": len(pos_docs),
-                    f"negatives": len(neg_docs),
-                    f"total": len(learner.env.labeled)
-                }
-            else:
-                parent_results = {
-                    f"{name}_pos_count": len(pos_docs),
-                    f"{name}_neg_count": len(neg_docs),
-                    f"{name}_total_count": len(learner.env.labeled)
-                }
-            if isinstance(learner, AbstractEnsemble):
-                child_learners: Sequence[ActiveLearner[Any, Any, Any, Any, LT]] = learner.learners # type: ignore
-                child_func = functools.partial(get_learner_results, root=False)
-                child_results = flatten_dicts(*map(child_func, child_learners))
-                results = {**parent_results, **child_results}
-                return results
-            return parent_results # type: ignore
-
+    def update(self, 
+               exp_iterator: ExperimentIterator[Any, Any, Any, Any, Any, LT],
+               stop_result: Mapping[str, bool]) -> None:
         learner = exp_iterator.learner
-        performance = process_performance(learner, self.pos_label)
-        stats = {
-            "effort": len(learner.env.labeled),
-            "true_pos_count" : learner.env.truth.document_count(self.pos_label),
-            "true_neg_count" : learner.env.truth.document_count(self.neg_label),
-            "dataset_size": len(learner.env.dataset),
-            "wss": performance.wss,
-            "recall": performance.recall,
-        }
-        name = name_formatter(learner)
-        count_results = get_learner_results(learner)
-        estimation_results: Dict[str, Optional[float]] = {}
-        crit_estimation_results: Dict[str, Optional[float]] = dict()
-        for estimator_name, estimate  in exp_iterator.recall_estimate.items():
-            crit_estimation_results[f"Estimation_{estimator_name}_point"] = estimate.point
-            crit_estimation_results[f"Estimation_{estimator_name}_low"] = estimate.lower_bound
-            crit_estimation_results[f"Estimation_{estimator_name}_up"] = estimate.upper_bound
-        results = {**count_results, **estimation_results, **crit_estimation_results, **stats}
-        self.data[exp_iterator.it] = results
-    
+        self.it = exp_iterator.it
+        self.recall_stats[self.it]  = TemporalRecallStats.from_learner(learner, self.pos_label, self.neg_label)
+        self.dataset_stats[self.it] = DatasetStats.from_learner(learner, self.pos_label, self.neg_label)
+        self.estimates[self.it] = {name: estimate for name, estimate in exp_iterator.recall_estimate.items()}
+        self.stop_results[self.it] = stop_result
+        
+       
     def show(self,
              x_lim: Optional[float] = None,
              y_lim: Optional[float] = None,
              all_estimations: bool = False,
              filename: "Optional[PathLike[str]]" = None) -> None:
         # Gathering intermediate results
+        x_size = len(self.dataset_stats)
         df = pd.DataFrame.from_dict(self.data, orient="index")
 
-        n_pos_overall = np.array(df.positives)
-        n_found = int(n_pos_overall[-1])
-        true_pos = int(np.array(df.true_pos_count)[-1])
-        n_read = int(np.array(df.total)[-1])
-        total_n = int(np.array(df.dataset_size)[-1])
+        n_pos_overall = self.dataset_stats[self.it].pos_count
+        n_found = self.recall_stats[self.it].pos_docs_found
+
+        true_pos = self.dataset_stats[self.it].pos_count
+        effort = self.recall_stats[self.it].effort
+        total_n = self.dataset_stats[self.it].size
+        
         wss = np.array(df.wss)[-1] * 100
         recall = np.array(df.recall)[-1] * 100
-        n_exp = int(np.floor((n_read / total_n) * true_pos))
+        n_exp = int(np.floor((effort / total_n) * true_pos))
 
         # Use n_documents as the x-axis
         n_documents_col = "total"
@@ -271,31 +295,14 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
                      pos_counts[col], 
                      label="# found by $\\mathcal{C}" f"_{i}$ ({total_learner})")
         
-        estimations = df.filter(regex="Estimation$") #type: ignore
-        for col in estimations.columns:
-            ests = estimations[col]
-            error_colname = f"{col}_error"
-            errors = df[error_colname]
-            plt.plot(n_documents_read, ests, "-.", label="Estimate") # type: ignore
+        estimator_names = self._get_estimator_cols(df)
+        for estimator_name in estimator_names:
+            points = np.array(df[f"Estimation_{estimator_name}_point"])
+            lows = np.array(df[f"Estimation_{estimator_name}_low"])
+            uppers = np.array(df[f"Estimation_{estimator_name}_up"])
+            plt.plot(n_documents_read, points, "-.", label="Estimate") # type: ignore
             plt.fill_between(n_documents_read, # type: ignore
-                            ests - errors, # Lower bound
-                            ests + errors, # Upper bound
-                            color='gray', alpha=0.2)
-
-        # Plotting estimations for main stop criterion
-        stopcriterion = df.filter(regex="stopcriterion$") # type: ignore
-        for i, col in enumerate(stopcriterion.columns):
-            ests = stopcriterion[col]
-            low_colname = f"{col}_low"
-            upper_colname = f"{col}_up"
-            lower_bounds = np.array(df[low_colname])
-            upper_bounds = np.array(df[upper_colname])
-            plt.plot(n_documents_read, ests, "-.", label=f"Estimate") # type: ignore
-            plt.fill_between(n_documents_read, # type: ignore
-                             lower_bounds, # type: ignore
-                             upper_bounds, # type: ignore
-                             color='gray', alpha=0.2)
-            print(f"{i}: {col}")
+                             lows, uppers, color='gray', alpha=0.2)
         
         # Plotting target boundaries 
         plt.plot(n_documents_read, ([true_pos] *len(n_documents_read)), ":", label=f"100 % recall ({true_pos})")
@@ -313,7 +320,7 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
             plt.ylim(0, 1.4 * true_pos)
 
         # Setting axis labels
-        plt.xlabel(f"number of read documents (total {n_read}), WSS = {wss:.2f} % Recall = {recall:.2f} %")
+        plt.xlabel(f"number of read documents (total {effort}), WSS = {wss:.2f} % Recall = {recall:.2f} %")
         plt.ylabel("number of documents")
         plt.title(f"Run on a dataset with {int(true_pos)} inclusions out of {int(total_n)}")
         if not all_estimations:
@@ -321,6 +328,17 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
 
         if filename is not None:
             plt.savefig(filename, bbox_inches='tight')
+
+    def wss_at_target(self, target: float) -> float:
+        for t, frame in self.data.items():
+            if frame["recall"] >= target:
+                return frame["wss"]
+        return float("nan")
+
+    def recall_at_stop(self, stop_criterion: str) -> float:
+        for t, frame in self.data.items()
+        
+
 
 class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
     plotter: ExperimentPlotter[LT]
