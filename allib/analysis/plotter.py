@@ -1,27 +1,24 @@
-from abc import ABC, abstractmethod
 import functools
+from abc import ABC, abstractmethod
 from os import PathLike
-from typing import (Any, Dict, Generic, Iterable, Optional, Sequence, Tuple, TypeVar,
-                    Union)
-from instancelib.instances.base import InstanceProvider
-from instancelib.labels.base import LabelProvider
-from instancelib.typehints.typevars import KT
+from typing import (Any, Dict, Generic, Iterable, Optional, Sequence, Tuple,
+                    TypeVar, Union)
 
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np  # type: ignore
 import pandas as pd
-
-from allib.activelearning.ml_based import MLBased, ProbabilityBased  # type: ignore
+from instancelib.analysis.base import classifier_performance
+from instancelib.instances.base import InstanceProvider
+from instancelib.labels.base import LabelProvider
+from instancelib.typehints.typevars import KT
 
 from ..activelearning import ActiveLearner
-from ..activelearning.insclass import ILMLBased
 from ..activelearning.ensembles import AbstractEnsemble
-from ..activelearning.estimator import Estimator
+from ..activelearning.insclass import ILMLBased
 from ..estimation.base import AbstractEstimator
-from ..estimation.rcapture import AbundanceEstimator
 from ..utils.func import flatten_dicts
 from .analysis import process_performance
-from instancelib.analysis.base import classifier_performance
+from .experiments import ExperimentIterator  # type: ignore
 
 LT = TypeVar("LT")
 
@@ -35,6 +32,18 @@ class AbstractPlotter(ABC, Generic[LT]):
     @abstractmethod
     def update(self,
                activelearner: ActiveLearner[Any, Any, Any, Any, Any, LT]
+               ) -> None:
+        raise NotImplementedError
+    
+    @abstractmethod
+    def show(self, *args: Any, **kwargs: Any) -> None:
+        raise NotImplementedError
+
+
+class ExperimentPlotter(ABC, Generic[LT]):
+    @abstractmethod
+    def update(self,
+               exp_iterator: ExperimentIterator[Any, Any, Any, Any, Any, LT]
                ) -> None:
         raise NotImplementedError
     

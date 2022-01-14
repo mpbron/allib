@@ -16,7 +16,7 @@ import numpy as np # type: ignore
 from ..typehints import IT, KT, DT, VT, RT, LT
 
 @dataclass
-class Estimation:
+class Estimate:
     point: float
     lower_bound: float
     upper_bound: float
@@ -26,7 +26,7 @@ class AbstractEstimator(ABC, Generic[IT, KT, DT, VT, RT, LT]):
     @abstractmethod
     def __call__(self, 
                  learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT
-                ) -> Estimation:
+                ) -> Estimate:
         raise NotImplementedError
 
 @dataclass

@@ -13,7 +13,7 @@ from ..activelearning.base import ActiveLearner
 from ..activelearning.estimator import Estimator
 from ..utils.func import (all_subsets, intersection, list_unzip3,
                           not_in_supersets, powerset, union)
-from .base import AbstractEstimator, Estimation
+from .base import AbstractEstimator, Estimate
 from .rcapture import AbundanceEstimator, _check_R
 
 try:
@@ -355,11 +355,11 @@ class EMRaschCombined(NonParametricRasch[KT, DT, VT, RT, LT], Generic[KT, DT, VT
         return horizon, horizon, horizon
     
     def __call__(self, 
-        learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Estimation:
+        learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Estimate:
         if not isinstance(learner, Estimator):
             return 0.0, 0.0, 0.0
         estimate, lower_bound, upper_bound = self.calculate_estimate(learner, label)
-        return Estimation(estimate, lower_bound, upper_bound)
+        return Estimate(estimate, lower_bound, upper_bound)
 
 class EMAlternative(EMRaschCombined[KT, DT, VT, RT, LT], Generic[KT, DT, VT, RT, LT]):
     @staticmethod
