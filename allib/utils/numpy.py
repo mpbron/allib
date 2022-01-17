@@ -79,4 +79,9 @@ def matrix_tuple_to_zipped(keys: Sequence[KT],
                            matrix: np.ndarray) -> Sequence[Tuple[KT, np.ndarray]]:
     result = list(zip(keys, matrix_to_vector_list(matrix)))
     return result
-1
+
+def raw_proba_chainer(itera: Iterator[Tuple[Sequence[KT], np.ndarray]]) -> Tuple[Sequence[KT], np.ndarray]:
+    key_lists, matrices = list_unzip(itera)
+    keys = list(itertools.chain(*key_lists))
+    matrix = np.vstack(matrices)
+    return keys, matrix
