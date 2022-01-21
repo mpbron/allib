@@ -14,40 +14,23 @@ from allib.module.factory import MainFactory
 from allib.stopcriterion.catalog import StopCriterionCatalog
 import instancelib as il
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 #%%
 env = read_review_dataset("../instancelib/datasets/Software_Engineering_Hall.csv")
 POS = "Relevant"
 NEG = "Irrelevant"
+vect = il.TextInstanceVectorizer(il.SklearnVectorizer(TfidfVectorizer(max_features=5000)))
+il.vectorize(vect, env)
 # %%
-# Retrieve the configuration
-al_config = AL_REPOSITORY[ALConfiguration("RaschEstimator")]
-fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
-stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
-estimator = ESTIMATION_REPOSITORY[EstimationConfiguration("RaschRidge")]
-initializer = SeparateInitializer(env, 1)
-factory = MainFactory()
-
-#%%
-# Build the experiment objects
-al, fe = initialize(factory, al_config, fe_config, initializer, env)
-criterion = stop_constructor(estimator, POS)
-# %%
-criteria = {"Upperbound95": criterion}
-estimators = {"RaschRidge": estimator}
-exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 10, 10, 10)
+classifier = il.SkLearnVectorClassifier.build(MultinomialNB(), env)
+al = AutoStopLearner(classifier, POS, NEG, 100, 20)(env)
+random_init = RandomInitializer(env)
+random_init(al)
+exp = ExperimentIterator(al, POS, NEG, {}, {})
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, 500)
+simulator = TarSimulator(exp, plotter, 8800)
 # %%
 simulator.simulate()
-
-#%%
-as_env = read_review_dataset("../instancelib/datasets/Software_Engineering_Hall.csv")
-classifier = il.SkLearnVectorClassifier.build(MultinomialNB(), env)
-autostop = AutoStopLearner(classifier, POS, NEG, 100, 1)
-random_init = RandomInitializer(env)
-exp = ExperimentIterator(al, POS, N)
-# %%
-plotter.show()
 # %%
