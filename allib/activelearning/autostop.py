@@ -50,7 +50,7 @@ class AutoStopLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, V
         self.rank_history = dict()
         self.distributions = dict()
         self.sampled_sets = dict()
-        self.current_sample = list()
+        self.current_sample = collections.deque()
 
     def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> PoolBasedAL[IT, KT, DT, VT, RT, LT]:
         super().__call__(environment)
@@ -60,7 +60,7 @@ class AutoStopLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, V
     def update_ordering(self) -> bool:
         return True
 
-    def _provider_sample(self, provider: il.InstanceProvider[IT, KT, DT, np.ndarray, RT]) -> il.InstanceProvider[IT, KT, DT, np.ndarray, RT]:
+    def _provider_sample(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> il.InstanceProvider[IT, KT, DT, VT, RT]:
         k_sample = min(self.k_sample, len(provider))
         sampled_keys = random.sample(provider.key_list, k_sample)
         sampled_provider = self.env.create_bucket(sampled_keys)
@@ -74,12 +74,12 @@ class AutoStopLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, V
         train_set = self.env.combine(sampled_non_relevant, self.env.labeled)
         self.classifier.fit_provider(train_set, temp_labels)
 
-    def _predict(self, provider: il.InstanceProvider[IT, KT, DT, np.ndarray, RT]) -> Tuple[Sequence[KT], np.ndarray]:
+    def _predict(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> Tuple[Sequence[KT], np.ndarray]:
         raw_probas = self.classifier.predict_proba_provider_raw(provider)
         keys, matrix = raw_proba_chainer(raw_probas)
         return keys, matrix
 
-    def _rank(self, provider: il.InstanceProvider[IT, KT, DT, np.ndarray, RT]) -> Sequence[Tuple[KT, float]]:
+    def _rank(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> Sequence[Tuple[KT, float]]:
         keys, matrix = self._predict(provider)
         pos_column = self.classifier.get_label_column_index(self.pos_label)
         prob_vector = matrix[:,pos_column]
@@ -113,7 +113,7 @@ class AutoStopLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, V
             sample = self._sample(distribution)
             
             # Store all data for later analysis
-            self.distributions[self.it] = distribution
+            self.distributions[self.it] = dict(distribution)
             self.sampled_sets[self.it] = tuple(sample)
             self.current_sample = collections.deque(sample)
             self.batch_size += round(self.batch_size / 10)
