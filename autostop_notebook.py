@@ -18,6 +18,8 @@ import instancelib as il
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from allib.stopcriterion.heuristic import AprioriRecallTarget
+
 
 #%%
 path = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
@@ -28,14 +30,18 @@ vect = il.TextInstanceVectorizer(
     il.SklearnVectorizer(TfidfVectorizer(max_features=5000)))
 il.vectorize(vect, env)
 # %%
+recall95 = AprioriRecallTarget(POS, 0.95)
+criteria = {"Recall95": recall95}
+#estimators = {"RaschRidge": estimator}
 classifier = il.SkLearnVectorClassifier.build(MultinomialNB(), env)
-al = AutoStopLearner(classifier, POS, NEG, 100, 20)(env)
+al = AutoStopLearner(classifier, POS, NEG, 10, 100)(env)
 at = AutoTarLearner(classifier, POS, NEG, 100, 20)(env)
 random_init = RandomInitializer(env)
 random_init(at)
-exp = ExperimentIterator(at, POS, NEG, {}, {})
+exp = ExperimentIterator(al, POS, NEG, criteria, {})
 plotter = TarExperimentPlotter(POS, NEG)
 simulator = TarSimulator(exp, plotter, 8800)
 # %%
 simulator.simulate()
 # %%
+al.horvitz_thompson(80)

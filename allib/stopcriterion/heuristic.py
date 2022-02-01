@@ -64,3 +64,24 @@ class SameStateCount(AbstractStopCriterion[LT], Generic[LT]):
         if len(self.pos_history) < self.same_state_count:
             return False 
         return self.has_been_different and self.same_count
+
+
+class AprioriRecallTarget(AbstractStopCriterion[LT]):
+    def __init__(self, pos_label: LT,  target: float = 0.95):
+        self.target = target
+        self.stopped = False
+        self.pos_label = pos_label
+
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
+        if not self.stopped:
+            n_pos_truth = learner.env.truth.document_count(self.pos_label)
+            n_pos_now = learner.env.labels.document_count(self.pos_label)
+            self.stopped = n_pos_now / n_pos_truth >= self.target
+
+    @property
+    def stop_criterion(self) -> bool:
+        return self.stopped
+
+
+
+    

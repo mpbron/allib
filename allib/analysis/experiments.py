@@ -1,4 +1,4 @@
-from typing import Dict, Generic, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Generic, Mapping, Optional, Sequence, Union
 
 from ..activelearning.base import ActiveLearner
 from ..estimation.base import AbstractEstimator, Estimate
@@ -10,7 +10,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
     learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
     it: int
     batch_size: int
-    stop_interval: int
+    stop_interval: Mapping[str, int]
     stopping_criteria: Mapping[str, AbstractStopCriterion[LT]]
     estimators: Mapping[str, AbstractEstimator[IT, KT, DT, VT, RT, LT]]
 
@@ -22,7 +22,8 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
                  estimators: Mapping[str, AbstractEstimator[IT, KT, DT, VT, RT, LT]],
                  batch_size: int = 1, 
                  stop_interval: Union[int, Mapping[str, int]] = 1,
-                 estimation_interval: Union[int, Mapping[str, int]] = 1) -> None:
+                 estimation_interval: Union[int, Mapping[str, int]] = 1,
+                 iteration_hooks: Sequence[Callable[[ActiveLearner[IT, KT, DT, VT, RT ,LT]], Any]] = list()) -> None:
         # Iteration tracker
         self.it = 0
         # Algorithm selection
@@ -36,6 +37,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         
         # Estimation tracker
         self.estimation_tracker: Dict[str, Estimate]= dict()
+        self.iteration_hooks = iteration_hooks
 
         # Batch sizes
         self.batch_size = batch_size
@@ -77,6 +79,10 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         self.learner.env.labels.set_labels(instance, *oracle_labels)
         self.learner.set_as_labeled(instance)
 
+    def call_hooks(self) -> None:
+        for hook in self.iteration_hooks:
+            hook(self.learner)
+
     def iter_increment(self) -> None:
         self.it += 1
 
@@ -85,6 +91,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         self._query_and_label()
         self._estimate_recall()
         stop_result = self.determine_stop()
+        self.call_hooks()
         self.iter_increment()
         return stop_result
 

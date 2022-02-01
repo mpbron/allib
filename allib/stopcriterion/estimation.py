@@ -10,6 +10,7 @@ from .heuristic import SameStateCount
 
 from ..activelearning.estimator import Estimator
 from ..estimation.base import AbstractEstimator
+from .heuristic import AprioriRecallTarget
 
 class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
     def __init__(self, calculator: AbstractEstimator[Any, Any, Any, Any, Any, LT], label: LT, same_state_count: int, margin: float):
@@ -202,3 +203,7 @@ class UpperboundCombinedCritertion(CombinedStopCriterion[LT], Generic[LT]):
     def estimate_match(self) -> bool:
         projected_recall = (self.count / self.estimate)
         return projected_recall >= 0.95
+
+
+class RecallEstimation(AprioriRecallTarget):
+    pass

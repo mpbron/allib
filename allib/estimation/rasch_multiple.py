@@ -1,3 +1,4 @@
+import collections
 from dataclasses import dataclass
 from logging import currentframe
 from os import spawnlp
@@ -412,6 +413,7 @@ class EMRaschRidgeParametricConvPython(
         self.est = float("nan")
         self.est_low = float("nan")
         self.est_high = float("nan")
+        self.dfs = collections.deque()
 
     def _start_r(self) -> None:
         pass
@@ -423,6 +425,7 @@ class EMRaschRidgeParametricConvPython(
         dataset_size = len(estimator.env.dataset)
         df = self.get_occasion_history(estimator, label)
         if self.df is None or not self.df.equals(df):
+            self.dfs.append(df)
             self.df = df
             self.est, self.est_low, self.est_up = rasch_estimate_parametric_approx(
                 df, dataset_size)

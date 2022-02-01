@@ -5,6 +5,7 @@ import instancelib as il
 import collections
 import numpy as np
 from instancelib.typehints import DT, KT, LT, RT, VT
+from allib.activelearning.autotar import AutoTarLearner
 
 from allib.utils.func import list_unzip, sort_on
 
@@ -25,12 +26,9 @@ def calc_ap_prior_distribution(ranking: Sequence[Tuple[KT, float]]) -> Sequence[
         
 
 
-class AutoStopLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
-    rank_history: Dict[int, Dict[KT, int]]
+class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
     distributions: Dict[int, Dict[KT, float]]
-    sampled_sets : Dict[int, Sequence[KT]]
-    current_sample: Deque[KT]
-
+    
     def __init__(self, 
                  classifier: il.AbstractClassifier[IT, KT, DT, VT, RT, LT, np.ndarray, np.ndarray],
                  pos_label: LT, 
@@ -38,66 +36,19 @@ class AutoStopLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, V
                  k_sample: int,
                  batch_size: int,  
                  *_, identifier: Optional[str] = None, **__) -> None:
-        super().__init__(*_, identifier=identifier, **__)
-        self.classifier = classifier
-        self.it = 0
-        self.batch_it = 0
-        self.trained: bool = False
-        self.k_sample = k_sample
-        self.pos_label = pos_label
-        self.neg_label = neg_label
-        self.batch_size = batch_size
-        self.rank_history = dict()
-        self.distributions = dict()
-        self.sampled_sets = dict()
-        self.current_sample = collections.deque()
+        super().__init__(classifier, pos_label, neg_label, k_sample, batch_size, identifier=identifier)
+        self.distributions = dict()   
 
-    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> PoolBasedAL[IT, KT, DT, VT, RT, LT]:
-        super().__call__(environment)
-        self.classifier.set_target_labels(self.env.labels.labelset)
-        return self
-
-    def update_ordering(self) -> bool:
-        return True
-
-    def _provider_sample(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> il.InstanceProvider[IT, KT, DT, VT, RT]:
-        k_sample = min(self.k_sample, len(provider))
-        sampled_keys = random.sample(provider.key_list, k_sample)
-        sampled_provider = self.env.create_bucket(sampled_keys)
-        return sampled_provider
-
-    def _temp_augment_and_train(self):
-        temp_labels = il.MemoryLabelProvider.from_provider(self.env.labels)
-        sampled_non_relevant = self._provider_sample(self.env.unlabeled)
-        for ins_key in sampled_non_relevant:
-            temp_labels.set_labels(ins_key, self.neg_label)
-        train_set = self.env.combine(sampled_non_relevant, self.env.labeled)
-        self.classifier.fit_provider(train_set, temp_labels)
-
-    def _predict(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> Tuple[Sequence[KT], np.ndarray]:
-        raw_probas = self.classifier.predict_proba_provider_raw(provider)
-        keys, matrix = raw_proba_chainer(raw_probas)
-        return keys, matrix
-
-    def _rank(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> Sequence[Tuple[KT, float]]:
-        keys, matrix = self._predict(provider)
-        pos_column = self.classifier.get_label_column_index(self.pos_label)
-        prob_vector = matrix[:,pos_column]
-        floats: Sequence[float] = prob_vector.tolist()
-        zipped = list(zip(keys, floats))
-        ranking = sort_on(1, zipped)
-        return ranking
-    
-    def inclusion_probability(self, key: KT) -> float:
+    def inclusion_probability(self, key: KT, t_max: int) -> float:
         dist_h = self.distributions
         pi = 1.0 - np.product(
-            [((1.0 - dist_h[t][key]) ** len(self.sampled_sets[t])) for t in dist_h])
+            [((1.0 - dist_h[t][key]) ** len(self.sampled_sets[t])) for t in dist_h if t <= t_max])
         return pi
 
-    def second_order_probability(self, key_a: KT, key_b: KT) -> float:
+    def second_order_probability(self, key_a: KT, key_b: KT, t_max: int) -> float:
         dist_h = self.distributions
-        min_part = 1.0 - np.product([((1.0 - dist_h[t][key_a] - dist_h[t][key_b]) ** len(self.sampled_sets[t])) for t in dist_h])
-        pij = self.inclusion_probability(key_a) + self.inclusion_probability(key_b) - min_part
+        min_part = 1.0 - np.product([((1.0 - dist_h[t][key_a] - dist_h[t][key_b]) ** len(self.sampled_sets[t])) for t in dist_h if t <= t_max])
+        pij = self.inclusion_probability(key_a, t_max) + self.inclusion_probability(key_b, t_max) - min_part
         return pij
 
     def _sample(self, distribution: Sequence[Tuple[KT, float]]) -> Sequence[KT]:
@@ -105,7 +56,15 @@ class AutoStopLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, V
         sample = random.choices(keys, weights=probs, k=self.batch_size)
         return sample
 
-    def __next__(self) -> IT:
+    def horvitz_thompson(self, it: int) -> float:
+        sample = self.sampled_sets[it]
+        unique = frozenset(sample)
+        ys = np.array([int(self.pos_label in self.env.labels.get_labels(key)) for key in unique])
+        ps = np.array([self.inclusion_probability(key, it) for key in unique])
+        estimate = np.sum(ys / ps)
+        return estimate        
+
+    def update_sample(self) -> Deque[KT]:
         if not self.current_sample:
             self._temp_augment_and_train()
             ranking = self._rank(self.env.dataset)
@@ -114,18 +73,12 @@ class AutoStopLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, V
             
             # Store all data for later analysis
             self.distributions[self.it] = dict(distribution)
+            self.rank_history[self.it] = self._to_history(ranking)
             self.sampled_sets[self.it] = tuple(sample)
             self.current_sample = collections.deque(sample)
             self.batch_size += round(self.batch_size / 10)
             self.it+= 1
-
-        while self.current_sample:
-            ins_key = self.current_sample.popleft()
-            if ins_key not in self.env.labeled:
-                return self.env.dataset[ins_key]
-        if not self.env.unlabeled.empty:
-            return self.__next__()
-        raise StopIteration()
+        return self.current_sample
             
             
             
