@@ -21,7 +21,7 @@ from sklearn.naive_bayes import MultinomialNB
 
 
 #%%
-path = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
+path = Path("../datasets/van_Dis_2020.csv")
 env = read_review_dataset(path)
 POS = "Relevant"
 NEG = "Irrelevant"
@@ -44,10 +44,12 @@ estimators = {} # {"RaschRidge": estimator}
 table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 10, 10, 10, iteration_hooks=[table_hook])
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, 500)
+simulator = TarSimulator(exp, plotter)
 # %%
 simulator.simulate()
 
 #%%
 plotter.show()
+# %%
+table_hook.save_to_folder("outputs/vandis")
 # %%

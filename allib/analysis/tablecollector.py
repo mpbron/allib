@@ -1,3 +1,5 @@
+from os import PathLike
+from pathlib import Path
 from typing import Any, Dict, FrozenSet, Generic, List, Tuple
 
 import numpy as np
@@ -135,3 +137,12 @@ class TableCollector(Generic[LT]):
     def compact(self) -> pd.DataFrame:
         compact = pd.concat(map(convert_df, self.dfs), ignore_index=True)
         return compact # type: ignore
+
+    def save_to_folder(self, path: "PathLike[str]") -> None:
+        path = Path(path)
+        if not path.exists():
+            path.mkdir(parents=True)
+        compact = self.compact
+        compact.to_csv((path / "aggregated.csv"), index=False)
+        for i, df in enumerate(self.dfs):
+            df.to_csv((path / f"design_matrix_{i}.csv"), index=False)

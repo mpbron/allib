@@ -29,6 +29,12 @@ def calc_ap_prior_distribution(ranking: Sequence[Tuple[KT, float]]) -> Sequence[
 class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
     distributions: Dict[int, Dict[KT, float]]
     
+    dist_fixed:    Dict[int, np.ndarray]
+    cumulative_fo: Dict[int, np.ndarray]
+    cumulative_so: Dict[int, np.ndarray]
+    label_vector: Dict[int, np.ndarray]
+    key_seq: Sequence[KT]
+    
     def __init__(self, 
                  classifier: il.AbstractClassifier[IT, KT, DT, VT, RT, LT, np.ndarray, np.ndarray],
                  pos_label: LT, 
@@ -36,8 +42,21 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
                  k_sample: int,
                  batch_size: int,  
                  *_, identifier: Optional[str] = None, **__) -> None:
-        super().__init__(classifier, pos_label, neg_label, k_sample, batch_size, identifier=identifier)
-        self.distributions = dict()   
+        super().__init__(classifier, pos_label, neg_label, 
+                         k_sample, batch_size, identifier=identifier)
+        
+        self.distributions = dict()
+        self.dist_fixed = dict()
+        self.cumulative_fo = dict()
+        self.cumulative_so = dict()
+        self.key_seq = tuple()
+        self.label_vector = dict()
+        self.dtype = np.float128
+
+    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> PoolBasedAL[IT, KT, DT, VT, RT, LT]:
+        super().__call__(environment)
+        self.key_seq = tuple(self.env.dataset)
+        return self
 
     def inclusion_probability(self, key: KT, t_max: int) -> float:
         dist_h = self.distributions
@@ -56,13 +75,47 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
         sample = random.choices(keys, weights=probs, k=self.batch_size)
         return sample
 
-    def horvitz_thompson(self, it: int) -> float:
-        sample = self.sampled_sets[it]
-        unique = frozenset(sample)
-        ys = np.array([int(self.pos_label in self.env.labels.get_labels(key)) for key in unique])
-        ps = np.array([self.inclusion_probability(key, it) for key in unique])
-        estimate = np.sum(ys / ps)
-        return estimate        
+    def _update_inclusion_prob(self):
+        # Fixing some variables
+        big_n = len(self.env.dataset)
+        dists = self.distributions[self.it]
+        prev_it = self.it - 1
+        
+        n = len(self.sampled_set[self.it])
+        dist = np.array([dists[k] for k in self.key_seq])
+        if prev_it in self.cumulative_fo:
+            prev_fo = self.cumulative_fo[prev_it]
+            prev_so = self.cumulative_so[prev_it]
+        else:
+            prev_fo = np.zeros((1, big_n), dtype=self.dtype)
+            prev_so = np.zeros((big_n, big_n), dtype=self.dtype)
+        
+        # Calculate first order (fo) part
+        self.cumulative_fo[self.it] = prev_fo + n * np.log(1.0 - dist)
+
+        # Calculate second order (so) part
+        M = np.tile(dist, (self.N, 1))
+        MT = M.T
+        temp = 1.0 - M - MT
+        np.fill_diagonal(temp, 1)  # set diagonal values to 1 to make sure log calculation is valid
+        
+        self.cumulative_so[self.it] = prev_so + n * np.log(temp) 
+        self.dist_fixed[self.it] = dist
+
+        # Calculate fast binary label vector
+        inclusions = frozenset(self.env.get_subset_by_labels(self.env.labeled, self.pos_label))
+        self.label_vector[self.it] = np.array([k in inclusions for k in self.key_seq])
+
+    def fo_inclusion_probabilities(self, it: int) -> np.ndarray:
+        result = 1.0 - np.exp(self.cumulated_fo[it])
+        return result
+
+    def so_inclusion_probabilities(self, it: int) -> np.ndarray:
+        big_n = len(self.env.dataset)
+        M = np.tile(self.fo_inclusion_probabilities(it), (big_n, 1))
+        MT = M.T
+        result = M + MT - (1.0 - np.exp(self.cumulative_so[it]))
+        return result
 
     def update_sample(self) -> Deque[KT]:
         if not self.current_sample:
@@ -75,6 +128,7 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
             self.distributions[self.it] = dict(distribution)
             self.rank_history[self.it] = self._to_history(ranking)
             self.sampled_sets[self.it] = tuple(sample)
+            self._update_inclusion_prob()
             self.current_sample = collections.deque(sample)
             self.batch_size += round(self.batch_size / 10)
             self.it+= 1
