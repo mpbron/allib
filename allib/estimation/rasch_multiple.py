@@ -2,7 +2,7 @@ import collections
 from dataclasses import dataclass
 from logging import currentframe
 from os import spawnlp
-from typing import Any, Generic, List, Optional, Sequence, Tuple
+from typing import Any, Deque, Generic, List, Optional, Sequence, Tuple
 
 import multiprocessing as mp
 import itertools
@@ -14,6 +14,9 @@ from numba.experimental import jitclass
 from numba import jit, types, typed, int32, prange # type: ignore
 from numba.typed import List as NumbaList
 import pandas as pd
+from allib.activelearning.base import ActiveLearner
+
+from allib.estimation.base import Estimate
 
 from ..activelearning.estimator import Estimator
 import numpy as np
@@ -401,6 +404,71 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
         high_estimate = np.percentile(estimates, 97.5)
     return median_estimate, low_estimate, high_estimate
 
+@dataclass
+class ModelStatistics:
+    beta: np.ndarray
+    mfit: np.ndarray
+    deviance: float
+    preds: np.ndarray
+
+def rasch_estimate_parametric(freq_df: pd.DataFrame,
+                   n_dataset: int,
+                   tolerance: float = 1e-5,
+                   max_it: int = 2000,
+                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+    # Calculate general frequency statistics
+    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    # Add place holder rows for the counts that we aim to estimate
+    df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
+
+    # Change the dataframe in the correct format for the L2 algorithm
+    learner_cols = list(df_w_missing
+                        .filter(regex=r"^(?:(?!positive$).)+$")
+                        .filter(regex=r"^learner")
+                        )
+    df_formatted = l2_format(df_w_missing, learner_cols)
+
+    # Calculate row masks to select data from the matrices and vectors
+    est_mask: List[bool] = list(df_formatted[learner_cols].sum(axis=1) <= 0)
+    pos_mask: List[bool] = list(df_formatted.positive > 0)
+    masks = create_mask(pos_mask, est_mask)
+    
+    design_mat: np.ndarray = (
+        df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
+        .values)  # type: ignore
+
+    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+
+    only_pos_estimate = rasch_estimate_only_pos(freq_df)
+    proportion: float = only_pos_estimate / (n_dataset - np.sum(counts[masks.observed]))
+    beta, mfit, deviance = rasch_em(design_mat, counts, n_dataset, masks, proportion, tolerance, max_it)
+    positive_estimate: float = mfit[masks.positive_estimate][0]
+    
+    p_vals = mfit / np.sum(mfit)
+    obs_pos = np.sum(counts[masks.positive_observed])
+    # Calculate standard error on predictors
+    try:
+        multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
+    except LinAlgError:
+        warnings.warn("Could not determine confidence interval")
+        horizon_estimate = obs_pos + positive_estimate
+        estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
+        stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+    else:
+        rounded_mfits = np.round(multinomial_fits)
+        low_estimate = positive_estimate
+        high_estimate = positive_estimate
+        
+        results = rasch_parallel(design_mat, rounded_mfits, n_dataset, proportion, masks)
+        estimates: List[float] = [fitted[masks.positive_estimate][0]
+                                    for (_, fitted, _) in results]
+        stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
+        low_estimate = obs_pos + np.percentile(estimates, 2.5)
+        median_estimate = obs_pos + np.percentile(estimates, 50)
+        high_estimate = obs_pos + np.percentile(estimates, 97.5)
+        estimate = Estimate(median_estimate, low_estimate, high_estimate)
+    return estimate, stats
+
 
 
 
@@ -433,3 +501,39 @@ class EMRaschRidgeParametricConvPython(
         horizon_low = self.est_low + pos_count
         horizon_up = self.est_up + pos_count
         return horizon, horizon_low, horizon_up
+
+
+
+
+class FastEMRaschPosNeg(
+        EMRaschCombined[KT, DT, VT, RT, LT],
+        Generic[KT, DT, VT, RT, LT]):
+
+    estimates: Deque[Estimate]
+    model_info: Deque[ModelStatistics]
+    dfs: Deque[pd.DataFrame]
+
+    def __init__(self):
+        super().__init__()
+        self.estimates = collections.deque()
+        self.dfs = collections.deque()
+        self.model_info = collections.deque()
+
+    def _start_r(self) -> None:
+        pass
+
+    def __call__(self, learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Estimate:
+        assert isinstance(learner, Estimator)
+        return self.calculate_estimate(learner, label)
+
+    def calculate_estimate(self,
+                           estimator: Estimator[Any, KT, DT, VT, RT, LT],
+                           label: LT) -> Estimate:
+        dataset_size = len(estimator.env.dataset)
+        df = self.get_occasion_history(estimator, label)
+        if not self.dfs or not self.dfs[-1].equals(df):
+            self.dfs.append(df)
+            est, stats = rasch_estimate_parametric(df, dataset_size)
+            self.estimates.append(est)
+            self.model_info.append(stats)
+        return self.estimates[-1]
