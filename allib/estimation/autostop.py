@@ -33,17 +33,17 @@ def horvitz_thompson_var1(
     sample = learner.sampled_sets[it]
     unique = frozenset(sample)
     ys = learner.label_vector[it]
-    ps = learner.fo_inclusion_probabilities(it)
-    ss = learner.so_inclusion_probabilities(it)
+    fo_pi = learner.fo_inclusion_probabilities(it)
+    so_pij = learner.so_inclusion_probabilities(it)
     
-    point_estimate = np.sum(fo_mask * (ys / ps))
-    part1 = 1.0 / ps ** 2 - 1.0 / ps
+    point_estimate = np.sum(fo_mask * (ys / fo_pi))
+    part1 = 1.0 / fo_pi ** 2 - 1.0 / fo_pi
     yi_2 = ys ** 2
     
     # 1/(pi_i*pi_j) - 1/pi_ij
-    M = np.tile(ps, (N, 1))
+    M = np.tile(fo_pi, (N, 1))
     MT = M.T
-    part2 = 1.0 / (M * MT) - 1.0 / ss
+    part2 = 1.0 / (M * MT) - 1.0 / so_pij
     np.fill_diagonal(part2, 0.0)  # set diagonal values to zero, because summing part2 do not include diagonal values
 
     #  y_i * y_j
@@ -53,7 +53,7 @@ def horvitz_thompson_var1(
     
 
     variance1 = np.sum(fo_mask * part1*yi_2) + np.sum(so_mask *part2*yi_yj)
-    estimate = np.sum(ys / ps)
+    estimate = np.sum(ys / fo_pi)
     return estimate  
 
 class HorvitzThompson(AbstractEstimator[LT], Generic[IT, KT, DT, VT, RT, LT]):

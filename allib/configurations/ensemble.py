@@ -32,12 +32,9 @@ al_config_lr = {
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.LOGISTIC,
         "model_configuration": {
-            "solver":"liblinear",
+            "solver":"lbfgs",
             "C": 1.0,
-            "class_weight":{
-                0: 1.0,
-                1: 1.0,
-            },
+            "max_iter": 10000,
         },
         "task": Cat.ML.Task.BINARY,
         "balancer": {
@@ -251,6 +248,16 @@ rasch_estimator = {
         add_identifier(al_config_rf, "RandomForest"),
     ]
 }
+
+rasch_nblrrf =  {
+    "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+    "learners": [
+        add_identifier(al_config_nb, "NaiveBayes"),
+        add_identifier(al_config_rf, "RandomForest"),
+        add_identifier(al_config_lr, "LogisticRegression"),
+    ]
+}
+
 rasch_lr = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
     "learners": [

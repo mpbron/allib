@@ -244,8 +244,10 @@ def rasch_numpy(design_mat: np.ndarray,
     betas = np.zeros((proportions.shape[0], design_mat.shape[1]))
     mfits = np.zeros((proportions.shape[0], design_mat.shape[0]))
     num_proportions = proportions.shape[0]
+    n_not_read = n_dataset - np.sum(counts[masks.observed])
     for idx in prange(num_proportions):
         proportion = proportions[idx]
+        b0 = initial_fit(n_not_read, design_mat)
         beta, mfit, deviance = rasch_em(design_mat, counts, n_dataset, masks, proportion, tolerance, max_it)
         betas[idx,:] = beta
         mfits[idx,:] = mfit

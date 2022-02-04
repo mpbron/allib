@@ -24,6 +24,13 @@ from .rasch import EMRaschCombined
 
 from ..typehints.typevars import KT, DT, VT, RT, LT
 
+@dataclass
+class ModelStatistics:
+    beta: np.ndarray
+    mfit: np.ndarray
+    deviance: float
+    preds: np.ndarray
+
 spec = [
     ("positive", int32[:]),
     ("estimate", int32[:]),
@@ -211,9 +218,12 @@ def remove_pos_cells(df: pd.DataFrame) -> pd.DataFrame:
     return not_pos_cols
 
 @jit(nopython=True, parallel=True) # type: ignore
-def pos_rasch_numpy(design_mat: np.ndarray, obs_counts: np.ndarray, total_found: int, max_it: int = 2000) -> float:
+def pos_rasch_numpy(design_mat: np.ndarray, 
+                    obs_counts: np.ndarray, 
+                    total_found: int, max_it: int = 2000
+                    ) -> Tuple[float, float, float, np.ndarray, np.ndarray, float, np.ndarray]:
     beta, mfit, deviance = glm(design_mat, obs_counts)
-    estimate =np.exp(beta[0])
+    estimate = np.exp(beta[0])
     horizon_estimate = int(np.round(total_found + estimate))
     fitted: np.ndarray = np.concatenate((np.array([estimate]), mfit))
     p_vals = fitted / np.sum(fitted)
@@ -230,16 +240,17 @@ def pos_rasch_numpy(design_mat: np.ndarray, obs_counts: np.ndarray, total_found:
             mfits[idx,:] = i_mfit
             deviances[idx] = i_deviance
         
-        estimates = np.exp(betas[:,0])
-        
-        middle_estimate = np.percentile(estimates, 50)    
-        return middle_estimate
-    return estimate
+        estimates = total_found + np.exp(betas[:,0])
+        low = np.percentile(estimates, 2.5)
+        up = np.percentile(estimates, 97.5)
+        point = np.percentile(estimates, 50)    
+        return point, low, up, beta, mfit, deviance, estimates
+    return estimate, estimate, estimate, beta, mfit, deviance, np.array([estimate])
 
 
 
 
-def rasch_estimate_only_pos(freq_df: pd.DataFrame) -> float:
+def rasch_estimate_only_pos(freq_df: pd.DataFrame) -> Tuple[Estimate, ModelStatistics]:
     learner_cols = list(freq_df.filter(regex=r"^learner")
         )
     df_formatted = remove_pos_cells(l2_format(freq_df, learner_cols))   
@@ -250,21 +261,26 @@ def rasch_estimate_only_pos(freq_df: pd.DataFrame) -> float:
     obs_counts: np.ndarray = df_formatted["count"].values # type: ignore
     total_found: int = int(np.sum(obs_counts))
     
-    result = pos_rasch_numpy(design_mat, obs_counts, total_found)
-    return result
+    point, low, up, beta, mfit, deviance, estimates = pos_rasch_numpy(
+        design_mat, obs_counts, total_found)
+    estimate = Estimate(point, low, up)
+    stats = ModelStatistics(beta, mfit, deviance, estimates)
+    return estimate, stats
 
 
 
 
 
 @jit(nopython=True)  # type: ignore
-def rasch_em(design_mat: np.ndarray, 
+def rasch_em(design_mat: np.ndarray,
+             b0: np.ndarray,
              counts: np.ndarray,
              n_dataset: float,
              masks: Masks,
              proportion: float,
              tolerance: float = 1e-5,
              max_it=1000) -> Tuple[np.ndarray, np.ndarray, float]:
+
     orig_counts = counts[masks.observed]
     n_not_read = n_dataset - np.sum(orig_counts)
     
@@ -275,7 +291,6 @@ def rasch_em(design_mat: np.ndarray,
     efit[masks.positive_estimate] = n_pos
     efit[masks.negative_estimate] = n_neg
 
-    b0 = initial_fit(n_not_read, design_mat)
     beta, mfit, deviance = rasch_glm(design_mat, efit, counts, b0, masks)
     current_tolerance = 1
     # Expectation Maximization
@@ -304,9 +319,11 @@ def rasch_numpy(design_mat: np.ndarray,
     betas = np.zeros((proportions.shape[0], design_mat.shape[1]))
     mfits = np.zeros((proportions.shape[0], design_mat.shape[0]))
     num_proportions = proportions.shape[0]
+    n_not_read = n_dataset - np.sum(counts[masks.observed])
+    b0 = initial_fit(n_not_read, design_mat)
     for idx in prange(num_proportions):
         proportion = proportions[idx]
-        beta, mfit, deviance = rasch_em(design_mat, counts, n_dataset, masks, proportion, tolerance, max_it)
+        beta, mfit, deviance = rasch_em(design_mat, b0,  counts, n_dataset, masks, proportion, tolerance, max_it)
         betas[idx,:] = beta
         mfits[idx,:] = mfit
         deviances[idx] = deviance
@@ -324,7 +341,8 @@ def rasch_numpy(design_mat: np.ndarray,
     return best_beta, best_mfit, best_deviance
 
 @jit(nopython=True, parallel=True) # type: ignore
-def rasch_parallel(design_mat: np.ndarray, 
+def rasch_parallel(design_mat: np.ndarray,
+                   b0: np.ndarray, 
                    rounded_mfits: np.ndarray, 
                    n_dataset: int,
                    proportion: float,
@@ -335,7 +353,7 @@ def rasch_parallel(design_mat: np.ndarray,
     num_mfits = rounded_mfits.shape[0]
     for idx in prange(num_mfits):
         mfit_sample = rounded_mfits[idx,:]
-        beta, mfit, deviance = rasch_em(design_mat, mfit_sample, n_dataset, masks, proportion) 
+        beta, mfit, deviance = rasch_em(design_mat, b0, mfit_sample, n_dataset, masks, proportion) 
         betas[idx,:] = beta
         mfits[idx,:] = mfit
         deviances[idx] = deviance
@@ -373,9 +391,11 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
 
     counts: np.ndarray = df_formatted["count"].values  # type: ignore
 
-    only_pos_estimate = rasch_estimate_only_pos(freq_df)
+    only_pos_estimate = rasch_estimate_only_pos(freq_df)[0].point
     proportion: float = only_pos_estimate / (n_dataset - np.sum(counts[masks.observed]))
-    beta, mfit, deviance = rasch_em(design_mat, counts, n_dataset, masks, proportion, tolerance, max_it)
+    n_not_read = n_dataset - np.sum(counts[masks.observed])
+    b0 = initial_fit(n_not_read, design_mat)
+    beta, mfit, deviance = rasch_em(design_mat, b0, counts, n_dataset, masks, proportion, tolerance, max_it)
     positive_estimate: float = mfit[masks.positive_estimate][0]
     
     # Calculate standard error on predictors
@@ -396,7 +416,7 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
     high_estimate = positive_estimate
     obs_pos = np.sum(counts[masks.positive_observed])
     if True:
-        results = rasch_parallel(design_mat, rounded_mfits, n_dataset, proportion, masks)
+        results = rasch_parallel(design_mat, beta,  rounded_mfits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
                                 for (_, fitted, _) in results]
         low_estimate = np.percentile(estimates, 2.5)
@@ -404,18 +424,13 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
         high_estimate = np.percentile(estimates, 97.5)
     return median_estimate, low_estimate, high_estimate
 
-@dataclass
-class ModelStatistics:
-    beta: np.ndarray
-    mfit: np.ndarray
-    deviance: float
-    preds: np.ndarray
+
 
 def rasch_estimate_parametric(freq_df: pd.DataFrame,
                    n_dataset: int,
                    tolerance: float = 1e-5,
                    max_it: int = 2000,
-                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+                   multinomial_size: int = 1000) -> Tuple[Estimate, ModelStatistics]:
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
@@ -438,10 +453,12 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
         .values)  # type: ignore
 
     counts: np.ndarray = df_formatted["count"].values  # type: ignore
-
-    only_pos_estimate = rasch_estimate_only_pos(freq_df)
-    proportion: float = only_pos_estimate / (n_dataset - np.sum(counts[masks.observed]))
-    beta, mfit, deviance = rasch_em(design_mat, counts, n_dataset, masks, proportion, tolerance, max_it)
+    obs_pos = np.sum(counts[masks.positive_observed])
+    #only_pos_estimate = rasch_estimate_only_pos(freq_df)[0].point
+    proportion: float = 100 / (n_dataset - np.sum(counts[masks.observed]))
+    n_not_read = n_dataset - np.sum(counts[masks.observed])
+    b0 = initial_fit(n_not_read, design_mat)
+    beta, mfit, deviance = rasch_em(design_mat, b0, counts, n_dataset, masks, proportion, tolerance, max_it)
     positive_estimate: float = mfit[masks.positive_estimate][0]
     
     p_vals = mfit / np.sum(mfit)
@@ -459,7 +476,7 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
         low_estimate = positive_estimate
         high_estimate = positive_estimate
         
-        results = rasch_parallel(design_mat, rounded_mfits, n_dataset, proportion, masks)
+        results = rasch_parallel(design_mat, beta, rounded_mfits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
                                     for (_, fitted, _) in results]
         stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
@@ -534,6 +551,16 @@ class FastEMRaschPosNeg(
         if not self.dfs or not self.dfs[-1].equals(df):
             self.dfs.append(df)
             est, stats = rasch_estimate_parametric(df, dataset_size)
+            self.estimates.append(est)
+            self.model_info.append(stats)
+        return self.estimates[-1]
+
+class FastOnlyPos(FastEMRaschPosNeg):
+    def calculate_estimate(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT) -> Estimate:
+        df = self.get_occasion_history(estimator, label)
+        if not self.dfs or not self.dfs[-1].equals(df):
+            self.dfs.append(df)
+            est, stats = rasch_estimate_only_pos(df)
             self.estimates.append(est)
             self.model_info.append(stats)
         return self.estimates[-1]

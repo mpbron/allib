@@ -9,6 +9,7 @@ class ALConfiguration(Enum):
     RaschRF = "RaschRF"
     EntropySamplingNB = "EntropySamplingNB"
     ProbabilityEnsemble = "ProbabilityEnsemble"
+    RaschNBLRRF = "RaschNBLRRF"
 
 class FEConfiguration(Enum):
     TFIDF5000 = "TfIDF5000"
