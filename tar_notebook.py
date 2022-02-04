@@ -71,8 +71,8 @@ np.percentile(ests, 50)
 deviances_pn = [info.deviance for info in estimator.model_info]
 deviances_p = [info.deviance for info in onlypos.model_info]
 plotter.show()
-plt.plot(range(0,plotter.it,10), deviances_pn, label="Deviance POS and NEG")
-plt.plot(range(0,plotter.it,10), deviances_p, label="Deviance POS")
+plt.plot(range(0,plotter.it,10), deviances_pn, label="Deviance POS and NEG", linestyle="--")
+plt.plot(range(0,plotter.it,10), deviances_p, label="Deviance POS", linestyle="--")
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 # %%
 
