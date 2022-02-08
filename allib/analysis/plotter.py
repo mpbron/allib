@@ -43,12 +43,18 @@ class AbstractPlotter(ABC, Generic[LT]):
 class ExperimentPlotter(ABC, Generic[LT]):
     @abstractmethod
     def update(self,
-               exp_iterator: ExperimentIterator[Any, Any, Any, Any, Any, LT]
+               exp_iterator: ExperimentIterator[Any, Any, Any, Any, Any, LT],
+               *args: Any,
+               **kwargs: Any
                ) -> None:
         raise NotImplementedError
     
     @abstractmethod
     def show(self, *args: Any, **kwargs: Any) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def print_last_stats(self) -> None:
         raise NotImplementedError
 
 class ClassificationPlotter(AbstractPlotter[LT], Generic[KT, LT]):

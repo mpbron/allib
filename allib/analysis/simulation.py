@@ -91,12 +91,14 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
     plotter: ExperimentPlotter[LT]
     experiment: ExperimentIterator
 
-    def __init__(self, experiment: ExperimentPlotter, 
-                       plotter: ExperimentPlotter,
-                       max_it: Optional[int]=None) -> None:
+    def __init__(self, experiment: ExperimentIterator[IT, KT, DT, VT, RT, LT], 
+                       plotter: ExperimentPlotter[LT],
+                       max_it: Optional[int]=None,
+                       print_enabled = False) -> None:
         self.experiment = experiment
         self.plotter = plotter
         self.max_it = max_it
+        self.print_enabled = print_enabled
     
     @property
     def _debug_finished(self) -> bool:
@@ -108,7 +110,8 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         while not self.experiment.finished and not self._debug_finished:
             result = self.experiment()
             self.plotter.update(self.experiment, result)
-
+            if self.print_enabled:
+                self.plotter.print_last_stats()
 
         
 

@@ -11,7 +11,7 @@ import warnings
 import instancelib
 from numpy.linalg import LinAlgError
 from numba.experimental import jitclass
-from numba import jit, types, typed, int32, prange # type: ignore
+from numba import jit, types, typed, int32, prange, set_num_threads # type: ignore
 from numba.typed import List as NumbaList
 import pandas as pd
 from allib.activelearning.base import ActiveLearner
@@ -80,6 +80,7 @@ def create_mask(poses: List[bool], estes: List[bool]) -> Masks:
                  negative, observed, 
                  positive_estimate, negative_estimate, 
                  positive_observed, negative_observed)
+
 @jit(nopython=True) # type: ignore
 def l2(b0: np.ndarray,
        design_mat: np.ndarray,
@@ -119,9 +120,6 @@ def l2(b0: np.ndarray,
             b = b0 + invI @ db
             current_tolerance = np.sum(np.abs(b0 - b))
             b0 = b
-    # if it >= max_it:
-    #     warnings.warn(
-    #         f"Exceeded maximum L2 iterations ({max_it}). Estimate might not be accurate")
     return b
 
 
@@ -195,19 +193,20 @@ def rasch_glm(design_mat: np.ndarray,
               efit: np.ndarray,
               counts: np.ndarray,
               b0: np.ndarray,
-              masks: Masks
+              masks: Masks,
+              epsilon: float = 0.1
               ) -> Tuple[np.ndarray, np.ndarray, float]:
     obs_counts = counts[masks.observed]
-    beta = l2(b0, design_mat, counts)
+    beta = l2(b0, design_mat, efit, epsilon=epsilon)
     mfit = np.exp(design_mat @ beta)
     obs_fitted = mfit[masks.observed]
     deviance = calc_deviance(obs_counts, obs_fitted)
     return beta, mfit, deviance
 
 @jit(nopython=True) # type: ignore
-def glm(design_mat: np.ndarray, counts: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float]:
+def glm(design_mat: np.ndarray, counts: np.ndarray, epsilon=0.1) -> Tuple[np.ndarray, np.ndarray, float]:
     b0 = np.repeat(1.0, design_mat.shape[1])
-    beta = l2(b0, design_mat, counts)
+    beta = l2(b0, design_mat, counts, epsilon=epsilon)
     mfit = np.exp(design_mat @ beta)
     deviance = calc_deviance(counts, mfit)
     return beta, mfit, deviance
@@ -323,7 +322,9 @@ def rasch_numpy(design_mat: np.ndarray,
     b0 = initial_fit(n_not_read, design_mat)
     for idx in prange(num_proportions):
         proportion = proportions[idx]
-        beta, mfit, deviance = rasch_em(design_mat, b0,  counts, n_dataset, masks, proportion, tolerance, max_it)
+        beta, mfit, deviance = rasch_em(design_mat, b0,  
+                                        counts, n_dataset, masks, 
+                                        proportion, tolerance, max_it)
         betas[idx,:] = beta
         mfits[idx,:] = mfit
         deviances[idx] = deviance
@@ -340,23 +341,30 @@ def rasch_numpy(design_mat: np.ndarray,
             best_mfit = current_mfit
     return best_beta, best_mfit, best_deviance
 
-@jit(nopython=True, parallel=True) # type: ignore
+@jit(nopython=True, parallel=False, nogil=True) # type: ignore
 def rasch_parallel(design_mat: np.ndarray,
                    b0: np.ndarray, 
                    rounded_mfits: np.ndarray, 
                    n_dataset: int,
                    proportion: float,
                    masks: Masks):
+    # Placeholders for results
     deviances = np.zeros(rounded_mfits.shape[0])
     betas = np.zeros((rounded_mfits.shape[0], design_mat.shape[1]))
     mfits = np.zeros((rounded_mfits.shape[0], design_mat.shape[0]))
     num_mfits = rounded_mfits.shape[0]
+
+    # Parallel execution of Parametric Bootstrap
     for idx in prange(num_mfits):
         mfit_sample = rounded_mfits[idx,:]
-        beta, mfit, deviance = rasch_em(design_mat, b0, mfit_sample, n_dataset, masks, proportion) 
+        beta, mfit, deviance = rasch_em(
+            design_mat, b0, mfit_sample,
+            n_dataset, masks, proportion) 
         betas[idx,:] = beta
         mfits[idx,:] = mfit
         deviances[idx] = deviance
+    
+    # Reordering the results
     results = NumbaList()
     for idx in range(num_mfits):
         result = (betas[idx,:], mfits[idx,:], deviances[idx])
@@ -415,6 +423,7 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
     low_estimate = positive_estimate
     high_estimate = positive_estimate
     obs_pos = np.sum(counts[masks.positive_observed])
+    set_num_threads(7)
     if True:
         results = rasch_parallel(design_mat, beta,  rounded_mfits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
@@ -430,7 +439,7 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
                    n_dataset: int,
                    tolerance: float = 1e-5,
                    max_it: int = 2000,
-                   multinomial_size: int = 1000) -> Tuple[Estimate, ModelStatistics]:
+                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
@@ -455,35 +464,27 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
     counts: np.ndarray = df_formatted["count"].values  # type: ignore
     obs_pos = np.sum(counts[masks.positive_observed])
     #only_pos_estimate = rasch_estimate_only_pos(freq_df)[0].point
-    proportion: float = 100 / (n_dataset - np.sum(counts[masks.observed]))
+    
     n_not_read = n_dataset - np.sum(counts[masks.observed])
+    proportion: float = 100 / n_not_read
     b0 = initial_fit(n_not_read, design_mat)
     beta, mfit, deviance = rasch_em(design_mat, b0, counts, n_dataset, masks, proportion, tolerance, max_it)
     positive_estimate: float = mfit[masks.positive_estimate][0]
-    
-    p_vals = mfit / np.sum(mfit)
-    obs_pos = np.sum(counts[masks.positive_observed])
-    # Calculate standard error on predictors
-    try:
-        multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
-    except LinAlgError:
-        warnings.warn("Could not determine confidence interval")
-        horizon_estimate = obs_pos + positive_estimate
+    horizon_estimate = obs_pos + positive_estimate
+    if np.any(np.isnan(mfit)):
         estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
         stats = ModelStatistics(beta, mfit, deviance, np.array([]))
     else:
-        rounded_mfits = np.round(multinomial_fits)
-        low_estimate = positive_estimate
-        high_estimate = positive_estimate
-        
-        results = rasch_parallel(design_mat, beta, rounded_mfits, n_dataset, proportion, masks)
+        p_vals = mfit / np.sum(mfit)
+        multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
+        rounded_beta = np.around(beta, 3)
+        results = rasch_parallel(design_mat, rounded_beta, multinomial_fits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
                                     for (_, fitted, _) in results]
         stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
         low_estimate = obs_pos + np.percentile(estimates, 2.5)
-        median_estimate = obs_pos + np.percentile(estimates, 50)
         high_estimate = obs_pos + np.percentile(estimates, 97.5)
-        estimate = Estimate(median_estimate, low_estimate, high_estimate)
+        estimate = Estimate(horizon_estimate, low_estimate, high_estimate)
     return estimate, stats
 
 

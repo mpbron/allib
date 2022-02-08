@@ -21,8 +21,8 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
 
     dataset_stats: ty.OrderedDict[int, TarDatasetStats]
     recall_stats: ty.OrderedDict[int, TemporalRecallStats]
-    estimates: ty.OrderedDict[int, Dict[str, Estimate]]
-    stop_results: ty.OrderedDict[int, Dict[str, bool]]
+    estimates: ty.OrderedDict[int, Mapping[str, Estimate]]
+    stop_results: ty.OrderedDict[int, Mapping[str, bool]]
 
     def __init__(self, pos_label: LT, neg_label: LT) -> None:
         self.pos_label = pos_label
@@ -68,6 +68,12 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         true_pos = self.dataset_stats[it].pos_count
         expected = effort / dataset_size * true_pos
         return expected
+
+    def print_last_stats(self) -> None:
+        estimate = self.estimates[self.it]
+        recall = self.recall_stats[self.it]
+        print(estimate)
+        print(recall.pos_docs_found)
 
     def plot_recall_statistic(self,
                               stats: Mapping[int, TemporalRecallStats], 

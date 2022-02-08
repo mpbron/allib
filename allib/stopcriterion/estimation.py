@@ -23,8 +23,8 @@ class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
         super().update(learner)
         if isinstance(learner, Estimator):
             self.add_count(learner.env.labels.document_count(self.label))
-            estimate, lower, upper = self.calculator(learner, self.label)
-            self.add_estimate(upper)
+            estimate = self.calculator(learner, self.label)
+            self.add_estimate(estimate.upper_bound)
         
     def add_estimate(self, value: float) -> None:
         if len(self.estimate_history) > self.same_state_count:
@@ -61,8 +61,8 @@ class CaptureRecaptureCriterion2(CaptureRecaptureCriterion[LT], Generic[LT]):
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
         self.add_count(learner.env.labels.document_count(self.label))
         if isinstance(learner, Estimator):
-            estimate, lower, upper = self.calculator(learner, self.label)
-            self.add_estimate(estimate)
+            estimate = self.calculator(learner, self.label)
+            self.add_estimate(estimate.point)
 
 class RaschCaptureCriterion(CaptureRecaptureCriterion[LT], Generic[LT]):
     @property
@@ -73,10 +73,10 @@ class RaschCaptureCriterion(CaptureRecaptureCriterion[LT], Generic[LT]):
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
         self.add_count(learner.env.labels.document_count(self.label))
         if isinstance(learner, Estimator):
-            estimate, lower, upper = self.calculator(learner, self.label)
+            estimate = self.calculator(learner, self.label)
             dataset_size = len(learner.env.dataset)
-            if estimate < dataset_size:
-                self.add_estimate(estimate)
+            if estimate.point < dataset_size:
+                self.add_estimate(estimate.point)
 
 class EnsembleConvergenceCriterion(SameStateCount[LT], Generic[LT]):
     def __init__(self, label: LT, same_state_count: int, convergence_margin: float):
