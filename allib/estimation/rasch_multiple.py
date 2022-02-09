@@ -249,9 +249,8 @@ def pos_rasch_numpy(design_mat: np.ndarray,
 
 
 
-def rasch_estimate_only_pos(freq_df: pd.DataFrame) -> Tuple[Estimate, ModelStatistics]:
-    learner_cols = list(freq_df.filter(regex=r"^learner")
-        )
+def rasch_estimate_only_pos(freq_df: pd.DataFrame, multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+    learner_cols = list(freq_df.filter(regex=r"^learner"))
     df_formatted = remove_pos_cells(l2_format(freq_df, learner_cols))   
     design_mat = (
         df_formatted.loc[:, df_formatted.columns != 'count'] # type: ignore
@@ -261,7 +260,7 @@ def rasch_estimate_only_pos(freq_df: pd.DataFrame) -> Tuple[Estimate, ModelStati
     total_found: int = int(np.sum(obs_counts))
     
     point, low, up, beta, mfit, deviance, estimates = pos_rasch_numpy(
-        design_mat, obs_counts, total_found)
+        design_mat, obs_counts, total_found, max_it=multinomial_size)
     estimate = Estimate(point, low, up)
     stats = ModelStatistics(beta, mfit, deviance, estimates)
     return estimate, stats
@@ -279,18 +278,19 @@ def rasch_em(design_mat: np.ndarray,
              proportion: float,
              tolerance: float = 1e-5,
              max_it=1000) -> Tuple[np.ndarray, np.ndarray, float]:
-
-    orig_counts = counts[masks.observed]
+    em_b0 = b0.copy()
+    em_counts = counts.copy()
+    orig_counts = em_counts[masks.observed]
     n_not_read = n_dataset - np.sum(orig_counts)
     
     n_pos = proportion * n_not_read
     n_neg = (1 - proportion) * n_not_read
-    efit = counts
+    efit = em_counts.copy()
 
     efit[masks.positive_estimate] = n_pos
     efit[masks.negative_estimate] = n_neg
 
-    beta, mfit, deviance = rasch_glm(design_mat, efit, counts, b0, masks)
+    beta, mfit, deviance = rasch_glm(design_mat, efit, counts, em_b0, masks)
     current_tolerance = 1
     # Expectation Maximization
     it = 0
@@ -299,7 +299,7 @@ def rasch_em(design_mat: np.ndarray,
         efit[masks.estimate] = mfit[masks.estimate] * n_not_read / np.sum(mfit[masks.estimate])
         beta, mfit, deviance = rasch_glm(design_mat, efit, counts, beta, masks)
         current_tolerance = old_deviance - deviance
-        if it > max_it:
+        if it > max_it or np.any(np.isnan(mfit)):
             #warnings.warn(
             #    f"Exceeded maximum EM iterations ({max_it}). Estimate might not be accurate")
             return beta, mfit, deviance
@@ -341,7 +341,7 @@ def rasch_numpy(design_mat: np.ndarray,
             best_mfit = current_mfit
     return best_beta, best_mfit, best_deviance
 
-@jit(nopython=True, parallel=False, nogil=True) # type: ignore
+@jit(nopython=True, parallel=True, nogil=True) # type: ignore
 def rasch_parallel(design_mat: np.ndarray,
                    b0: np.ndarray, 
                    rounded_mfits: np.ndarray, 
@@ -357,8 +357,9 @@ def rasch_parallel(design_mat: np.ndarray,
     # Parallel execution of Parametric Bootstrap
     for idx in prange(num_mfits):
         mfit_sample = rounded_mfits[idx,:]
+        b0_copy = b0.copy()
         beta, mfit, deviance = rasch_em(
-            design_mat, b0, mfit_sample,
+            design_mat, b0_copy, mfit_sample,
             n_dataset, masks, proportion) 
         betas[idx,:] = beta
         mfits[idx,:] = mfit
@@ -478,7 +479,7 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
         p_vals = mfit / np.sum(mfit)
         multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
         rounded_beta = np.around(beta, 3)
-        results = rasch_parallel(design_mat, rounded_beta, multinomial_fits, n_dataset, proportion, masks)
+        results = rasch_parallel(design_mat, b0, multinomial_fits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
                                     for (_, fitted, _) in results]
         stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
@@ -531,11 +532,12 @@ class FastEMRaschPosNeg(
     model_info: Deque[ModelStatistics]
     dfs: Deque[pd.DataFrame]
 
-    def __init__(self):
+    def __init__(self, multinomial_size: int = 2000):
         super().__init__()
         self.estimates = collections.deque()
         self.dfs = collections.deque()
         self.model_info = collections.deque()
+        self.multinomial_size = multinomial_size
 
     def _start_r(self) -> None:
         pass
@@ -551,7 +553,7 @@ class FastEMRaschPosNeg(
         df = self.get_occasion_history(estimator, label)
         if not self.dfs or not self.dfs[-1].equals(df):
             self.dfs.append(df)
-            est, stats = rasch_estimate_parametric(df, dataset_size)
+            est, stats = rasch_estimate_parametric(df, dataset_size, multinomial_size=self.multinomial_size)
             self.estimates.append(est)
             self.model_info.append(stats)
         return self.estimates[-1]
@@ -561,7 +563,7 @@ class FastOnlyPos(FastEMRaschPosNeg):
         df = self.get_occasion_history(estimator, label)
         if not self.dfs or not self.dfs[-1].equals(df):
             self.dfs.append(df)
-            est, stats = rasch_estimate_only_pos(df)
+            est, stats = rasch_estimate_only_pos(df, multinomial_size=self.multinomial_size)
             self.estimates.append(est)
             self.model_info.append(stats)
         return self.estimates[-1]

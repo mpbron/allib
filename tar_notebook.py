@@ -36,8 +36,8 @@ NEG = "Irrelevant"
 al_config = AL_REPOSITORY[ALConfiguration("RaschNBLRRF")]
 fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
 stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
-estimator = FastEMRaschPosNeg()
-onlypos = FastOnlyPos()
+estimator = FastEMRaschPosNeg(2000)
+onlypos = FastOnlyPos(20000)
 initializer = SeparateInitializer(env, 1)
 factory = MainFactory()
 
@@ -47,13 +47,13 @@ al, fe = initialize(factory, al_config, fe_config, initializer, env)
 criterion = stop_constructor(estimator, POS)
 only_pos_stop = stop_constructor(onlypos, POS)
 # %%
-criteria =  { "POS and NEG": criterion,} #{"POS": only_pos_stop}# "POS": only_pos_stop}
-estimators = {"POS and NEG": estimator,} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
+criteria =  {"POS and NEG": criterion, "POS": only_pos_stop}# "POS": only_pos_stop}
+estimators = {"POS and NEG": estimator, "POS": onlypos} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
 table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
     10, 10, 10, iteration_hooks=[table_hook])
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter,700, True)
+simulator = TarSimulator(exp, plotter,500, True)
 # %%
 simulator.simulate()
 
@@ -70,11 +70,16 @@ plotter.show()
 if deviances_pn:
     plt.plot(range(0,plotter.it,10), deviances_pn, label="Deviance POS and NEG", linestyle="--")
 if deviances_p:
-    plt.plot(range(0,plotter.it,1), deviances_p, label="Deviance POS", linestyle="--")
+    plt.plot(range(0,plotter.it,10), deviances_p, label="Deviance POS", linestyle="--")
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 # %%
 
-df = estimator.dfs[-1]
+df = estimator.dfs[-2]
 # %%
-rasch_estimate_parametric(df, 8911, multinomial_size=2000)
+rasch_estimate_parametric(df, 8911, multinomial_size=20)
+# %%
+from allib.estimation.rasch_multiple import rasch_parallel
+rasch_parallel.inspect_types()
+# %%
+df.to_csv("problem.csv",index=False)
 # %%
