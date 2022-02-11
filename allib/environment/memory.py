@@ -148,7 +148,7 @@ class MemoryEnvironment(
     def from_instancelib_simulation(cls, 
                          environment: ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT]
                          )-> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
-        dataset = environment.all_datapoints
+        dataset = environment.all_instances
         unlabeled = MemoryBucketProvider(dataset, dataset.key_list)
         labeled = MemoryBucketProvider(dataset, [])
         labels = MemoryLabelProvider[KT, LT].from_data(
