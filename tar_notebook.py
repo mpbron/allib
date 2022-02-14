@@ -28,7 +28,7 @@ from allib.utils.func import list_unzip
 #%%
 dis = Path("../datasets/van_Dis_2020.csv")
 hall = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
-env = read_review_dataset(hall)
+env = read_review_dataset(dis)
 POS = "Relevant"
 NEG = "Irrelevant"
 # %%
@@ -53,7 +53,7 @@ table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
     10, 10, 10, iteration_hooks=[table_hook])
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter,500, True)
+simulator = TarSimulator(exp, plotter,300, True)
 # %%
 simulator.simulate()
 
@@ -63,12 +63,13 @@ plotter.show()
 table_hook.save_to_folder("results/hall")
 
 # %%
-
+medians_pn = [np.percentile(info.preds,50) for info in estimator.model_info]
 deviances_pn = [info.deviance for info in estimator.model_info]
 deviances_p = [info.deviance for info in onlypos.model_info]
-plotter.show()
+plotter.show(y_lim=225)
 if deviances_pn:
     plt.plot(range(0,plotter.it,10), deviances_pn, label="Deviance POS and NEG", linestyle="--")
+    plt.plot(range(0,plotter.it,10), medians_pn, label="Median Bootstrap POS and NEG", linestyle="-.")
 if deviances_p:
     plt.plot(range(0,plotter.it,10), deviances_p, label="Deviance POS", linestyle="--")
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
