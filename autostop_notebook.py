@@ -1,5 +1,7 @@
 #%%
 from pathlib import Path
+
+from sklearn.linear_model import LogisticRegression
 from allib.activelearning.autostop import AutoStopLearner
 from allib.activelearning.autotar import AutoTarLearner
 from allib.analysis.experiments import ExperimentIterator
@@ -12,6 +14,7 @@ from allib.configurations.base import (AL_REPOSITORY, ESTIMATION_REPOSITORY,
 from allib.configurations.catalog import (ALConfiguration,
                                           EstimationConfiguration,
                                           FEConfiguration)
+from allib.estimation.autostop import HorvitzThompsonVar2
 from allib.module.factory import MainFactory
 from allib.stopcriterion.catalog import StopCriterionCatalog
 import instancelib as il
@@ -32,15 +35,18 @@ il.vectorize(vect, env)
 # %%
 recall95 = AprioriRecallTarget(POS, 0.95)
 criteria = {"Recall95": recall95}
-#estimators = {"RaschRidge": estimator}
-classifier = il.SkLearnVectorClassifier.build(MultinomialNB(), env)
+estimators = {"HorvitzThompson2": HorvitzThompsonVar2()}
+classifier = il.SkLearnVectorClassifier.build(
+    LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000), 
+    env)
+
 al = AutoStopLearner(classifier, POS, NEG, 10, 100)(env)
 at = AutoTarLearner(classifier, POS, NEG, 100, 20)(env)
 random_init = RandomInitializer(env)
 random_init(at)
-exp = ExperimentIterator(al, POS, NEG, criteria, {})
+exp = ExperimentIterator(al, POS, NEG, criteria, estimators)
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, 8800)
+simulator = TarSimulator(exp, plotter, 8800, print_enabled=True)
 # %%
 simulator.simulate()
 # %%

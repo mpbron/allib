@@ -36,13 +36,18 @@ recall95 = AprioriRecallTarget(POS, 0.95)
 criteria = {"Recall95": recall95}
 #estimators = {"RaschRidge": estimator}
 # %%
-at = TSVMLearner(POS, NEG, 20, 20)(env)
-random_init = RandomInitializer(env, 20)
+at = TSVMLearner(POS, NEG, 200, 200)(env)
+random_init = RandomInitializer(env, 100)
 random_init(at)
+
+#%%
+at.classifier.fit_provider(at.env.dataset, at.env.labels)
 # %%
 exp = ExperimentIterator(at, POS, NEG, criteria, {})
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, 20)
+simulator = TarSimulator(exp, plotter, 300)
 #%%
 simulator.simulate()
+# %%
+not_found_yet = at.env.get_subset_by_labels(at.env.unlabeled, "Relevant", labelprovider=at.env.truth)
 # %%

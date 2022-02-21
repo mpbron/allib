@@ -81,7 +81,7 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
         dists = self.distributions[self.it]
         prev_it = self.it - 1
         
-        n = len(self.sampled_set[self.it])
+        n = len(self.sampled_sets[self.it])
         dist = np.array([dists[k] for k in self.key_seq])
         if prev_it in self.cumulative_fo:
             prev_fo = self.cumulative_fo[prev_it]
@@ -94,7 +94,7 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
         self.cumulative_fo[self.it] = prev_fo + n * np.log(1.0 - dist)
 
         # Calculate second order (so) part
-        M = np.tile(dist, (self.N, 1))
+        M = np.tile(dist, (big_n, 1))
         MT = M.T
         temp = 1.0 - M - MT
         np.fill_diagonal(temp, 1)  # set diagonal values to 1 to make sure log calculation is valid
@@ -107,7 +107,7 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
         self.label_vector[self.it] = np.array([k in inclusions for k in self.key_seq])
 
     def fo_inclusion_probabilities(self, it: int) -> np.ndarray:
-        result = 1.0 - np.exp(self.cumulated_fo[it])
+        result = 1.0 - np.exp(self.cumulative_fo[it])
         return result
 
     def so_inclusion_probabilities(self, it: int) -> np.ndarray:

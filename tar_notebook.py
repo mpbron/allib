@@ -8,7 +8,7 @@ from allib.analysis.experiments import ExperimentIterator
 from allib.analysis.initialization import RandomInitializer, SeparateInitializer
 from allib.analysis.simulation import TarSimulator, initialize
 from allib.analysis.tablecollector import TableCollector
-from allib.analysis.tarplotter import TarExperimentPlotter
+from allib.analysis.tarplotter import ModelStatsTar, TarExperimentPlotter
 from allib.benchmarking.reviews import read_review_dataset
 from allib.configurations.base import (AL_REPOSITORY, ESTIMATION_REPOSITORY,
                                        FE_REPOSITORY, STOP_REPOSITORY)
@@ -28,12 +28,12 @@ from allib.utils.func import list_unzip
 #%%
 dis = Path("../datasets/van_Dis_2020.csv")
 hall = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
-env = read_review_dataset(dis)
+env = read_review_dataset(hall)
 POS = "Relevant"
 NEG = "Irrelevant"
 # %%
 # Retrieve the configuration
-al_config = AL_REPOSITORY[ALConfiguration("RaschNBLRRF")]
+al_config = AL_REPOSITORY[ALConfiguration.RashNBLRRFSVM]
 fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
 stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
 estimator = FastEMRaschPosNeg(2000)
@@ -51,9 +51,9 @@ criteria =  {"POS and NEG": criterion, "POS": only_pos_stop}# "POS": only_pos_st
 estimators = {"POS and NEG": estimator, "POS": onlypos} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
 table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
-    10, 10, 10, iteration_hooks=[table_hook])
-plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter,300, True)
+    10, 10, 10)
+plotter = ModelStatsTar(POS, NEG)
+simulator = TarSimulator(exp, plotter, 100, True)
 # %%
 simulator.simulate()
 

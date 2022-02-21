@@ -15,7 +15,7 @@ from ..typehints import LT
 from .catalog import ALConfiguration, EstimationConfiguration, FEConfiguration
 from .ensemble import (al_config_ensemble_prob, al_config_entropy,
                        naive_bayes_estimator, rasch_estimator, rasch_lr,
-                       rasch_rf, rasch_nblrrf, svm_estimator, tf_idf5000)
+                       rasch_rf, rasch_nblrrf, svm_estimator, tf_idf5000, rasch_nblrrfsvm)
 
 AL_REPOSITORY = {
     ALConfiguration.NaiveBayesEstimator :  naive_bayes_estimator,
@@ -25,6 +25,7 @@ AL_REPOSITORY = {
     ALConfiguration.ProbabilityEnsemble: al_config_ensemble_prob,
     ALConfiguration.RaschLR: rasch_lr,
     ALConfiguration.RaschNBLRRF: rasch_nblrrf,
+    ALConfiguration.RaschNBLRRFSVM: rasch_nblrrfsvm,
     ALConfiguration.RaschRF: rasch_rf,
 }
 
