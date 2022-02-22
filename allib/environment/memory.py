@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Dict, Generic, Iterable, Sequence, Set, TypeVar, Union
+from typing import Any, Dict, Generic, Iterable, Mapping, Sequence, Set, TypeVar, Union
 from uuid import UUID
 
 import instancelib as ins
@@ -34,6 +34,10 @@ class AbstractMemoryEnvironment(AbstractEnvironment[IT, KT, DT, VT, RT, LT],
     _logger: BaseLogger[KT, LT, Any]
     _named_providers: Dict[str, InstanceProvider[IT, KT, DT, VT, RT]]
    
+    @property
+    def provider(self) -> Mapping[str, InstanceProvider[IT, KT, DT, VT, RT]]:
+        return self._named_providers
+
     @property
     def dataset(self) -> InstanceProvider[IT, KT, DT, VT, RT]:
         return self._public_dataset
@@ -71,8 +75,8 @@ class AbstractMemoryEnvironment(AbstractEnvironment[IT, KT, DT, VT, RT, LT],
     def set_named_provider(self, name: str, value: InstanceProvider[IT, KT, DT, VT, RT]):
         self._named_providers[name] = value
 
-    def create_named_provider(self, name: str) -> InstanceProvider[IT, KT, DT, VT, RT]:
-        self._named_providers[name] = self.create_empty_provider()
+    def create_named_provider(self, name: str, keys: Iterable[KT] = list()) -> InstanceProvider[IT, KT, DT, VT, RT]:
+        self._named_providers[name] = self.create_bucket(keys)
         return self._named_providers[name]   
     
 class MemoryEnvironment(

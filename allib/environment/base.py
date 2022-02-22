@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, Sequence, TypeVar, Any
+from typing import Generic, Iterable, Mapping, Sequence, TypeVar, Any
 from abc import ABC, abstractmethod, abstractclassmethod
 from ..history import BaseLogger
 from instancelib import InstanceProvider, Instance
@@ -11,8 +11,15 @@ import instancelib as ins
 
 IT = TypeVar("IT", bound="Instance[Any, Any, Any, Any]", covariant=True)
 
+
+
 class AbstractEnvironment(ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT], 
                           ABC, Generic[IT, KT, DT, VT, RT, LT]):
+    @property
+    @abstractmethod
+    def provider(self) -> Mapping[str, InstanceProvider[IT, KT, DT, VT, RT]]:
+        raise NotImplementedError
+
     @property
     @abstractmethod
     def unlabeled(self) -> InstanceProvider[IT, KT, DT, VT, RT]:
@@ -88,6 +95,14 @@ class AbstractEnvironment(ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         AbstractEnvironment[KT, DT, VT, RT, LT]
             A new independent with the same state
         """        
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_named_provider(self, name: str, value: InstanceProvider[IT, KT, DT, VT, RT]):
+        raise NotImplementedError
+
+    @abstractmethod
+    def create_named_provider(self, name: str, keys: Iterable[KT] = list()) -> InstanceProvider[IT, KT, DT, VT, RT]:
         raise NotImplementedError
 
     

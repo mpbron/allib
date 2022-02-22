@@ -1,4 +1,4 @@
-import random
+from math import ceil
 from typing import Deque, FrozenSet, Generic, Optional, Sequence, Tuple, Dict
 
 import instancelib as il
@@ -24,8 +24,6 @@ def calc_ap_prior_distribution(ranking: Sequence[Tuple[KT, float]]) -> Sequence[
     pis: np.ndarray = 1.0 / Z * np.log(N/ranks)
     return list(zip(keys, pis.tolist()))
         
-
-
 class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
     distributions: Dict[int, Dict[KT, float]]
     
@@ -40,10 +38,10 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
                  pos_label: LT, 
                  neg_label: LT, 
                  k_sample: int,
-                 batch_size: int,  
-                 *_, identifier: Optional[str] = None, **__) -> None:
+                 batch_size: int,
+                 *_, seed: int = 0, identifier: Optional[str] = None, **__) -> None:
         super().__init__(classifier, pos_label, neg_label, 
-                         k_sample, batch_size, identifier=identifier)
+                         k_sample, batch_size, identifier=identifier, seed=seed)
         
         self.distributions = dict()
         self.dist_fixed = dict()
@@ -52,6 +50,7 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
         self.key_seq = tuple()
         self.label_vector = dict()
         self.dtype = np.float128
+
 
     def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> PoolBasedAL[IT, KT, DT, VT, RT, LT]:
         super().__call__(environment)
@@ -72,17 +71,17 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
 
     def _sample(self, distribution: Sequence[Tuple[KT, float]]) -> Sequence[KT]:
         keys, probs = list_unzip(distribution)
-        sample = random.choices(keys, weights=probs, k=self.batch_size)
+        sample: Sequence[KT] = self.rng.choice(keys, size=self.batch_size, p=probs).tolist()
         return sample
 
-    def _update_inclusion_prob(self):
+    def _update_inclusion_prob(self, it: int):
         # Fixing some variables
         big_n = len(self.env.dataset)
-        dists = self.distributions[self.it]
-        prev_it = self.it - 1
+        dists = self.distributions[it]
+        prev_it = it - 1
         
-        n = len(self.sampled_sets[self.it])
-        dist = np.array([dists[k] for k in self.key_seq])
+        n = len(self.sampled_sets[it])
+        dist = np.array([dists[k] for k in self.key_seq]).reshape((1, -1))
         if prev_it in self.cumulative_fo:
             prev_fo = self.cumulative_fo[prev_it]
             prev_so = self.cumulative_so[prev_it]
@@ -91,20 +90,23 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
             prev_so = np.zeros((big_n, big_n), dtype=self.dtype)
         
         # Calculate first order (fo) part
-        self.cumulative_fo[self.it] = prev_fo + n * np.log(1.0 - dist)
+        assert it not in self.cumulative_fo
+        self.cumulative_fo[it] = prev_fo + n * np.log(1.0 - dist)
 
         # Calculate second order (so) part
         M = np.tile(dist, (big_n, 1))
         MT = M.T
         temp = 1.0 - M - MT
-        np.fill_diagonal(temp, 1)  # set diagonal values to 1 to make sure log calculation is valid
+        # set diagonal values to 1 to make sure log calculation is valid
+        np.fill_diagonal(temp, 1)  
         
-        self.cumulative_so[self.it] = prev_so + n * np.log(temp) 
-        self.dist_fixed[self.it] = dist
+        assert it not in self.cumulative_so
+        self.cumulative_so[it] = prev_so + n * np.log(temp) 
+        self.dist_fixed[it] = dist
 
         # Calculate fast binary label vector
-        inclusions = frozenset(self.env.get_subset_by_labels(self.env.labeled, self.pos_label))
-        self.label_vector[self.it] = np.array([k in inclusions for k in self.key_seq])
+        inclusions = frozenset(self.env.get_subset_by_labels(self.env.dataset, self.pos_label, labelprovider=self.env.truth))
+        self.label_vector[it] = np.array([k in inclusions for k in self.key_seq])
 
     def fo_inclusion_probabilities(self, it: int) -> np.ndarray:
         result = 1.0 - np.exp(self.cumulative_fo[it])
@@ -119,6 +121,9 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
 
     def update_sample(self) -> Deque[KT]:
         if not self.current_sample:
+            if self.it != 0:
+                prev_it = self.it - 1
+                self._update_inclusion_prob(prev_it)
             self._temp_augment_and_train()
             ranking = self._rank(self.env.dataset)
             distribution = calc_ap_prior_distribution(ranking)
@@ -128,9 +133,9 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
             self.distributions[self.it] = dict(distribution)
             self.rank_history[self.it] = self._to_history(ranking)
             self.sampled_sets[self.it] = tuple(sample)
-            self._update_inclusion_prob()
+            
             self.current_sample = collections.deque(sample)
-            self.batch_size += round(self.batch_size / 10)
+            self.batch_size += ceil(self.batch_size / 10)
             self.it+= 1
         return self.current_sample
             
