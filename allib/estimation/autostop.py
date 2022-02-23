@@ -12,11 +12,10 @@ from numba import njit
 
 
 def calc_fo_mask(learner: AutoStopLearner[Any, Any, Any, Any, Any, Any], it: int) -> np.ndarray:
-    sample = frozenset(learner.sampled_sets[it])
-    fo_mask = np.array([int(k in sample) for k in learner.key_seq]).reshape((1,-1))
+    labeled = learner.cumulative_sampled[it]
+    fo_mask = np.array([int(k in labeled) for k in learner.key_seq]).reshape((1,-1))
     return fo_mask
 
-@njit
 def calc_so_mask(fo_mask: np.ndarray, big_n: int) -> np.ndarray:
     mat = np.tile(fo_mask, (big_n, 1))
     mat_t = mat.T

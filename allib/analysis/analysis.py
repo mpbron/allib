@@ -211,7 +211,7 @@ def classifier_performance_ml(learner: MLBased[Any, KT, DT, VT, RT, LT, Any, Any
 
 def process_performance(learner: ActiveLearner[Any, KT, Any, Any, Any, LT], label: LT) -> BinaryPerformance[KT]:
     labeled = frozenset(learner.env.labeled)
-    labeled_positives = learner.env.labels.get_instances_by_label(label)
+    labeled_positives = frozenset(learner.env.get_subset_by_labels(learner.env.labeled, label))
     labeled_negatives = labeled.difference(labeled_positives)
     
     truth_positives = learner.env.truth.get_instances_by_label(label)

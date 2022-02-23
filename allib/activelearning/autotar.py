@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+from math import ceil
 from typing import (Deque, Dict, FrozenSet, Generic, Mapping, Optional,
                     Sequence, Tuple)
 from uuid import uuid4
@@ -18,7 +19,7 @@ from ..utils.numpy import raw_proba_chainer
 from .base import ActiveLearner
 from .poolbased import PoolBasedAL
 
-PSEUDO_DOC_PROVIDER = "PSEUDO_DOCS"
+PSEUDO_INS_PROVIDER = "PSEUDO_INSTANCES"
 
 class PseudoInstanceInitializer(Initializer[IT, KT, LT], 
                                 Generic[IT, KT, DT, LT]):
@@ -31,8 +32,7 @@ class PseudoInstanceInitializer(Initializer[IT, KT, LT],
                  learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
                  ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         ins = learner.env.create(data=self.pseudo_data, vector=None)
-        learner.env.labels.set_labels(ins, self.pseudo_label)
-        learner.env.create_named_provider(PSEUDO_DOC_PROVIDER, [ins.identifier])
+        learner.env.create_named_provider(PSEUDO_INS_PROVIDER, [ins.identifier])
         return learner 
     
     @classmethod
@@ -48,6 +48,7 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
                      Generic[IT, KT, DT, VT, RT, LT]):
     rank_history: Dict[int, Mapping[KT, int]]
     sampled_sets: Dict[int, Sequence[KT]]
+    batch_sizes:  Dict[int, int]
     current_sample: Deque[KT]
     rng: np.random.Generator
 
@@ -69,11 +70,13 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
 
         # Batch and sample sizes
         self.k_sample = k_sample
+        self.batch_sizes = dict()
         self.batch_size = batch_size
         
         # Record keeping for the current sample
         self.it = 0
         self.current_sample = collections.deque()
+        self.batch_sizes[self.it] = batch_size
 
         # Record keeping for recall analysis
         self.rank_history = dict()
@@ -103,7 +106,12 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
     def _temp_augment_and_train(self):
         temp_labels = il.MemoryLabelProvider.from_provider(self.env.labels)
         sampled_non_relevant = self._provider_sample(self.env.unlabeled)
-        pseudo_docs = self.env.provider[PSEUDO_DOC_PROVIDER]
+        if PSEUDO_INS_PROVIDER in self.env.provider:
+            pseudo_docs = self.env.provider[PSEUDO_INS_PROVIDER]
+            for ins_key in pseudo_docs:
+                temp_labels.set_labels(ins_key, self.pos_label)
+        else:
+            pseudo_docs = self.env.create_bucket([])
         for ins_key in sampled_non_relevant:
             temp_labels.set_labels(ins_key, self.neg_label)
         train_set = self.env.combine(sampled_non_relevant, self.env.labeled, pseudo_docs)
@@ -146,9 +154,10 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
             # Record keeping
             self.rank_history[self.it] = self._to_history(ranking)
             self.sampled_sets[self.it] = tuple(sample)
+            self.batch_sizes[self.it] = self.batch_size
 
             # Increment batch_size for next for train iteration
-            self.batch_size += round(self.batch_size / 10)
+            self.batch_size += ceil(self.batch_size / 10)
             self.it+= 1
         return self.current_sample
         

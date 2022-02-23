@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, OrderedDict, Sequence, Tuple, Dict
 
-from ..analysis.plotter import LT
+from ..typehints.typevars import LT
 from ..utils.func import flatten_dicts
 
 from ..activelearning.base import ActiveLearner

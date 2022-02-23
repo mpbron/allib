@@ -33,7 +33,7 @@ POS = "Relevant"
 NEG = "Irrelevant"
 # %%
 # Retrieve the configuration
-al_config = AL_REPOSITORY[ALConfiguration.RashNBLRRFSVM]
+al_config = AL_REPOSITORY[ALConfiguration.RaschNBLRRF]
 fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
 stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
 estimator = FastEMRaschPosNeg(2000)
@@ -53,7 +53,7 @@ table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
     10, 10, 10)
 plotter = ModelStatsTar(POS, NEG)
-simulator = TarSimulator(exp, plotter, 100, True)
+simulator = TarSimulator(exp, plotter, 1000, True)
 # %%
 simulator.simulate()
 
