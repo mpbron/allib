@@ -62,7 +62,7 @@ def horvitz_thompson_var1(
 def horvitz_thompson_var2(learner: AutoStopLearner[Any, Any, Any, Any, Any, Any], it: int) -> float:
     fo_mask = calc_fo_mask(learner, it)
     big_n = len(learner.env.dataset)
-    v = len(learner.sampled_sets[it])
+    v = len(learner.cumulative_sampled[it])
     ys = learner.label_vector[it]
     total = horvitz_thompson_point(learner, it)
     fo_prob = learner.fo_inclusion_probabilities(it)

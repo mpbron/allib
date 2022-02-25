@@ -15,7 +15,7 @@ from allib.configurations.base import (AL_REPOSITORY, ESTIMATION_REPOSITORY,
 from allib.configurations.catalog import (ALConfiguration,
                                           EstimationConfiguration,
                                           FEConfiguration)
-from allib.estimation.rasch_multiple import FastEMRaschPosNeg, FastOnlyPos, rasch_estimate_parametric
+from allib.estimation.rasch_multiple import FastEMRaschPosNeg, FastOnlyPos, FastPosAssisted, rasch_estimate_parametric
 from allib.module.factory import MainFactory
 from allib.stopcriterion.catalog import StopCriterionCatalog
 import instancelib as il
