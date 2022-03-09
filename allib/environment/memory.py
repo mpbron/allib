@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Dict, Generic, Iterable, Mapping, Sequence, Set, TypeVar, Union
+from typing import Any, Dict, Generic, Iterable, Iterator, Mapping, Sequence, Set, TypeVar, Union
 from uuid import UUID
 
 import instancelib as ins
@@ -33,10 +33,24 @@ class AbstractMemoryEnvironment(AbstractEnvironment[IT, KT, DT, VT, RT, LT],
     _truth: LabelProvider[KT, LT]
     _logger: BaseLogger[KT, LT, Any]
     _named_providers: Dict[str, InstanceProvider[IT, KT, DT, VT, RT]]
-   
-    @property
-    def provider(self) -> Mapping[str, InstanceProvider[IT, KT, DT, VT, RT]]:
-        return self._named_providers
+
+    def __contains__(self, __o: object) -> bool:
+        return __o in self._named_providers
+
+    def __getitem__(self, __k: str) -> InstanceProvider[IT, KT, DT, VT, RT]:
+        return self._named_providers[__k]
+
+    def __setitem__(self, __k: str, __v: InstanceProvider[IT, KT, DT, VT, RT]) -> None:
+        self.set_named_provider(__k, __v)
+
+    def __len__(self) -> int:
+        return len(self._named_providers)
+
+    def __delitem__(self, __v: str) -> None:
+        del self._named_providers[__v]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._named_providers)
 
     @property
     def dataset(self) -> InstanceProvider[IT, KT, DT, VT, RT]:

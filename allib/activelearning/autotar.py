@@ -106,8 +106,8 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
     def _temp_augment_and_train(self):
         temp_labels = il.MemoryLabelProvider.from_provider(self.env.labels)
         sampled_non_relevant = self._provider_sample(self.env.unlabeled)
-        if PSEUDO_INS_PROVIDER in self.env.provider:
-            pseudo_docs = self.env.provider[PSEUDO_INS_PROVIDER]
+        if PSEUDO_INS_PROVIDER in self.env:
+            pseudo_docs = self.env[PSEUDO_INS_PROVIDER]
             for ins_key in pseudo_docs:
                 temp_labels.set_labels(ins_key, self.pos_label)
         else:
