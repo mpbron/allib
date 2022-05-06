@@ -1,0 +1,216 @@
+---
+title: "Multiple Systems Estimation"
+author: "Michiel Bron"
+format: html
+editor: visual
+---
+
+## Multiple Systems Estimation.
+
+First, we load the libraries we want to use:
+
+```{r}
+#| echo: false
+#| include: false
+library(tidyverse)
+library(Rcapture)
+source("./allib/estimation/multiple_estimate.R")
+options(warn=-1)
+```
+
+```{python}
+#| echo: false
+#| include: false
+import pandas as pd
+import numpy as np
+```
+
+We can process the data in R as follows:
+
+```{r}
+path <- "results/halldataset/design_matrix_200.csv" 
+df <- rasch.csv(path)
+df
+```
+
+We will also load the data in Python:
+
+```{python}
+df = pd.read_csv(r.path)
+df
+```
+
+Some statistics:
+
+```{r}
+df %>% group_by(positive) %>% summarise(sum = sum(count))
+```
+
+### RCapture
+
+To use RCapture, we have to drop some columns.
+
+```{r}
+source("./allib/estimation/multiple_estimate.R")
+rasch_to_abundance(df)
+```
+
+### Rasch Only Positive
+
+Again, we have to adapt the dataframe; we have to drop some columns and rows.
+
+```{r}
+df.onlypos <- df %>% filter(positive == 1) %>% select(starts_with("learner") & !ends_with("positive"), matches("count"), starts_with("h") & ends_with("positive"))
+df.onlypos
+```
+
+Below, the code for the determining the number of
+
+```{r}
+rasch.single <- function(df, epsilon=0.1){
+  # Copy the Frequency Table to a new variable
+  count.df <- df
+  # Add a small amount $\epsilon$ to the counts to migitate
+  # explosion of estimates
+  count.df$count <- count.df$count + epsilon
+  # Estimate the Rasch model
+  model <- glm(
+    formula = count ~ ., 
+    family = poisson(link = "log"), 
+    data = count.df
+  )
+  # Get the coefficients from the model
+  coefficients <- coef(model) %>% unlist(use.names = F)
+  stderrs = sqrt(diag(vcov(model))) %>% unlist(use.names = F)
+
+  # Get the intercept of the formula (the estimate is exp(intercept))
+  intercept = coefficients[1]
+  intercept.err = stderrs[1]
+  
+  # Calculate the estimate
+  estimate.missing = exp(intercept)
+  estimate.stderr = exp(intercept.err)
+  
+  # Construct a dataframe that contains the results 
+  results <- data.frame(
+    estimate = c(estimate.missing),
+    stderr = c(estimate.stderr))
+  return(results)
+}
+
+rasch.single.model <- function(df, epsilon=0.1){
+  # Copy the Frequency Table to a new variable
+  count.df <- df
+  # Add a small amount $\epsilon$ to the counts to migitate
+  # explosion of estimates
+  count.df$count <- count.df$count + epsilon
+  # Estimate the Rasch model
+  model <- glm(
+    formula = count ~ ., 
+    family = poisson(link = "log"), 
+    data = count.df
+  )
+  # Get the coefficients from the model
+  coefficients <- coef(model) %>% unlist(use.names = F)
+  stderrs = sqrt(diag(vcov(model))) %>% unlist(use.names = F)
+  
+  # Get the intercept of the formula (the estimate is exp(intercept))
+  intercept = coefficients[1]
+  intercept.err = stderrs[1]
+  
+  # Calculate the estimate
+  estimate.missing = exp(intercept)
+  estimate.stderr = exp(intercept.err)
+  
+  # Construct a dataframe that contains the results 
+  results <- list(
+    estimate = estimate.missing,
+    stderr = estimate.stderr,
+    model=model)
+  return(results)
+}
+
+
+rasch.nonparametric <- function(df, it=2000, confidence=0.95, epsilon=0.1){
+  count.found <- sum(df$count)
+  counts.orig <- df$count + epsilon
+  counts.bootstrap <- rmultinom(it, count.found, counts.orig)
+  # Estimate n_00...0 using the Rasch model
+  estimate.missing <- rasch.single(df, epsilon=epsilon)$estimate
+  estimates <- list()
+  for (col.idx in 1:dim(counts.bootstrap)[2]) {
+    count.bootstrap <- counts.bootstrap[,col.idx]
+    df.adjusted <- df
+    df.adjusted$count <- count.bootstrap
+    model.results <- rasch.single(df.adjusted)
+    estimates[[col.idx]] <- model.results$estimate
+  }
+  # Determine using the percentile method a 
+  # 95% confidence interval
+  results <- unlist(estimates, use.names = F)
+  sorted <- sort(results)
+  bounds <- unlist(quantile(sorted, c(1-confidence, confidence)), use.names=F)
+  result.df <- data.frame(
+    estimate = c(count.found + estimate.missing),
+    lowerbound = c(count.found + bounds[1]),
+    upperbound = c(count.found + bounds[2])
+  )
+  return(result.df)
+}
+
+rasch.parametric <- function(df, it=2000, confidence=0.95, epsilon=0.1){
+  # Copy the Frequency Table to a new variable
+  count.df <- df
+  count.found <- sum(count.df$count)
+  # Estimate n_00...0 using the Rasch model
+  main.model <- rasch.single.model(df, epsilon)$estimate
+  # Gather the counts of all rows and add the estimation for n_00..0
+  counts.model <- append(df$count, main.model)
+  counts.model.sum <- sum(counts.model)
+  # Sample with replacement of size n from this multinomial distribution. 
+  # Remove the observation that correspond with cell 00..0. 
+  counts.bootstrap <- rmultinom(it, 
+                                counts.model.sum, 
+                                counts.model) %>% head(-1)
+  # Calculate the n_00...0 for all the bootstrap counts
+  estimates <- list()
+  for (col.idx in 1:dim(counts.bootstrap)[2]) {
+    count.bootstrap <- counts.bootstrap[,col.idx]
+    df.adjusted <- df
+    df.adjusted$count <- count.bootstrap
+    model.results <- rasch.single(df.adjusted)
+    estimates[[col.idx]] <- model.results$estimate
+  }
+  # Determine using the percentile method a 
+  # 95% confidence interval
+  results <- unlist(estimates, use.names = F)
+  sorted <- sort(results)
+  bounds <- unlist(quantile(sorted, c(1-confidence, confidence)), use.names=F)
+  result.df <- data.frame(
+    estimate = c(count.found + main.model),
+    lowerbound = c(count.found + bounds[1]),
+    median = c(count.found + median(sorted)), 
+    upperbound = c(count.found + bounds[2])
+  )
+  rownames(result.df) <- NULL
+  return(result.df)
+}
+```
+
+We execute the model here:
+
+```{r}
+rasch.parametric(df.onlypos)
+```
+
+### Rasch Positive and Negative
+
+**Procedure:**
+
+1.  In initiële *E-step*, papers in willekeurige aantallen over de twee ontbrekende cellen. Stel aantal papers in stapel is 2.000. Stel op een bepaald moment zijn er 30 hits en 20 niet hits. Verdeel dan willekeurig 1.950 over de twee cellen. Merk op dat tellingen optellen tot 2.000.
+2.  In *M-step*, fit log-lineair model op 16 cellen voor hits en op 16 cellen voor niet-hits in *E-step*, gebruik fitted values uit *M-step* om 1.950 opnieuw te verdelen.
+3.  En ga dan op en neer tussen E- en M- step totdat het convergeert.
+
+#### Productieversie in Python
+
+#### Bruteforce method
