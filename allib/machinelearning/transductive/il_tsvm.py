@@ -15,6 +15,9 @@ class TSVMEncoder(DictionaryEncoder[LT]):
             return np.array([-1])
         return super().encode(label_list)
 
+    def initialize(self, labels: Iterable[LT]) -> None:
+        return super().initialize(labels)
+
     
 class TSVM(il.SkLearnVectorClassifier[IT, KT, LT], Generic[IT, KT, LT]):
     def __init__(self, 
@@ -23,3 +26,6 @@ class TSVM(il.SkLearnVectorClassifier[IT, KT, LT], Generic[IT, KT, LT]):
         estimator = SKTSVM()
         encoder = TSVMEncoder.from_list([])
         super().__init__(estimator, encoder, storage_location, filename)
+
+    def _filter_x_only_encoded_y(self, instances: Iterable[_T], labelings: Sequence[Iterable[LT]]) -> Tuple[Iterable[_T], np.ndarray]:
+        return super()._filter_x_only_encoded_y(instances, labelings)
