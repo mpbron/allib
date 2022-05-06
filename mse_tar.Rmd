@@ -11,6 +11,8 @@ format:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(reticulate)
+library(tidyverse)
+library(Rcapture)
 use_python(".venv/bin/python")
 ```
 
@@ -71,15 +73,73 @@ print(f"The remaining {env.truth.document_count(NEG)} documents are not relevant
 print(f"Currently, there are {len(env.labeled)} reviewed documents.")
 ```
 
-### Active Learning
+### Configuration
 
-Uitleg over componenten, modellen, aanspreken van simulatie enzo.
+```{python simulation_configuration}
+al_config = AL_REPOSITORY[ALConfiguration.RaschNBLRRF]
+fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
+stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
+estimator = FastEMRaschPosNeg(2000)
+onlypos = FastOnlyPos(20000)
+initializer = SeparateInitializer(env, 1)
+factory = MainFactory()
+```
+
+Next, we build the components for the experiments
+
+```{python}
+al, fe = initialize(factory, al_config, fe_config, initializer, env)
+criterion = stop_constructor(estimator, POS)
+only_pos_stop = stop_constructor(onlypos, POS)
+
+criteria =  {"POS and NEG": criterion, "POS": only_pos_stop}
+estimators = {"POS and NEG": estimator, "POS": onlypos} 
+table_hook = TableCollector(POS)
+exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
+    10, 10, 10)
+plotter = ModelStatsTar(POS, NEG)
+```
+
+Here, we can specify how many iterations we will simulate the TAR procedure.
+
+```{python}
+simulator = TarSimulator(exp, plotter, 500, True)
+```
 
 ### Simulation
 
-Simulatie code runnen uit tar_notebook.py
+```{python}
+simulator.simulate()
+```
+
+After the simulation is finished, we can show the results of the procedure as follows.
+
+```{python}
+plotter.show()
+plt.show()
+```
 
 ## Multiple Systems Estimation
+
+We get the data from a specific iteration; for example 20 (approx. 200 read documents).
+
+```{python}
+df = estimator.dfs[20]
+```
+
+We can process the data in R as follows:
+
+```{r}
+df <- py$df
+df
+```
+
+Some statistics:
+
+```{r}
+
+df %>% group_by(positive) %>% summarise(count, sum(count))
+```
 
 ### RCapture
 
