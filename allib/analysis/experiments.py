@@ -23,7 +23,8 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
                  batch_size: int = 1, 
                  stop_interval: Union[int, Mapping[str, int]] = 1,
                  estimation_interval: Union[int, Mapping[str, int]] = 1,
-                 iteration_hooks: Sequence[Callable[[ActiveLearner[IT, KT, DT, VT, RT ,LT]], Any]] = list()) -> None:
+                 iteration_hooks: Sequence[Callable[[ActiveLearner[IT, KT, DT, VT, RT ,LT]], Any]] = list(),
+                 estimator_hooks: Mapping[str, Callable[[AbstractEstimator[IT, KT, DT, VT, RT, LT]], Any]] = dict()) -> None:
         # Iteration tracker
         self.it = 0
         # Algorithm selection
@@ -38,6 +39,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         # Estimation tracker
         self.estimation_tracker: Dict[str, Estimate]= dict()
         self.iteration_hooks = iteration_hooks
+        self.estimator_hooks = estimator_hooks
 
         # Batch sizes
         self.batch_size = batch_size
@@ -79,9 +81,13 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         self.learner.env.labels.set_labels(instance, *oracle_labels)
         self.learner.set_as_labeled(instance)
 
-    def call_hooks(self) -> None:
-        for hook in self.iteration_hooks:
-            hook(self.learner)
+    def call_hooks(self) -> Sequence[Any]:
+        results = [hook(self.learner) for hook in self.iteration_hooks]
+        return results
+
+    def call_estimate_hooks(self) -> Mapping[str,Any]:
+        results = {k: hook(self.estimators[k]) for k,hook in self.estimator_hooks.items()}
+        return results
 
     def iter_increment(self) -> None:
         self.it += 1

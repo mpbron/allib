@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, Sequence, TypeVar, Any
+from typing import Generic, Iterable, TypeVar, Any
 from abc import ABC, abstractmethod, abstractclassmethod
 from ..history import BaseLogger
 from instancelib import InstanceProvider, Instance
@@ -11,8 +11,11 @@ import instancelib as ins
 
 IT = TypeVar("IT", bound="Instance[Any, Any, Any, Any]", covariant=True)
 
+
+
 class AbstractEnvironment(ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT], 
                           ABC, Generic[IT, KT, DT, VT, RT, LT]):
+
     @property
     @abstractmethod
     def unlabeled(self) -> InstanceProvider[IT, KT, DT, VT, RT]:

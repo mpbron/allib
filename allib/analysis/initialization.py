@@ -6,6 +6,7 @@ import logging
 import random
 from typing import (Any, Deque, Dict, FrozenSet, Generic, Iterable, List,
                     Optional, Sequence, Tuple, TypeVar)
+from uuid import uuid4
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
@@ -82,6 +83,9 @@ class SeparateInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
                 self.add_doc(sublearner, doc)
                 self.add_doc(learner, doc)
         return learner
+
+
+
 
 class PositiveUniformInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
     def __init__(self, 

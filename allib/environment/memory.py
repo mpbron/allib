@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Dict, Generic, Iterable, Sequence, Set, TypeVar, Union
+from typing import Any, Dict, Generic, Iterable, Iterator, Mapping, MutableMapping, Sequence, Set, TypeVar, Union
 from uuid import UUID
 
 import instancelib as ins
@@ -32,8 +32,26 @@ class AbstractMemoryEnvironment(AbstractEnvironment[IT, KT, DT, VT, RT, LT],
     _labelprovider: LabelProvider[KT, LT]
     _truth: LabelProvider[KT, LT]
     _logger: BaseLogger[KT, LT, Any]
-    _named_providers: Dict[str, InstanceProvider[IT, KT, DT, VT, RT]]
-   
+    _named_providers: MutableMapping[str, InstanceProvider[IT, KT, DT, VT, RT]]
+
+    def __contains__(self, __o: object) -> bool:
+        return __o in self._named_providers
+
+    def __getitem__(self, __k: str) -> InstanceProvider[IT, KT, DT, VT, RT]:
+        return self._named_providers[__k]
+
+    def __setitem__(self, __k: str, __v: InstanceProvider[IT, KT, DT, VT, RT]) -> None:
+        self.set_named_provider(__k, __v)
+
+    def __len__(self) -> int:
+        return len(self._named_providers)
+
+    def __delitem__(self, __v: str) -> None:
+        del self._named_providers[__v]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._named_providers)
+
     @property
     def dataset(self) -> InstanceProvider[IT, KT, DT, VT, RT]:
         return self._public_dataset
@@ -71,8 +89,8 @@ class AbstractMemoryEnvironment(AbstractEnvironment[IT, KT, DT, VT, RT, LT],
     def set_named_provider(self, name: str, value: InstanceProvider[IT, KT, DT, VT, RT]):
         self._named_providers[name] = value
 
-    def create_named_provider(self, name: str) -> InstanceProvider[IT, KT, DT, VT, RT]:
-        self._named_providers[name] = self.create_empty_provider()
+    def create_named_provider(self, name: str, keys: Iterable[KT] = list()) -> InstanceProvider[IT, KT, DT, VT, RT]:
+        self._named_providers[name] = self.create_bucket(keys)
         return self._named_providers[name]   
     
 class MemoryEnvironment(
@@ -84,6 +102,8 @@ class MemoryEnvironment(
             dataset: InstanceProvider[IT, KT, DT, VT, RT],
             unlabeled: InstanceProvider[IT, KT, DT, VT, RT],
             labeled: InstanceProvider[IT, KT, DT, VT, RT],
+            named_providers: MutableMapping[str, InstanceProvider[IT, KT, DT, VT, RT]],
+            public_dataset: InstanceProvider[IT, KT, DT, VT, RT],
             labelprovider: LabelProvider[KT, LT],
             logger: BaseLogger[KT, LT, Any],
             truth: LabelProvider[KT, LT]
@@ -92,11 +112,10 @@ class MemoryEnvironment(
         self._unlabeled = unlabeled
         self._labeled = labeled
         self._labelprovider = labelprovider
-        self._named_providers = dict()
+        self._named_providers = named_providers
         self._logger = logger
         self._truth = truth
-        self._public_dataset = MemoryBucketProvider(
-            self._dataset, dataset.key_list)
+        self._public_dataset = public_dataset
 
     @classmethod
     def from_environment(cls, 
@@ -113,7 +132,10 @@ class MemoryEnvironment(
                 environment.labels.labelset, [], [])
         logger = environment.logger
         truth = environment.truth
-        return cls(dataset, unlabeled, labeled, labels, logger, truth)
+        named_providers: Dict[str, InstanceProvider[IT, KT, DT, VT, RT]] = {
+            key: MemoryBucketProvider(dataset, prov.key_list) for key, prov in environment.items()}
+        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        return cls(dataset, unlabeled, labeled, named_providers, public_dataset, labels, logger, truth)
 
     @classmethod
     def from_environment_only_data(cls, 
@@ -126,7 +148,10 @@ class MemoryEnvironment(
             environment.labels.labelset, {}, {})
         logger = MemoryLogger[KT, LT, Any](labels)
         truth = environment.truth
-        return cls(dataset, unlabeled, labeled, labels, logger, truth)
+        named_providers: Dict[str, InstanceProvider[IT, KT, DT, VT, RT]] = {
+            key: MemoryBucketProvider(dataset, prov.key_list) for key, prov in environment.items()}
+        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        return cls(dataset, unlabeled, labeled, named_providers, public_dataset, labels, logger, truth)
 
     @classmethod
     def from_instancelib(cls, 
@@ -142,7 +167,10 @@ class MemoryEnvironment(
         environment.labels
         logger = MemoryLogger[KT, LT, Any](labels)
         truth =  MemoryLabelProvider[KT, LT].from_provider(environment.labels)
-        return cls(dataset, unlabeled, labeled, labels, logger, truth)
+        named_providers: Dict[str, InstanceProvider[IT, KT, DT, VT, RT]] = {
+            key: MemoryBucketProvider(dataset, prov.key_list) for key, prov in environment.items()}
+        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        return cls(dataset, unlabeled, labeled, named_providers, public_dataset, labels, logger, truth)
     
     @classmethod
     def from_instancelib_simulation(cls, 
@@ -156,7 +184,10 @@ class MemoryEnvironment(
         )        
         logger = MemoryLogger[KT, LT, Any](labels)
         truth =  MemoryLabelProvider[KT, LT].from_provider(environment.labels)
-        return cls(dataset, unlabeled, labeled, labels, logger, truth)
+        named_providers: Dict[str, InstanceProvider[IT, KT, DT, VT, RT]] = {
+            key: MemoryBucketProvider(dataset, prov.key_list) for key, prov in environment.items()}
+        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        return cls(dataset, unlabeled, labeled, named_providers, public_dataset, labels, logger, truth)
 
     @classmethod
     def from_instancelib_simulation_heldout(cls, 
@@ -171,7 +202,10 @@ class MemoryEnvironment(
         )        
         logger = MemoryLogger[KT, LT, Any](labels)
         truth =  MemoryLabelProvider[KT, LT].from_provider(environment.labels)
-        return cls(dataset, unlabeled, labeled, labels, logger, truth)
+        named_providers: Dict[str, InstanceProvider[IT, KT, DT, VT, RT]] = {
+            key: MemoryBucketProvider(dataset, prov.key_list) for key, prov in environment.items()}
+        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        return cls(dataset, unlabeled, labeled, named_providers, public_dataset, labels, logger, truth)
 
 
 
@@ -191,7 +225,9 @@ class DataPointEnvironment(MemoryEnvironment[DataPoint[Union[KT, UUID], DT, VT, 
         labels = MemoryLabelProvider[Union[KT, UUID], LT].from_data(target_labels, indices, [])
         logger = MemoryLogger[Union[KT, UUID], LT, Any](labels)
         truth = MemoryLabelProvider[Union[KT, UUID], LT].from_data(target_labels, indices, ground_truth)
-        return cls(dataset, unlabeled, labeled, labels, logger, truth)
+        named_providers = dict()
+        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        return cls(dataset, unlabeled, labeled, named_providers, public_dataset, labels, logger, truth)
 
 
 

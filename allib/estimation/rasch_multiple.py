@@ -313,7 +313,7 @@ def rasch_numpy(design_mat: np.ndarray,
                 proportions: np.ndarray = np.array([0.001, 0.01, 0.1, 0.5, 0.75, 0.9]),
                 tolerance: float = 1e-5,
                 max_it=1000
-                ) -> Tuple[np.ndarray, np.ndarray, float]:
+                ) -> Tuple[np.ndarray, np.ndarray, float, float]:
     deviances = np.zeros(proportions.shape)
     betas = np.zeros((proportions.shape[0], design_mat.shape[1]))
     mfits = np.zeros((proportions.shape[0], design_mat.shape[0]))
@@ -331,6 +331,7 @@ def rasch_numpy(design_mat: np.ndarray,
     best_beta = np.zeros((design_mat.shape[1],))
     best_mfit = np.zeros((design_mat.shape[0],))
     best_deviance = 2000000.0
+    best_proportion = 1.0
     for idx in range(num_proportions):
         current_beta = betas[idx,:]
         current_mfit = mfits[idx,:]
@@ -339,7 +340,8 @@ def rasch_numpy(design_mat: np.ndarray,
             best_deviance = current_deviance
             best_beta = current_beta
             best_mfit = current_mfit
-    return best_beta, best_mfit, best_deviance
+            best_proportion = proportions[idx]
+    return best_beta, best_mfit, best_deviance, best_proportion
 
 @jit(nopython=True, parallel=True, nogil=True) # type: ignore
 def rasch_parallel(design_mat: np.ndarray,
@@ -488,8 +490,110 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
         estimate = Estimate(horizon_estimate, low_estimate, high_estimate)
     return estimate, stats
 
+def rasch_estimate_parametric_no_fixed_proportion(freq_df: pd.DataFrame,
+                   n_dataset: int,
+                   tolerance: float = 1e-5,
+                   max_it: int = 2000,
+                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+    # Calculate general frequency statistics
+    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    # Add place holder rows for the counts that we aim to estimate
+    df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
+    # Change the dataframe in the correct format for the L2 algorithm
+    learner_cols = list(df_w_missing
+                        .filter(regex=r"^(?:(?!positive$).)+$")
+                        .filter(regex=r"^learner")
+                        )
+    df_formatted = l2_format(df_w_missing, learner_cols)
 
+    # Calculate row masks to select data from the matrices and vectors
+    est_mask: List[bool] = list(df_formatted[learner_cols].sum(axis=1) <= 0)
+    pos_mask: List[bool] = list(df_formatted.positive > 0)
+    masks = create_mask(pos_mask, est_mask)
+    
+    design_mat: np.ndarray = (
+        df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
+        .values)  # type: ignore
+
+    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    obs_pos = np.sum(counts[masks.positive_observed])
+   
+    n_not_read = n_dataset - np.sum(counts[masks.observed])
+    b0 = initial_fit(n_not_read, design_mat)
+    beta, mfit, deviance, proportion = rasch_numpy(design_mat, counts, n_dataset, masks)
+    positive_estimate: float = mfit[masks.positive_estimate][0]
+    horizon_estimate = obs_pos + positive_estimate
+    if np.any(np.isnan(mfit)):
+        estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
+        stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+    else:
+        p_vals = mfit / np.sum(mfit)
+        multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
+        results = rasch_parallel(design_mat, b0, multinomial_fits, n_dataset, proportion, masks)
+        estimates: List[float] = [fitted[masks.positive_estimate][0]
+                                    for (_, fitted, _) in results]
+        stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
+        low_estimate = obs_pos + np.percentile(estimates, 2.5)
+        high_estimate = obs_pos + np.percentile(estimates, 97.5)
+        estimate = Estimate(horizon_estimate, low_estimate, high_estimate)
+    return estimate, stats
+
+def rasch_estimate_parametric_init_by_pos(freq_df: pd.DataFrame,
+                   n_dataset: int,
+                   tolerance: float = 1e-5,
+                   max_it: int = 2000,
+                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+    # Calculate general frequency statistics
+    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    # Add place holder rows for the counts that we aim to estimate
+    df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
+
+    # Change the dataframe in the correct format for the L2 algorithm
+    learner_cols = list(df_w_missing
+                        .filter(regex=r"^(?:(?!positive$).)+$")
+                        .filter(regex=r"^learner")
+                        )
+    df_formatted = l2_format(df_w_missing, learner_cols)
+
+    # Calculate row masks to select data from the matrices and vectors
+    est_mask: List[bool] = list(df_formatted[learner_cols].sum(axis=1) <= 0)
+    pos_mask: List[bool] = list(df_formatted.positive > 0)
+    masks = create_mask(pos_mask, est_mask)
+    
+    design_mat: np.ndarray = (
+        df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
+        .values)  # type: ignore
+
+    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    obs_pos = np.sum(counts[masks.positive_observed])
+   
+    n_not_read = n_dataset - np.sum(counts[masks.observed])
+    b0 = initial_fit(n_not_read, design_mat)
+    rasch_pos_est, _ = rasch_estimate_only_pos(freq_df, 2000)
+    proportion = (rasch_pos_est.point - obs_pos) / n_not_read
+    beta, mfit, deviance = rasch_em(design_mat, b0, counts, n_dataset, masks, proportion)
+    positive_estimate: float = mfit[masks.positive_estimate][0]
+    horizon_estimate = obs_pos + positive_estimate
+    if np.any(np.isnan(mfit)):
+        estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
+        stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+    else:
+        p_vals = mfit / np.sum(mfit)
+        try:
+            multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
+        except ValueError:
+            estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
+            stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+        else:
+            results = rasch_parallel(design_mat, b0, multinomial_fits, n_dataset, proportion, masks)
+            estimates: List[float] = [fitted[masks.positive_estimate][0]
+                                        for (_, fitted, _) in results]
+            stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
+            low_estimate = obs_pos + np.percentile(estimates, 2.5)
+            high_estimate = obs_pos + np.percentile(estimates, 97.5)
+            estimate = Estimate(horizon_estimate, low_estimate, high_estimate)
+    return estimate, stats
 
 class EMRaschRidgeParametricConvPython(
         EMRaschCombined[KT, DT, VT, RT, LT],
@@ -524,6 +628,8 @@ class EMRaschRidgeParametricConvPython(
 
 
 
+
+
 class FastEMRaschPosNeg(
         EMRaschCombined[KT, DT, VT, RT, LT],
         Generic[KT, DT, VT, RT, LT]):
@@ -553,7 +659,7 @@ class FastEMRaschPosNeg(
         df = self.get_occasion_history(estimator, label)
         if not self.dfs or not self.dfs[-1].equals(df):
             self.dfs.append(df)
-            est, stats = rasch_estimate_parametric(df, dataset_size, multinomial_size=self.multinomial_size)
+            est, stats = rasch_estimate_parametric_no_fixed_proportion(df, dataset_size, multinomial_size=self.multinomial_size)
             self.estimates.append(est)
             self.model_info.append(stats)
         return self.estimates[-1]
@@ -564,6 +670,17 @@ class FastOnlyPos(FastEMRaschPosNeg):
         if not self.dfs or not self.dfs[-1].equals(df):
             self.dfs.append(df)
             est, stats = rasch_estimate_only_pos(df, multinomial_size=self.multinomial_size)
+            self.estimates.append(est)
+            self.model_info.append(stats)
+        return self.estimates[-1]
+
+class FastPosAssisted(FastEMRaschPosNeg):
+    def calculate_estimate(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT) -> Estimate:
+        dataset_size = len(estimator.env.dataset)
+        df = self.get_occasion_history(estimator, label)
+        if not self.dfs or not self.dfs[-1].equals(df):
+            self.dfs.append(df)
+            est, stats = rasch_estimate_parametric_init_by_pos(df, dataset_size, multinomial_size=self.multinomial_size)
             self.estimates.append(est)
             self.model_info.append(stats)
         return self.estimates[-1]
