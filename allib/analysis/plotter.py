@@ -81,7 +81,8 @@ class ClassificationPlotter(AbstractPlotter[LT], Generic[KT, LT]):
             stats[f"{label}_n_generated"] = len(gen_label_docs)
         stats["n_generated_docs"] = len(activelearner.env.all_instances) - len(activelearner.env.dataset)
         stats["n_labeled"] = len(activelearner.env.labeled)
-        self.result_frame = self.result_frame.append(stats, ignore_index=True)
+        result_it_frame = pd.DataFrame(stats)
+        self.result_frame = result_it_frame if not self.result_frame else pd.concat([self.result_frame, result_it_frame])
     
     def show(self, metrics: Iterable[str] = ["f1", "recall"], filename:Optional[str] = None) -> None:
         # Gathering intermediate results

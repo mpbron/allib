@@ -27,10 +27,13 @@ from allib.stopcriterion.heuristic import AprioriRecallTarget
 
 
 #%%
-TOPIC_ID = 'CD008081'
-qrel_path = Path("/data/tardata/clef2017")
-trec = TrecDataset.from_path(qrel_path)
-env = MemoryEnvironment.from_instancelib_simulation(trec.get_env('CD008081'))
+# TOPIC_ID = 'CD008081'
+# qrel_path = Path("/data/tardata/tr")
+# trec = TrecDataset.from_path(qrel_path)
+# il_env = trec.get_env('401')
+# env = MemoryEnvironment.from_instancelib_simulation(il_env)
+
+#%%
 
 #%%
 hall = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
@@ -41,7 +44,7 @@ POS = "Relevant"
 NEG = "Irrelevant"
 init = RandomInitializer(env,1) 
 vect = il.TextInstanceVectorizer(
-    il.SklearnVectorizer(TfidfVectorizer(stop_words='english', min_df=2)))
+    il.SklearnVectorizer(TfidfVectorizer(stop_words='english', min_df=2, max_features=3000)))
 # %%
 recall95 = AprioriRecallTarget(POS, 0.95)
 recall100 = AprioriRecallTarget(POS,1.0)

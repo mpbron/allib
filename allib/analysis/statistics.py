@@ -10,6 +10,7 @@ from ..activelearning.base import ActiveLearner
 from ..activelearning.ensembles import AbstractEnsemble
 from .analysis import process_performance
 
+import instancelib as il
 
 @dataclass
 class TarDatasetStats:
@@ -70,3 +71,17 @@ class TemporalRecallStats:
             ret = {learner: {t: substat[learner] for t,substat in flattened.items()} for learner in learner_names}
             return ret
         return dict()
+
+@dataclass
+class LabelALStatistics:
+    label: str
+    seen: int
+    generated: int
+
+@dataclass
+class BinaryClassificationStatistics:
+    label: str
+    recall: float
+    precision: float
+    accuracy: float
+    f1: float

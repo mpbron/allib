@@ -2,6 +2,7 @@
 import numpy as np
 from typing import List
 from pathlib import Path
+from instancelib.ingest.qrel import TrecDataset
 from allib.activelearning.autostop import AutoStopLearner
 from allib.activelearning.base import ActiveLearner
 from allib.analysis.experiments import ExperimentIterator
@@ -15,6 +16,7 @@ from allib.configurations.base import (AL_REPOSITORY, ESTIMATION_REPOSITORY,
 from allib.configurations.catalog import (ALConfiguration,
                                           EstimationConfiguration,
                                           FEConfiguration)
+from allib.environment.memory import MemoryEnvironment
 from allib.estimation.rasch_multiple import FastEMRaschPosNeg, FastOnlyPos, FastPosAssisted, rasch_estimate_parametric
 from allib.module.factory import MainFactory
 from allib.stopcriterion.catalog import StopCriterionCatalog
@@ -26,7 +28,12 @@ from allib.utils.func import list_unzip
 
 
 #%%
-dis = Path("../datasets/van_Dis_2020.csv")
+# TOPIC_ID = 'CD008081'
+# qrel_path = Path("/data/tardata/tr")
+# trec = TrecDataset.from_path(qrel_path)
+# il_env = trec.get_env('401')
+# env = MemoryEnvironment.from_instancelib_simulation(il_env)
+# dis = Path("../datasets/van_Dis_2020.csv")
 hall = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
 env = read_review_dataset(hall)
 POS = "Relevant"
@@ -53,7 +60,7 @@ table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
     10, 10, 10)
 plotter = ModelStatsTar(POS, NEG)
-simulator = TarSimulator(exp, plotter, 1000, True)
+simulator = TarSimulator(exp, plotter, 500, True)
 # %%
 simulator.simulate()
 
