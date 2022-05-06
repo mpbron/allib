@@ -1,0 +1,98 @@
+---
+title: "Multiple Systems Estimation for TAR"
+author: "Michiel Bron"
+date: '2022-05-05'
+format:
+  html:
+    toc: true
+    code-fold: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(reticulate)
+use_python(".venv/bin/python")
+```
+
+# Multiple Systems Estimation for AL-TAR
+
+## Introduction to TAR and AL
+
+Technology Assisted Review software is software that helps you review large sets of documents. Given a data set, the task is to find all documents that match an *Information Need*. TAR software helps you review the documents in your data set and helps speeding up the retrieval task. Most TAR packages use Active Learning. Using the Python library `python-allib` we can simulate and perform Technology Assisted Review (TAR) search processes.
+
+To illustrate how Active Learning can speed up your reviews; we will illustrate this using a benchmark data set.
+
+### Initialization
+
+In the following code block we will load the data set.
+
+```{python imports, echo=FALSE, include=FALSE}
+import numpy as np
+from typing import List
+from pathlib import Path
+from instancelib.ingest.qrel import TrecDataset
+from allib.activelearning.autostop import AutoStopLearner
+from allib.activelearning.base import ActiveLearner
+from allib.analysis.experiments import ExperimentIterator
+from allib.analysis.initialization import RandomInitializer, SeparateInitializer
+from allib.analysis.simulation import TarSimulator, initialize
+from allib.analysis.tablecollector import TableCollector
+from allib.analysis.tarplotter import ModelStatsTar, TarExperimentPlotter
+from allib.benchmarking.reviews import read_review_dataset
+from allib.configurations.base import (AL_REPOSITORY, ESTIMATION_REPOSITORY,
+                                       FE_REPOSITORY, STOP_REPOSITORY)
+from allib.configurations.catalog import (ALConfiguration,
+                                          EstimationConfiguration,
+                                          FEConfiguration)
+from allib.environment.memory import MemoryEnvironment
+from allib.estimation.rasch_multiple import FastEMRaschPosNeg, FastOnlyPos, FastPosAssisted, rasch_estimate_parametric
+from allib.module.factory import MainFactory
+from allib.stopcriterion.catalog import StopCriterionCatalog
+import instancelib as il
+from sklearn.naive_bayes import MultinomialNB
+import matplotlib.pyplot as plt
+
+from allib.utils.func import list_unzip
+```
+
+```{python loading_dataset}
+ds_path = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
+env = read_review_dataset(ds_path)
+POS = "Relevant"
+NEG = "Irrelevant"
+```
+
+We can display some statistics from the dataset.
+
+```{python basic_stats, results='asis'}
+print(f"The dataset contains {len(env.dataset)} documents in total.")
+print(f"From those {len(env.dataset)}, {env.truth.document_count(POS)} documents are relevant.")
+print(f"The remaining {env.truth.document_count(NEG)} documents are not relevant to the information need.")
+print(f"Currently, there are {len(env.labeled)} reviewed documents.")
+```
+
+### Active Learning
+
+Uitleg over componenten, modellen, aanspreken van simulatie enzo.
+
+### Simulation
+
+Simulatie code runnen uit tar_notebook.py
+
+## Multiple Systems Estimation
+
+### RCapture
+
+### Rasch Only Positive
+
+### Rasch Positive and Negative
+
+Include Pseudo Code van Peter
+
+#### Versie Maarten Cruyf
+
+#### Versie in R
+
+#### Productieversie in Python
+
+#### Bruteforce method
