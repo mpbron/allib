@@ -3,7 +3,7 @@
 multilabel_notebook.py
 .RData
 .Rhistory
-csv
+
 #results
 # Created by https://www.gitignore.io/api/django,python
 *.h5
@@ -131,7 +131,6 @@ venv.bak/
 
 .venv/
 .mypy_cache/
-*.csv
 *.png
 *.cer
 .env
