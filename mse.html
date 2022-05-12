@@ -104,7 +104,7 @@
 <p>First, we load the libraries we want to use:</p>
 <p>We can process the data in R as follows:</p>
 <div class="cell">
-<div class="sourceCode" id="cb1"><pre class="sourceCode r cell-code code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>path <span class="ot">&lt;-</span> <span class="st">"results/halldataset/design_matrix_200.csv"</span> </span>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r cell-code code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>path <span class="ot">&lt;-</span> <span class="st">"results/hall/design_matrix_400.csv"</span> </span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">rasch.csv</span>(path)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-stdout">
@@ -135,20 +135,20 @@
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-stdout">
 <pre><code>    learner_0  learner_1  learner_2  ...  h1  h1-positive  count
-0           0          0          1  ...   0            0      8
-1           1          1          1  ...   3            3     14
-2           0          1          1  ...   1            1      6
-3           1          1          0  ...   1            1     16
-4           1          0          1  ...   1            1      7
-5           0          1          0  ...   0            0      9
-6           1          0          0  ...   0            0     13
-7           0          0          1  ...   0            0     59
-8           1          1          1  ...   3            0      8
+0           0          0          1  ...   0            0      1
+1           1          1          1  ...   3            3     80
+2           0          1          1  ...   1            1      2
+3           1          1          0  ...   1            1      6
+4           1          0          1  ...   1            1      9
+5           0          1          0  ...   0            0      0
+6           1          0          0  ...   0            0      1
+7           0          0          1  ...   0            0     25
+8           1          1          1  ...   3            0     69
 9           0          1          1  ...   1            0      4
-10          1          1          0  ...   1            0     10
-11          1          0          1  ...   1            0      4
-12          0          1          0  ...   0            0     27
-13          1          0          0  ...   0            0     22
+10          1          1          0  ...   1            0     14
+11          1          0          1  ...   1            0     45
+12          0          1          0  ...   0            0    112
+13          1          0          0  ...   0            0     39
 
 [14 rows x 10 columns]</code></pre>
 </div>
@@ -160,8 +160,8 @@
 <pre><code># A tibble: 2 × 2
   positive   sum
      &lt;dbl&gt; &lt;dbl&gt;
-1        0   134
-2        1    73</code></pre>
+1        0   308
+2        1    99</code></pre>
 </div>
 </div>
 <section id="rcapture" class="level3">
@@ -172,15 +172,15 @@
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rasch_to_abundance</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-stdout">
 <pre><code>
-Number of captured units: 73 
+Number of captured units: 99 
 
 Poisson estimation and model fit:
       abundance stderr deviance df    AIC    BIC infoFit
-Mh LB      91.2    6.9    0.342  1 19.286 23.867      OK
+Mh LB      99.2    0.4    0.047  1 17.564 22.754      OK
 
 Multinomial estimation, 95% profile likelihood confidence interval:
-      abundance infCL supCL infoCI
-Mh LB      90.2  79.7 108.6     OK</code></pre>
+      abundance infCL supCL     infoCI
+Mh LB        99    99 100.3 warning #5</code></pre>
 </div>
 </div>
 </section>
@@ -194,13 +194,13 @@ Mh LB      90.2  79.7 108.6     OK</code></pre>
 <pre><code># A tibble: 7 × 5
   learner_0 learner_1 learner_2 count `h1-positive`
       &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt; &lt;dbl&gt;         &lt;dbl&gt;
-1         0         0         1     8             0
-2         1         1         1    14             3
-3         0         1         1     6             1
-4         1         1         0    16             1
-5         1         0         1     7             1
-6         0         1         0     9             0
-7         1         0         0    13             0</code></pre>
+1         0         0         1     1             0
+2         1         1         1    80             3
+3         0         1         1     2             1
+4         1         1         0     6             1
+5         1         0         1     9             1
+6         0         1         0     0             0
+7         1         0         0     1             0</code></pre>
 </div>
 </div>
 <p>Below, the code for the determining the number of</p>
@@ -339,7 +339,17 @@ Mh LB      90.2  79.7 108.6     OK</code></pre>
 <div class="sourceCode" id="cb12"><pre class="sourceCode r cell-code code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rasch.parametric</span>(df.onlypos)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-stdout">
 <pre><code>  estimate lowerbound   median upperbound
-1 88.78822   76.81401 87.94608   132.6538</code></pre>
+1 99.17952   99.00025 99.12655   101.5447</code></pre>
+</div>
+</div>
+<p>We can also execute this in Python</p>
+<div class="cell">
+<div class="sourceCode" id="cb14"><pre class="sourceCode python cell-code code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> allib.estimation.rasch_multiple <span class="im">import</span> rasch_estimate_only_pos</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>only_pos_res <span class="op">=</span> rasch_estimate_only_pos(df, <span class="dv">8911</span>)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>only_pos_res[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-stdout">
+<pre><code>Estimate(point=99.18777642541527, lower_bound=99.00021318737913, upper_bound=104.20978281848565)</code></pre>
 </div>
 </div>
 </section>
@@ -347,15 +357,43 @@ Mh LB      90.2  79.7 108.6     OK</code></pre>
 <h3 class="anchored" data-anchor-id="rasch-positive-and-negative">Rasch Positive and Negative</h3>
 <p><strong>Procedure:</strong></p>
 <ol type="1">
-<li>In initiële E-step, papers in willekeurige aantallen over de twee ontbrekende cellen. Stel aantal papers in stapel is 2.000. Stel op een bepaald moment zijn er 30 hits en 20 niet hits. Verdeel dan willekeurig 1.950 over de twee cellen. Merk op dat tellingen optellen tot 2.000.</li>
-<li>In M-step, fit loglineair model op 16 cellen voor hits en op 16 cellen voor niet-hits in E-step, gebruik fitted values uit M-step om 1.950 opnieuw te verdelen.</li>
+<li>In initiële <em>E-step</em>, papers in willekeurige aantallen over de twee ontbrekende cellen. Stel aantal papers in stapel is 2.000. Stel op een bepaald moment zijn er 30 hits en 20 niet hits. Verdeel dan willekeurig 1.950 over de twee cellen. Merk op dat tellingen optellen tot 2.000.</li>
+<li>In <em>M-step</em>, fit log-lineair model op 8 cellen voor hits en op 8 cellen voor niet-hits in <em>E-step</em>, gebruik fitted values uit <em>M-step</em> om 1.950 opnieuw te verdelen.</li>
 <li>En ga dan op en neer tussen E- en M- step totdat het convergeert.</li>
 </ol>
-<section id="productieversie-in-python" class="level4">
-<h4 class="anchored" data-anchor-id="productieversie-in-python">Productieversie in Python</h4>
+<section id="initiele-versie-in-python-gebaseerd-op-m.-cruyff" class="level4">
+<h4 class="anchored" data-anchor-id="initiele-versie-in-python-gebaseerd-op-m.-cruyff">Initiele versie in Python gebaseerd op M. Cruyff</h4>
+<ol type="1">
+<li>In initiële <em>E-step</em>, papers <strong>50/50</strong> over de twee ontbrekende cellen. Stel aantal papers in stapel is 2.000. Stel op een bepaald moment zijn er 30 hits en 20 niet hits. Verdeel dan <strong>50/50</strong> 1.950 over de twee cellen. Merk op dat tellingen optellen tot 2.000.</li>
+<li>In <em>M-step</em>, fit log-lineair model op 8 cellen voor hits en op 8 cellen voor niet-hits in <em>E-step</em>, gebruik fitted values uit <em>M-step</em> om 1.950 opnieuw te verdelen.</li>
+<li>En ga dan op en neer tussen E- en M- step totdat het convergeert.</li>
+</ol>
+<div class="cell">
+<div class="sourceCode" id="cb16"><pre class="sourceCode python cell-code code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> allib.estimation.rasch_multiple <span class="im">import</span> rasch_estimate_parametric_proportion <span class="im">as</span> rasch_pn_par_pro</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> rasch_pn_par_pro(df, <span class="dv">8911</span>, <span class="fl">0.5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode" id="cb17"><pre class="sourceCode python cell-code code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>results[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-stdout">
+<pre><code>Estimate(point=6471.145451415889, lower_bound=4299.90874796833, upper_bound=7662.511952440614)</code></pre>
+</div>
+</div>
 </section>
-<section id="bruteforce-method" class="level4">
-<h4 class="anchored" data-anchor-id="bruteforce-method">Bruteforce method</h4>
+<section id="bruteforce-methode" class="level4">
+<h4 class="anchored" data-anchor-id="bruteforce-methode">Bruteforce methode</h4>
+<p>Het aantal combinaties van mogelijke bijschattingen voor het aantal positieve en negatieve documenten is eindig. Stel er moeten nog 7000 documenten gelezen worden dan zijn de mogelijke combinaties van de bijschattingen $\[(1, 6999), (2, 6998), , (n , 7000 - n)\]$.</p>
+<p>Omdat in bepaalde situaties de bijschattingen voor het aantal positieve documenten erg hoog is, bestaat het vermoeden dat het EM-algoritme convergeert op een lokaal minimum in plaats van het globale minimum. Om dit aan te tonen, heb ik de curve van de deviance geplot aan de hand van alle mogelijke combinaties van de bijschattingen. Dit betreft een goede approximatie van de gehele zoekruimte, dus globale en lokale minima.</p>
+<div class="cell">
+<div class="sourceCode" id="cb19"><pre class="sourceCode r cell-code code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">"allib/estimation/rasch_bruteforce.R"</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>bf.results <span class="ot">&lt;-</span> <span class="fu">rasch.bf.comb</span>(df, <span class="dv">8911</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>table <span class="ot">&lt;-</span> <span class="fu">rasch.bf.table</span>(bf.results)</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data=</span>table) <span class="sc">+</span> <span class="fu">aes</span>(<span class="at">x=</span>estimate,<span class="at">y=</span>deviance) <span class="sc">+</span> <span class="fu">geom_point</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="mse_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Op bovenstaande plot zijn de globale en lokale minima goed zichtbaar. Vaak bevinden deze zich rond 7500 en tussen de 0 en de 20.</p>
 </section>
 </section>
 </section>

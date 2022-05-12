@@ -28,7 +28,7 @@ import numpy as np
 We can process the data in R as follows:
 
 ```{r}
-path <- "results/halldataset/design_matrix_200.csv" 
+path <- "results/hall/design_matrix_400.csv" 
 df <- rasch.csv(path)
 df
 ```
@@ -203,14 +203,87 @@ We execute the model here:
 rasch.parametric(df.onlypos)
 ```
 
+We can also execute this in Python
+
+```{python}
+from allib.estimation.rasch_multiple import rasch_estimate_only_pos
+
+only_pos_res = rasch_estimate_only_pos(df, 8911)
+only_pos_res[0]
+```
+
 ### Rasch Positive and Negative
 
 **Procedure:**
 
 1.  In initiële *E-step*, papers in willekeurige aantallen over de twee ontbrekende cellen. Stel aantal papers in stapel is 2.000. Stel op een bepaald moment zijn er 30 hits en 20 niet hits. Verdeel dan willekeurig 1.950 over de twee cellen. Merk op dat tellingen optellen tot 2.000.
-2.  In *M-step*, fit log-lineair model op 16 cellen voor hits en op 16 cellen voor niet-hits in *E-step*, gebruik fitted values uit *M-step* om 1.950 opnieuw te verdelen.
+2.  In *M-step*, fit log-lineair model op 8 cellen voor hits en op 8 cellen voor niet-hits in *E-step*, gebruik fitted values uit *M-step* om 1.950 opnieuw te verdelen.
 3.  En ga dan op en neer tussen E- en M- step totdat het convergeert.
 
-#### Productieversie in Python
+#### Initiele versie in Python gebaseerd op M. Cruyff
 
-#### Bruteforce method
+1.  In initiële *E-step*, papers **50/50** over de twee ontbrekende cellen. Stel aantal papers in stapel is 2.000. Stel op een bepaald moment zijn er 30 hits en 20 niet hits. Verdeel dan **50/50** 1.950 over de twee cellen. Merk op dat tellingen optellen tot 2.000.
+2.  In *M-step*, fit log-lineair model met op 8 cellen voor hits en op 8 cellen voor niet-hits in *E-step*, gebruik fitted values uit *M-step* om 1.950 opnieuw te verdelen.
+3.  En ga dan op en neer tussen E- en M- step totdat het convergeert.
+
+```{python}
+from allib.estimation.rasch_multiple import rasch_estimate_parametric_proportion as rasch_pn_par_pro
+
+results = rasch_pn_par_pro(df, 8911, 0.5)
+```
+
+```{python}
+results[0]
+```
+
+#### Bruteforce methode
+
+Het aantal combinaties van mogelijke bijschattingen voor het aantal positieve en negatieve documenten is eindig. Stel er moeten nog 7000 documenten gelezen worden dan zijn de mogelijke combinaties van de bijschattingen \$\\\[(1, 6999), (2, 6998), \ldots, (n , 7000 - n)\\\]\$.
+
+Omdat in bepaalde situaties de bijschattingen voor het aantal positieve documenten erg hoog is, b
+
+```{python}
+
+```
+
+estaat het vermoeden dat het EM-algoritme convergeert op een lokaal minimum in plaats van het globale minimum. Om dit aan te tonen, heb ik de curve van de deviance geplot aan de hand van alle mogelijke combinaties van de bijschattingen. Dit betreft een goede approximatie van de gehele zoekruimte, dus globale en lokale minima.
+
+```{r}
+source("allib/estimation/rasch_bruteforce.R")
+bf.results <- rasch.bf.comb(df, 8911)
+table <- rasch.bf.table(bf.results)
+ggplot(data=table) + aes(x=estimate,y=deviance) + geom_point()
+```
+
+Op bovenstaande plot zijn de globale en lokale minima goed zichtbaar. Vaak bevinden deze zich rond 7500 en tussen de 0 en de 20.
+
+#### Methode met meerdere initiële schattingen
+
+```{python}
+from allib.estimation.rasch_multiple import rasch_estimate_parametric_no_fixed_proportion 
+
+nfp_results = rasch_estimate_parametric_no_fixed_proportion(df, 8911)
+```
+
+```{python}
+nfp_results[0]
+```
+
+#### Methode met initiële schatting gebaseerd op de Rasch Only Pos schatting
+
+```{python}
+from allib.estimation.rasch_multiple import rasch_estimate_parametric_init_by_pos
+
+ibp_results = rasch_estimate_parametric_init_by_pos(df, 8911)
+```
+
+```{python}
+ibp_results[0]
+```
+
+#### Methode in R
+
+```{r}
+source("allib/estimation/rasch_em_comb.R")
+rasch.ridge.em.horizon(df, 8911, 0.5)
+```
