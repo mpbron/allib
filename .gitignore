@@ -1,10 +1,10 @@
-mse_files/
-mse_tar_files/
+#mse_files/
+#mse_tar_files/
 multilabel_notebook.py
 .RData
 .Rhistory
 csv
-results
+#results
 # Created by https://www.gitignore.io/api/django,python
 *.h5
 test_notebook.py
