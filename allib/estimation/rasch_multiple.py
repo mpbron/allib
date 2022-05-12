@@ -81,7 +81,7 @@ def create_mask(poses: List[bool], estes: List[bool]) -> Masks:
                  positive_estimate, negative_estimate, 
                  positive_observed, negative_observed)
 
-@jit(nopython=True) # type: ignore
+@jit(nopython=True, cache=True) # type: ignore
 def l2(b0: np.ndarray,
        design_mat: np.ndarray,
        counts: np.ndarray,
@@ -123,7 +123,7 @@ def l2(b0: np.ndarray,
     return b
 
 
-@jit(nopython=True)  # type: ignore
+@jit(nopython=True, cache=True)  # type: ignore
 def calc_deviance(y: np.ndarray, y_hat: np.ndarray) -> float:
     pos_y_idx = np.where(y > 0)
     pos_y = y[pos_y_idx]
@@ -156,13 +156,13 @@ def l2_format(freq_df: pd.DataFrame, learner_cols: Sequence[str]) -> pd.DataFram
     df.insert(0, "intercept", 1)
     return df
 
-@jit(nopython=True)  # type: ignore
+@jit(nopython=True, cache=True)  # type: ignore
 def parameter_ci(estimate: float, se: float) -> Tuple[float, float]:
     var_min = estimate - 2 * se
     var_max = estimate + 2 * se
     return var_max, var_min
 
-@jit(nopython=True)  # type: ignore
+@jit(nopython=True, cache=True)  # type: ignore
 def calculate_estimate(intercept: float, pos: float) -> float:
     return np.exp(intercept + pos)
 
@@ -178,7 +178,7 @@ def calculate_ci_rasch(intercept: float,
     max_result = max(results)
     return min_result, max_result
 
-@jit(nopython=True)  # type: ignore
+@jit(nopython=True, cache=True)  # type: ignore
 def initial_fit(n_not_read: float, design_mat: np.ndarray) -> np.ndarray:
     not_read = np.array([n_not_read])
     b0 = np.hstack(
@@ -188,7 +188,7 @@ def initial_fit(n_not_read: float, design_mat: np.ndarray) -> np.ndarray:
     ))
     return b0
 
-@jit(nopython=True)  # type: ignore
+@jit(nopython=True, cache=True)  # type: ignore
 def rasch_glm(design_mat: np.ndarray,
               efit: np.ndarray,
               counts: np.ndarray,
@@ -203,7 +203,7 @@ def rasch_glm(design_mat: np.ndarray,
     deviance = calc_deviance(obs_counts, obs_fitted)
     return beta, mfit, deviance
 
-@jit(nopython=True) # type: ignore
+@jit(nopython=True, cache=True) # type: ignore
 def glm(design_mat: np.ndarray, counts: np.ndarray, epsilon=0.1) -> Tuple[np.ndarray, np.ndarray, float]:
     b0 = np.repeat(1.0, design_mat.shape[1])
     beta = l2(b0, design_mat, counts, epsilon=epsilon)
@@ -269,7 +269,7 @@ def rasch_estimate_only_pos(freq_df: pd.DataFrame, multinomial_size: int = 2000)
 
 
 
-@jit(nopython=True)  # type: ignore
+@jit(nopython=True, cache=True)  # type: ignore
 def rasch_em(design_mat: np.ndarray,
              b0: np.ndarray,
              counts: np.ndarray,

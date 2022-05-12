@@ -28,7 +28,7 @@ import numpy as np
 We can process the data in R as follows:
 
 ```{r}
-path <- "results/hall/design_matrix_400.csv" 
+path <- "results/halldataset/design_matrix_400.csv" 
 df <- rasch.csv(path)
 df
 ```
@@ -214,16 +214,20 @@ only_pos_res[0]
 
 ### Rasch Positive and Negative
 
+Gegeven een ingevulde design-matrix met data genereerd door $l$ learners.
+
 **Procedure:**
 
 1.  In initiële *E-step*, papers in willekeurige aantallen over de twee ontbrekende cellen. Stel aantal papers in stapel is 2.000. Stel op een bepaald moment zijn er 30 hits en 20 niet hits. Verdeel dan willekeurig 1.950 over de twee cellen. Merk op dat tellingen optellen tot 2.000.
-2.  In *M-step*, fit log-lineair model op 8 cellen voor hits en op 8 cellen voor niet-hits in *E-step*, gebruik fitted values uit *M-step* om 1.950 opnieuw te verdelen.
+2.  In *M-step*, fit log-lineair model op p $2^l$ cellen voor hits en op $2^l$ cellen voor niet-hits in *E-step*, gebruik fitted values uit *M-step* om 1.950 opnieuw te verdelen.
 3.  En ga dan op en neer tussen E- en M- step totdat het convergeert.
 
 #### Initiele versie in Python gebaseerd op M. Cruyff
 
+Gegeven een ingevulde design-matrix met data genereerd door $l$ learners.
+
 1.  In initiële *E-step*, papers **50/50** over de twee ontbrekende cellen. Stel aantal papers in stapel is 2.000. Stel op een bepaald moment zijn er 30 hits en 20 niet hits. Verdeel dan **50/50** 1.950 over de twee cellen. Merk op dat tellingen optellen tot 2.000.
-2.  In *M-step*, fit log-lineair model met op 8 cellen voor hits en op 8 cellen voor niet-hits in *E-step*, gebruik fitted values uit *M-step* om 1.950 opnieuw te verdelen.
+2.  In *M-step*, fit log-lineair model met de Newton-Rhapson functie op $2^l$ cellen voor hits en op $2^l$ cellen voor niet-hits in *E-step*, gebruik fitted values uit *M-step* om 1.950 opnieuw te verdelen.
 3.  En ga dan op en neer tussen E- en M- step totdat het convergeert.
 
 ```{python}
@@ -238,15 +242,11 @@ results[0]
 
 #### Bruteforce methode
 
-Het aantal combinaties van mogelijke bijschattingen voor het aantal positieve en negatieve documenten is eindig. Stel er moeten nog 7000 documenten gelezen worden dan zijn de mogelijke combinaties van de bijschattingen \$\\\[(1, 6999), (2, 6998), \ldots, (n , 7000 - n)\\\]\$.
+Het aantal combinaties van mogelijke bijschattingen voor het aantal positieve en negatieve documenten is eindig. Stel er moeten nog 7000 documenten gelezen worden dan zijn de mogelijke combinaties van de bijschattingen als volgt.
 
-Omdat in bepaalde situaties de bijschattingen voor het aantal positieve documenten erg hoog is, b
+$$[(1; 6999), (2; 6998), \ldots, (n; 7000 - n)]$$
 
-```{python}
-
-```
-
-estaat het vermoeden dat het EM-algoritme convergeert op een lokaal minimum in plaats van het globale minimum. Om dit aan te tonen, heb ik de curve van de deviance geplot aan de hand van alle mogelijke combinaties van de bijschattingen. Dit betreft een goede approximatie van de gehele zoekruimte, dus globale en lokale minima.
+Omdat in bepaalde situaties de bijschattingen voor het aantal positieve documenten erg hoog is, ontstond het vermoeden dat het EM-algoritme convergeert op een lokaal minimum in plaats van het globale minimum. Om dit aan te tonen, heb ik de curve van de deviance geplot aan de hand van alle mogelijke combinaties van de bijschattingen. Dit betreft een goede approximatie van de gehele zoekruimte, dus globale en lokale minima zouden zichtbaar moeten zijn.
 
 ```{r}
 source("allib/estimation/rasch_bruteforce.R")
