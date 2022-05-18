@@ -771,7 +771,7 @@ def rasch_estimate_bf_stats(freq_df: pd.DataFrame,
                    n_dataset: int,
                    proportion: float,
                    tolerance: float = 1e-5,
-                   max_it: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+                   max_it: int = 2000):
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
@@ -802,6 +802,63 @@ def rasch_estimate_bf_stats(freq_df: pd.DataFrame,
     betas, mfits, deviances = rasch_bf(design_mat, b0, counts, n_dataset, masks)
     ests = mfits[:,masks.positive_estimate]
     return ests, deviances 
+
+def rasch_estimate_bf_parametric(freq_df: pd.DataFrame,
+                   n_dataset: int,
+                   tolerance: float = 1e-5,
+                   max_it: int = 2000, 
+                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+    # Calculate general frequency statistics
+    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    # Add place holder rows for the counts that we aim to estimate
+    df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
+
+    # Change the dataframe in the correct format for the L2 algorithm
+    learner_cols = list(df_w_missing
+                        .filter(regex=r"^(?:(?!positive$).)+$")
+                        .filter(regex=r"^learner")
+                        )
+    df_formatted = l2_format(df_w_missing, learner_cols)
+
+    # Calculate row masks to select data from the matrices and vectors
+    est_mask: List[bool] = list(df_formatted[learner_cols].sum(axis=1) <= 0)
+    pos_mask: List[bool] = list(df_formatted.positive > 0)
+    masks = create_mask(pos_mask, est_mask)
+
+    design_mat: np.ndarray = (
+        df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
+        .values)  # type: ignore
+
+    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    obs_pos = np.sum(counts[masks.positive_observed])
+        
+    n_not_read = n_dataset - np.sum(counts[masks.observed])
+    b0 = initial_fit(n_not_read, design_mat)
+    beta, mfit, deviance = select_best_model(*rasch_bf(design_mat, b0, counts, n_dataset, masks))
+    positive_estimate: float = mfit[masks.positive_estimate][0]
+    horizon_estimate = obs_pos + positive_estimate
+    proportion = positive_estimate / n_not_read
+    if np.any(np.isnan(mfit)):
+        estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
+        stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+    else:
+        p_vals = mfit / np.sum(mfit)
+        try:
+            multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
+        except ValueError:
+            estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
+            stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+            return estimate, stats
+        results = rasch_parallel(design_mat, beta, multinomial_fits, n_dataset, proportion, masks)
+        estimates: List[float] = [fitted[masks.positive_estimate][0]
+                                    for (_, fitted, _) in results]
+        stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
+        low_estimate = obs_pos + np.percentile(estimates, 2.5)
+        high_estimate = obs_pos + np.percentile(estimates, 97.5)
+        estimate = Estimate(horizon_estimate, low_estimate, high_estimate)
+    return estimate, stats
+
+
 
 
 class EMRaschRidgeParametricConvPython(
@@ -868,7 +925,7 @@ class FastEMRaschPosNeg(
         df = self.get_occasion_history(estimator, label)
         if not self.dfs or not self.dfs[-1].equals(df):
             self.dfs.append(df)
-            est, stats = rasch_estimate_parametric_no_fixed_proportion(df, dataset_size, multinomial_size=self.multinomial_size)
+            est, stats = rasch_estimate_bf_parametric(df, dataset_size, multinomial_size=self.multinomial_size)
             self.estimates.append(est)
             self.model_info.append(stats)
         return self.estimates[-1]

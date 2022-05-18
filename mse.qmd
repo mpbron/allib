@@ -12,6 +12,7 @@ First, we load the libraries we want to use:
 ```{r}
 #| echo: false
 #| include: false
+library(reticulate)
 library(tidyverse)
 library(Rcapture)
 source("./allib/estimation/multiple_estimate.R")
@@ -28,7 +29,7 @@ import numpy as np
 We can process the data in R as follows:
 
 ```{r}
-path <- "results/hall/design_matrix_300.csv" 
+path <- "results/hall4/design_matrix_100.csv" 
 df <- rasch.csv(path)
 df
 ```
@@ -61,7 +62,7 @@ rasch_to_abundance(df)
 Again, we have to adapt the dataframe; we have to drop some columns and rows.
 
 ```{r}
-df.onlypos <- df %>% filter(positive == 1) %>% select(starts_with("learner") & !ends_with("positive"), matches("count"), starts_with("h") & ends_with("positive"))
+df.onlypos <- df %>% filter(positive == 1) %>% select(starts_with("learner") & !ends_with("positive"), starts_with("h") & ends_with("positive"), matches("count"))
 df.onlypos
 ```
 
@@ -89,7 +90,7 @@ only_pos_res[0]
 
 ### Rasch Positive and Negative
 
-Gegeven een ingevulde design-matrix met data genereerd door $l$ learners.
+Gegeven een ingevulde design-matrix met data gegenereerd door $l$ learners.
 
 **Procedure:**
 
@@ -141,13 +142,6 @@ coef_data = {"glm": r.coefs_glm, "nr": r.coefs_nr[:,0], "nr_python": results[1].
 pd.DataFrame.from_dict(coef_data)
 ```
 
-```{python}
-from allib.estimation.rasch_multiple import rasch_estimate_bf
-
-results_bf = rasch_estimate_bf(df, 8911, 0.5)
-results_bf
-```
-
 #### Bruteforce methode
 
 Het aantal combinaties van mogelijke bijschattingen voor het aantal positieve en negatieve documenten is eindig. Stel er moeten nog 7000 documenten gelezen worden dan zijn de mogelijke combinaties van de bijschattingen als volgt.
@@ -156,11 +150,16 @@ $$[(1; 6999), (2; 6998), \ldots, (n; 7000 - n)]$$
 
 Omdat in bepaalde situaties de bijschattingen voor het aantal positieve documenten erg hoog is, ontstond het vermoeden dat het EM-algoritme convergeert op een lokaal minimum in plaats van het globale minimum. Om dit aan te tonen, heb ik de curve van de deviance geplot aan de hand van alle mogelijke combinaties van de bijschattingen. Dit betreft een goede approximatie van de gehele zoekruimte, dus globale en lokale minima zouden zichtbaar moeten zijn.
 
+```{python}
+from allib.estimation.rasch_multiple import rasch_estimate_bf_stats
+
+bf_estimates, bf_deviances = rasch_estimate_bf_stats(df, 8911, 0.5)
+bf_df = pd.DataFrame.from_dict({"estimate": bf_estimates[:,0], "deviance": bf_deviances})
+bf_df
+```
+
 ```{r}
-source("allib/estimation/rasch_bruteforce.R")
-bf.results <- rasch.bf.comb(df, 8911)
-table <- rasch.bf.table(bf.results)
-ggplot(data=table) + aes(x=estimate,y=deviance) + geom_point()
+ggplot(data=py$bf_df) + aes(x=estimate, y=deviance) + geom_point()
 ```
 
 Op bovenstaande plot zijn de globale en lokale minima goed zichtbaar. Vaak bevinden deze zich rond 7500 en tussen de 0 en de 20.
@@ -187,4 +186,14 @@ ibp_results = rasch_estimate_parametric_init_by_pos(df, 8911)
 
 ```{python}
 ibp_results[0]
+```
+#### Methode met puntschatting met BruteForce, EM initialiasatie met parameters puntschattingsmodel
+```{python}
+from allib.estimation.rasch_multiple import rasch_estimate_bf_parametric
+bf_parametric_results, bf_stats = rasch_estimate_bf_parametric(df, 8911)
+bf_parametric_results
+```
+
+```{r}
+ggplot() + aes(x=py$bf_stats$preds) +  geom_density()
 ```
