@@ -58,7 +58,7 @@ table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
     10, 10, 10, iteration_hooks=[table_hook])
 plotter = ModelStatsTar(POS, NEG)
-simulator = TarSimulator(exp, plotter, 500, True)
+simulator = TarSimulator(exp, plotter, 300, True)
 # %%
 simulator.simulate()
 

@@ -41,10 +41,10 @@ rasch.em.comb <- function(freq.df, N, proportion=0.1, tolerance=1e-5){
     efit[!s] <- mfit[!s] * N0 / sum(mfit[!s]) 
     
     # Store new frequencies in data frame
-    df.em$count <- round(efit)
+    df.em$count <- efit
     
     # Fit log linear model and calculate deviance
-    mstep <- glm(count ~ ., "poisson", df.em)
+    mstep <- glm(count ~ ., "poisson", df.em, start=coef(mstep))
     devnew <- mstep$deviance
     
     # Determine if we have converged
@@ -53,6 +53,7 @@ rasch.em.comb <- function(freq.df, N, proportion=0.1, tolerance=1e-5){
   }
   return(mstep)
 }
+
 
 rasch.em.comb.conv <- function(freq.df, N, proportion=0.1, tolerance=1e-5){
   # Calculate the number of documents that are not read

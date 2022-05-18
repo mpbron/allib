@@ -15,7 +15,7 @@ rasch.single <- function(df, epsilon=0.1){
   # Get the coefficients from the model
   coefficients <- coef(model) %>% unlist(use.names = F)
   stderrs = sqrt(diag(vcov(model))) %>% unlist(use.names = F)
-
+  
   # Get the intercept of the formula (the estimate is exp(intercept))
   intercept = coefficients[1]
   intercept.err = stderrs[1]
@@ -98,7 +98,7 @@ rasch.parametric <- function(df, it=2000, confidence=0.95, epsilon=0.1){
   # Estimate n_00...0 using the Rasch model
   main.model <- rasch.single.model(df, epsilon)$estimate
   # Gather the counts of all rows and add the estimation for n_00..0
-  counts.model <- append(df$count, estimate.missing)
+  counts.model <- append(df$count, main.model)
   counts.model.sum <- sum(counts.model)
   # Sample with replacement of size n from this multinomial distribution. 
   # Remove the observation that correspond with cell 00..0. 
@@ -120,9 +120,11 @@ rasch.parametric <- function(df, it=2000, confidence=0.95, epsilon=0.1){
   sorted <- sort(results)
   bounds <- unlist(quantile(sorted, c(1-confidence, confidence)), use.names=F)
   result.df <- data.frame(
-    estimate = c(count.found + estimate.missing),
+    estimate = c(count.found + main.model),
     lowerbound = c(count.found + bounds[1]),
+    median = c(count.found + median(sorted)), 
     upperbound = c(count.found + bounds[2])
   )
+  rownames(result.df) <- NULL
   return(result.df)
 }

@@ -1,6 +1,6 @@
 from os import PathLike
 from pathlib import Path
-from typing import Any, Dict, FrozenSet, Generic, List, Tuple
+from typing import Any, Dict, FrozenSet, Generic, List, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -11,23 +11,41 @@ from ..typehints.typevars import DT, KT, LT, RT, VT
 from ..utils.func import all_subsets, intersection, powerset, not_in_supersets, union
 
 import functools
+import string
 
+def count_learners(df: pd.DataFrame) -> int:
+    cols = df.filter(regex="learner").filter(regex="^((?!-positive).)*$").columns
+    return len(cols.to_list())
 
-def convert_df(df: pd.DataFrame):
+def colnames(df: pd.DataFrame) -> Sequence[str]:
     table = df.filter(regex="learner|positive").filter(regex="^((?!-positive).)*$").values.tolist()
+    options = string.ascii_uppercase[0:n_learners(df)] + "+"
     def match_chars(ar: List[int]) -> str:
-        string = "ABC+"
-        zipped = zip(ar, string)
+        zipped = zip(ar, options)
         filtered = "".join([y for (x,y) in zipped if x == 1])
         if "+" not in filtered:
             return filtered + "-"
         return filtered
     colnames = list(map(match_chars, table))
-    values = np.array(df["count"].values.tolist()).reshape((1,14)) # type: ignore
-    new_row = pd.DataFrame(data=values, columns=colnames)
-    formatted = new_row[["A+", "B+", "C+", "AB+", "AC+", "BC+", "ABC+",
-                         "A-", "B-", "C-", "AB-", "AC-", "BC-", "ABC-"]]
+    return colnames
+    
+def sorted_colnames(learners: int) -> Sequence[str]:
+    learner_combos = sorted(
+            ["".join(sorted(s)) for s in 
+            powerset(string.ascii_uppercase[0:4]) if s],
+            key=lambda item: (len(item), item))
+    pos_cols = [f"{col}+" for col in learner_combos]
+    neg_cols = [f"{col}-" for col in learner_combos]
+    return pos_cols + neg_cols
+
+def convert_df(df: pd.DataFrame):
+    counts = np.array(df["count"].values.tolist()).reshape((1,-1)) # type: ignore
+    columns = colnames(df)
+    n_learners = count_learners(df)
+    new_row = pd.DataFrame(data=counts, columns=columns)
+    formatted = new_row[sorted_colnames(n_learners)]
     return formatted
+
 # %%
 class TableCollector(Generic[LT]):
     def __init__(self, pos_label: LT):
