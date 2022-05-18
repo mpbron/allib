@@ -188,11 +188,3 @@ ibp_results = rasch_estimate_parametric_init_by_pos(df, 8911)
 ```{python}
 ibp_results[0]
 ```
-
-#### Methode in R
-
-```{r}
-source("allib/estimation/rasch_em_comb.R")
-glm.rasch.em <- rasch.em.comb(df, 8911, 0.5)
-nr.rasch.em <- rasch.ridge.em.horizon(df, 8911, 0.5)
-```
