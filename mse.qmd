@@ -28,7 +28,7 @@ import numpy as np
 We can process the data in R as follows:
 
 ```{r}
-path <- "results/halldataset/design_matrix_400.csv" 
+path <- "results/hall/design_matrix_400.csv" 
 df <- rasch.csv(path)
 df
 ```
@@ -67,6 +67,7 @@ df.onlypos
 Below, the code for the determining the number of
 
 ```{r}
+options(warn=-1)
 rasch.single <- function(df, epsilon=0.1){
   # Copy the Frequency Table to a new variable
   count.df <- df
@@ -200,6 +201,7 @@ rasch.parametric <- function(df, it=2000, confidence=0.95, epsilon=0.1){
 We execute the model here:
 
 ```{r}
+options(warn=-1)
 rasch.parametric(df.onlypos)
 ```
 
@@ -230,6 +232,12 @@ Gegeven een ingevulde design-matrix met data genereerd door $l$ learners.
 2.  In *M-step*, fit log-lineair model met de Newton-Rhapson functie op $2^l$ cellen voor hits en op $2^l$ cellen voor niet-hits in *E-step*, gebruik fitted values uit *M-step* om 1.950 opnieuw te verdelen.
 3.  En ga dan op en neer tussen E- en M- step totdat het convergeert.
 
+Puntschatting in R
+
+```{r}
+source("")
+```
+
 ```{python}
 from allib.estimation.rasch_multiple import rasch_estimate_parametric_proportion as rasch_pn_par_pro
 
@@ -238,6 +246,7 @@ results = rasch_pn_par_pro(df, 8911, 0.5)
 
 ```{python}
 results[0]
+results[1].deviance
 ```
 
 #### Bruteforce methode
@@ -285,5 +294,6 @@ ibp_results[0]
 
 ```{r}
 source("allib/estimation/rasch_em_comb.R")
-rasch.ridge.em.horizon(df, 8911, 0.5)
+glm.rasch.em <- rasch.em.comb(df, 8911, 0.5)
+nr.rasch.em <- rasch.ridge.em.horizon(df, 8911, 0.5)
 ```
