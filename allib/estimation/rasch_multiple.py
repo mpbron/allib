@@ -407,7 +407,7 @@ def rasch_parallel(design_mat: np.ndarray,
 
     # Parallel execution of Parametric Bootstrap
     for idx in prange(num_mfits):
-        mfit_sample = rounded_mfits[idx,:]
+        mfit_sample = rounded_mfits[idx,:].copy()
         b0_copy = b0.copy()
         beta, mfit, deviance = rasch_em(
             design_mat, b0_copy, mfit_sample,
@@ -732,7 +732,6 @@ def rasch_estimate(freq_df: pd.DataFrame,
 
 def rasch_estimate_bf(freq_df: pd.DataFrame,
                    n_dataset: int,
-                   proportion: float,
                    tolerance: float = 1e-5,
                    max_it: int = 2000) -> Tuple[Estimate, ModelStatistics]:
     # Calculate general frequency statistics
@@ -925,7 +924,7 @@ class FastEMRaschPosNeg(
         df = self.get_occasion_history(estimator, label)
         if not self.dfs or not self.dfs[-1].equals(df):
             self.dfs.append(df)
-            est, stats = rasch_estimate_bf_parametric(df, dataset_size, multinomial_size=self.multinomial_size)
+            est, stats = rasch_estimate_bf(df, dataset_size)
             self.estimates.append(est)
             self.model_info.append(stats)
         return self.estimates[-1]

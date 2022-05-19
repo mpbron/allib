@@ -43,7 +43,7 @@ NEG = "Irrelevant"
 al_config = AL_REPOSITORY[ALConfiguration.RaschNBLRRFSVM]
 fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
 stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
-onlypos = FastOnlyPos(2000)
+onlypos = FastEMRaschPosNeg(2000)
 initializer = SeparateInitializer(env, 1)
 factory = MainFactory()
 
@@ -58,7 +58,7 @@ table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
     10, 10, 10, iteration_hooks=[table_hook])
 plotter = ModelStatsTar(POS, NEG)
-simulator = TarSimulator(exp, plotter, 300, True)
+simulator = TarSimulator(exp, plotter, 400, True)
 # %%
 simulator.simulate()
 

@@ -29,7 +29,7 @@ import numpy as np
 We can process the data in R as follows:
 
 ```{r}
-path <- "results/hall4/design_matrix_100.csv" 
+path <- "results/hall/design_matrix_300.csv" 
 df <- rasch.csv(path)
 df
 ```
@@ -122,7 +122,8 @@ coefs_nr <- model.nr$coefficients
 
 ```{r}
 model.glm
-
+nr.rasch.em
+glm.rasch.em
 
 ```
 
@@ -187,7 +188,9 @@ ibp_results = rasch_estimate_parametric_init_by_pos(df, 8911)
 ```{python}
 ibp_results[0]
 ```
+
 #### Methode met puntschatting met BruteForce, EM initialiasatie met parameters puntschattingsmodel
+
 ```{python}
 from allib.estimation.rasch_multiple import rasch_estimate_bf_parametric
 bf_parametric_results, bf_stats = rasch_estimate_bf_parametric(df, 8911)
