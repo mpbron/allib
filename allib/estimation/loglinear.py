@@ -1,4 +1,5 @@
 import collections
+import functools
 from typing import Any, Deque, FrozenSet, Generic, Mapping, Tuple
 
 import pandas as pd
@@ -7,14 +8,60 @@ from instancelib.typehints import DT, KT, LT, RT, VT
 from string import ascii_uppercase
 from ..activelearning import ActiveLearner
 from ..activelearning.estimator import Estimator
-from ..utils.func import all_subsets
-from .base import Estimate
+from ..utils.func import all_subsets, intersection, not_in_supersets, powerset, union
+from .base import AbstractEstimator, Estimate
 from .rasch import EMRaschCombined
 from .rasch_multiple import ModelStatistics
+from ..typehints import IT
 
+def log_linear_estimate(df: pd.DataFrame) -> Tuple[Estimate, ModelStatistics]:
+    pass
 
-class FastEMRaschPosNeg(
-        EMRaschCombined[KT, DT, VT, RT, LT],
+def learner_key(l: int) -> str:
+    return ascii_uppercase[l] 
+
+def learnercombi_string(lset: FrozenSet[int]) -> str:
+    lset = "".join([learner_key(l) for l in sorted(lset)])
+    return lset
+
+def get_contingency_sets_negative(estimator: Estimator[Any, KT, DT, VT, RT, LT], 
+                                  label: LT) -> Mapping[FrozenSet[int], FrozenSet[KT]]:
+    learner_sets = {
+            learner_key: (
+                frozenset(learner.env.labeled).
+                    difference(
+                        learner.env.labels.get_instances_by_label(label))
+            )
+        for learner_key, learner in enumerate(estimator.learners)
+    }
+    key_combinations = powerset(range(len(estimator.learners)))
+    result = {
+        combination: intersection(*[learner_sets[key] for key in combination])
+        for combination in key_combinations
+        if len(combination) >= 1
+    }
+    filtered_result = not_in_supersets(result)
+    return filtered_result
+
+def get_contingency_sets(estimator: Estimator[Any, KT, DT, VT, RT, LT], 
+                         label: LT) -> Mapping[FrozenSet[int], FrozenSet[KT]]:
+    learner_sets = {
+        learner_key: learner.env.labels.get_instances_by_label(
+            label).intersection(learner.env.labeled)
+        for learner_key, learner in enumerate(estimator.learners)
+    }
+    key_combinations = powerset(range(len(estimator.learners)))
+    result = {
+        combination: intersection(*[learner_sets[key] for key in combination])
+        for combination in key_combinations
+        if len(combination) >= 1
+    }
+    filtered_result = not_in_supersets(result)
+    return filtered_result
+
+    
+
+class LogLinear(AbstractEstimator[IT, KT, DT, VT, RT, LT],
         Generic[KT, DT, VT, RT, LT]):
 
     estimates: Deque[Estimate]
@@ -28,37 +75,97 @@ class FastEMRaschPosNeg(
         self.model_info = collections.deque()
         self.multinomial_size = multinomial_size
 
-    def _start_r(self) -> None:
-        pass
-
     def __call__(self, learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Estimate:
         assert isinstance(learner, Estimator)
         return self.calculate_estimate(learner, label)
 
-    @staticmethod
-    def rasch_row(combination: Tuple[FrozenSet[int], FrozenSet[Any]],
-                  all_learners: FrozenSet[int],
-                  positive: bool) -> Mapping[str, int]:
-        def learner_key(l: int) -> str:
-            return ascii_uppercase[l] 
-        def learnercombi_string(lset: FrozenSet[int]) -> str:
-            lset = "".join([learner_key(l) for l in sorted(lset)])
-            return lset
-       
+    def calculate_estimate(self,
+                           estimator: Estimator[Any, KT, DT, VT, RT, LT],
+                           label: LT) -> Estimate:
+        dataset_size = len(estimator.env.dataset)
+        df = self.get_design_matrix(estimator, label)
+        if not self.dfs or not self.dfs[-1].equals(df):
+            self.dfs.append(df)
+            est, stats = log_linear_estimate(df, dataset_size)
+            self.estimates.append(est)
+            self.model_info.append(stats)
+        return self.estimates[-1]
+    
+    
+    def get_design_matrix(self, 
+                          estimator: Estimator[Any, KT, DT, VT, RT, LT], 
+                          label: LT) -> pd.DataFrame:
+        contingency_sets_pos = get_contingency_sets(estimator, label)
+        learner_keys = union(*contingency_sets_pos.keys())
+        
+        rasch_pos_func = functools.partial(
+            self.design_matrix_row, all_learners=learner_keys, positive = True)
+                
+        
+        rows = list(map(rasch_pos_func, contingency_sets_pos.items()))
+        df = pd.DataFrame.from_dict(# type: ignore
+            rows, orient="index")
+        self.matrix_history.append(df)
+        return df
+
+
+
+    @classmethod
+    def design_matrix_row(cls,
+                          combination: Tuple[FrozenSet[int], FrozenSet[Any]],
+                          all_learners: FrozenSet[int]) -> Mapping[str, int]:
         learner_set, instances = combination
         learner_cols = {
             learner_key(l): int(l in learner_set) 
             for l in all_learners
         }
         count_col = {"count": len(instances)}
-        positive_col = {"positive": int(positive)}
-        interaction_cols = {""}
-        all_possible_interactions = all_subsets(all_learners, 2 , len(all_learners))
-        all_present_interactions = all_subsets(learner_set, 2 , len(all_learners))
+        
+        all_possible_interactions = all_subsets(all_learners, 2 , len(all_learners) -1)
+        all_present_interactions = all_subsets(learner_set, 2 , len(all_learners) - 1)
         interaction_cols = {
             learnercombi_string(lset): int(lset in all_present_interactions)
             for lset in all_possible_interactions
         }
+        final_row = {
+            **learner_cols,
+            **interaction_cols,
+            **count_col
+        }
+        
+        return final_row
+    
+    @classmethod
+    def get_design_matrix(cls, 
+                          estimator: Estimator[Any, KT, DT, VT, RT, LT], 
+                          label: LT) -> pd.DataFrame:
+        contingency_sets_pos = get_contingency_sets(estimator, label)
+        learner_keys = union(*contingency_sets_pos.keys())
+        
+        pos_cols_func = functools.partial(
+            cls.design_matrix_row, all_learners=learner_keys, positive = True)
+        
+        neg_cols_func = functools.partial(
+            cls.design_matrix_row, all_learners=learner_keys, positive = True)
+                
+        
+        rows = list(map(rasch_pos_func, contingency_sets_pos.items()))
+
+    
+    
+
+
+class PosNegLogLinear(LogLinear):
+
+    @classmethod
+    def pos_neg_row(cls,
+                    combination: Tuple[FrozenSet[int], FrozenSet[Any]],
+                    all_learners: FrozenSet[int], positive: bool) -> Mapping[str, int]:
+        learner_set, _ = combination
+        standard_cols = cls.design_matrix_row(combination, all_learners)
+        positive_col = {"positive": int(positive)}
+        all_possible_interactions = all_subsets(all_learners, 2 , len(all_learners) -1)
+        all_present_interactions = all_subsets(learner_set, 2 , len(all_learners) - 1)
         pos_learner_cols = {
             f"{learner_key(l)}_pos": (int(l in learner_set)  if positive else 0)
             for l in all_learners
@@ -68,23 +175,32 @@ class FastEMRaschPosNeg(
             for lset in all_possible_interactions
         }
         final_row = {
-            **learner_cols,
+            **standard_cols,
             **positive_col,
             **pos_learner_cols,
-            **interaction_cols,
-            **interaction_pos_cols,
-            **count_col
+            **interaction_pos_cols
         }
         return final_row
 
-    def calculate_estimate(self,
-                           estimator: Estimator[Any, KT, DT, VT, RT, LT],
-                           label: LT) -> Estimate:
-        dataset_size = len(estimator.env.dataset)
-        df = self.get_occasion_history(estimator, label)
-        if not self.dfs or not self.dfs[-1].equals(df):
-            self.dfs.append(df)
-            est, stats = rasch_estimate_bf(df, dataset_size)
-            self.estimates.append(est)
-            self.model_info.append(stats)
-        return self.estimates[-1]
+    @classmethod
+    def get_design_matrix(cls, 
+                          estimator: Estimator[Any, KT, DT, VT, RT, LT], 
+                          label: LT) -> pd.DataFrame:
+        contingency_sets_pos = get_contingency_sets(estimator, label)
+        contingency_sets_neg = get_contingency_sets_negative(estimator, label)
+        learner_keys = union(*contingency_sets_pos.keys())
+        
+        pos_func = functools.partial(
+            cls.pos_neg_row, all_learners=learner_keys, positive = True)
+        
+        neg_func = functools.partial(
+            cls.pos_neg_row, all_learners=learner_keys, positive = False)
+                
+        rows_pos = list(map(pos_func, contingency_sets_pos.items()))
+        rows_neg = list(map(neg_func, contingency_sets_neg.items()))
+        rows = dict(enumerate(rows_pos + rows_neg))
+        
+        df = pd.DataFrame.from_dict(rows, orient="index")
+        return df
+
+    
