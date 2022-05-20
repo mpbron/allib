@@ -142,14 +142,11 @@ class LogLinear(AbstractEstimator[IT, KT, DT, VT, RT, LT],
         contingency_sets_pos = get_contingency_sets(estimator, label)
         learner_keys = union(*contingency_sets_pos.keys())
         
-        pos_cols_func = functools.partial(
-            cls.design_matrix_row, all_learners=learner_keys, positive = True)
-        
-        neg_cols_func = functools.partial(
-            cls.design_matrix_row, all_learners=learner_keys, positive = True)
-                
-        
-        rows = list(map(rasch_pos_func, contingency_sets_pos.items()))
+        pos_func = functools.partial(
+            cls.design_matrix_row, all_learners=learner_keys)
+        rows = dict(enumerate(map(pos_func, contingency_sets_pos.items())))
+        df = pd.DataFrame.from_dict(rows, orient="index")
+        return df
 
     
     
