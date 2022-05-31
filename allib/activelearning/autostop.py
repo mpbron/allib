@@ -126,6 +126,7 @@ class AutoStopLearner(AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT
 
     def update_sample(self) -> Deque[KT]:
         if not self.current_sample:
+            self.stats.update(self)
             if self.it > 0: # No previous iteration at the start
                 # The previous sample has been finished
                 # Update probabilities so we can estimate the number of inclusions

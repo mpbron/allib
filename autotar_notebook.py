@@ -24,7 +24,7 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from allib.stopcriterion.heuristic import AprioriRecallTarget
-from allib.stopcriterion.others import KneeStoppingRule
+from allib.stopcriterion.others import BudgetStoppingRule, KneeStoppingRule, ReviewHalfStoppingRule, Rule2399StoppingRule
 
 
 #%%
@@ -50,20 +50,30 @@ vect = il.TextInstanceVectorizer(
 recall95 = AprioriRecallTarget(POS, 0.95)
 recall100 = AprioriRecallTarget(POS,1.0)
 knee = KneeStoppingRule(POS)
-criteria = {"Recall95": recall95, "Recall100": recall100, "KneeMethod": knee}
-estimators = {"HorvitzThompson2": HorvitzThompsonVar2()}
+half = ReviewHalfStoppingRule(POS)
+budget = BudgetStoppingRule(POS)
+rule2399 = Rule2399StoppingRule(POS)
+criteria = {
+    "Recall95": recall95, 
+    "Recall100": recall100, 
+    "Half": half,
+    "Knee": knee, 
+    "Budget": budget,
+    "Rule2399": rule2399,
+}
+estimators = dict()
 classifier = il.SkLearnVectorClassifier.build(
     LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000), 
     env)
-al = AutoStopLearner(classifier, POS, NEG, 100, 1)(env)
+at = AutoTarLearner(classifier, POS, NEG, 100, 20)(env)
 #%%
-init(al)
-il.vectorize(vect, al.env)
+init(at)
+il.vectorize(vect, at.env)
 
-#at = AutoTarLearner(classifier, POS, NEG, 100, 20)(env)
-exp = ExperimentIterator(al, POS, NEG, criteria, estimators)
+
+exp = ExperimentIterator(at, POS, NEG, criteria, estimators)
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, 8800, print_enabled=True)
+simulator = TarSimulator(exp, plotter, 8800)
 # %%
 simulator.simulate()
 #%%

@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import pickle
 import logging
+import pickle
 from typing import (Any, FrozenSet, Iterable, List, Sequence, Set, Tuple,
                     TypeVar)
 
 import numpy as np  # type: ignore
+from instancelib import Instance
 
 from sklearn.base import ClassifierMixin, TransformerMixin  # type: ignore
 
 from ..balancing import BaseBalancer, IdentityBalancer
 from ..environment import AbstractEnvironment
-from instancelib.instances import Instance
 from ..utils import SaveableInnerModel
 from ..utils.func import list_unzip
 from .base import AbstractClassifier
