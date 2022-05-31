@@ -29,6 +29,8 @@ LabelPrediction = FrozenSet[LT]
 
 LOGGER = logging.getLogger(__name__)
 
+
+
 class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
     """The **Abstract Base Class** `ActiveLearner` specifies the design for all 
     Active Learning algorithms. 
@@ -73,7 +75,8 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
     _env: Optional[AbstractEnvironment[IT, KT, DT, VT, RT, LT]]
     """The internal environment"""
     identifier: Optional[str]
-    
+    """The identifier of the Active Learning method"""
+
     @property
     def name(self) -> Tuple[str, Optional[LT]]:
         """Return the name of the Active Learner

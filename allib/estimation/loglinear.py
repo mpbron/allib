@@ -21,8 +21,8 @@ def learner_key(l: int) -> str:
     return ascii_uppercase[l] 
 
 def learnercombi_string(lset: FrozenSet[int]) -> str:
-    lset = "".join([learner_key(l) for l in sorted(lset)])
-    return lset
+    strlset = "".join([learner_key(l) for l in sorted(lset)])
+    return strlset
 
 def get_contingency_sets_negative(estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                                   label: LT) -> Mapping[FrozenSet[int], FrozenSet[KT]]:
@@ -43,7 +43,7 @@ def get_contingency_sets_negative(estimator: Estimator[Any, KT, DT, VT, RT, LT],
     filtered_result = not_in_supersets(result)
     return filtered_result
 
-def get_contingency_sets(estimator: Estimator[Any, KT, DT, VT, RT, LT], 
+def get_contingency_sets(estimator: Estimator[Any, KT, Any, Any, Any, LT], 
                          label: LT) -> Mapping[FrozenSet[int], FrozenSet[KT]]:
     learner_sets = {
         learner_key: learner.env.labels.get_instances_by_label(
@@ -62,7 +62,7 @@ def get_contingency_sets(estimator: Estimator[Any, KT, DT, VT, RT, LT],
     
 
 class LogLinear(AbstractEstimator[IT, KT, DT, VT, RT, LT],
-        Generic[KT, DT, VT, RT, LT]):
+        Generic[IT, KT, DT, VT, RT, LT]):
 
     estimates: Deque[Estimate]
     model_info: Deque[ModelStatistics]
@@ -92,24 +92,6 @@ class LogLinear(AbstractEstimator[IT, KT, DT, VT, RT, LT],
         return self.estimates[-1]
     
     
-    def get_design_matrix(self, 
-                          estimator: Estimator[Any, KT, DT, VT, RT, LT], 
-                          label: LT) -> pd.DataFrame:
-        contingency_sets_pos = get_contingency_sets(estimator, label)
-        learner_keys = union(*contingency_sets_pos.keys())
-        
-        rasch_pos_func = functools.partial(
-            self.design_matrix_row, all_learners=learner_keys, positive = True)
-                
-        
-        rows = list(map(rasch_pos_func, contingency_sets_pos.items()))
-        df = pd.DataFrame.from_dict(# type: ignore
-            rows, orient="index")
-        self.matrix_history.append(df)
-        return df
-
-
-
     @classmethod
     def design_matrix_row(cls,
                           combination: Tuple[FrozenSet[int], FrozenSet[Any]],

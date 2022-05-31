@@ -11,6 +11,8 @@ import numpy as np
 from instancelib.ingest.qrel import TrecDataset
 from instancelib.typehints import DT, KT, LT, RT, VT
 
+from ..analysis.base import (AbstractStatistics, AnnotationStatistics,
+                             StatsMixin)
 from ..analysis.initialization import Initializer
 from ..environment.base import AbstractEnvironment
 from ..typehints import IT
@@ -45,12 +47,14 @@ class PseudoInstanceInitializer(Initializer[IT, KT, LT],
 
 
 class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], 
+                     StatsMixin[KT, LT],
                      Generic[IT, KT, DT, VT, RT, LT]):
     rank_history: Dict[int, Mapping[KT, int]]
     sampled_sets: Dict[int, Sequence[KT]]
     batch_sizes:  Dict[int, int]
     current_sample: Deque[KT]
     rng: np.random.Generator
+    _stats: AbstractStatistics[KT, LT]
 
     def __init__(self, 
                  classifier: il.AbstractClassifier[IT, KT, DT, VT, RT, LT, np.ndarray, np.ndarray],
@@ -84,8 +88,13 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
 
         # Random generator for sampling
         self.rng = np.random.default_rng(seed)
+
+        # Statistics Logger for Stopping
+        self._stats = AnnotationStatistics()
         
-        
+    @property
+    def stats(self) -> AbstractStatistics[KT, LT]:
+        return self._stats 
 
     def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> PoolBasedAL[IT, KT, DT, VT, RT, LT]:
         super().__call__(environment)
@@ -144,6 +153,7 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
 
     def update_sample(self) -> Deque[KT]:
         if not self.current_sample:
+            self.stats.update(self)
             self._temp_augment_and_train()
             ranking = self._rank(self.env.unlabeled)
             sample = self._sample(ranking)

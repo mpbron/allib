@@ -8,7 +8,7 @@ from typing import (FrozenSet, Generic, Iterable, Iterator, List, Optional,
                     Sequence, Set, Tuple, TypeVar, Any)
 
 from ..environment import AbstractEnvironment
-from instancelib.instances import Instance
+from instancelib.instances.base import Instance
 
 from ..typehints import KT, VT, LT, LVT, PVT
 

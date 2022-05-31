@@ -5,8 +5,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import (Any, Callable, Deque, Dict, FrozenSet, Generic, Iterator,
                     List, Optional, Sequence, Set, Tuple, TypeVar, Union)
-
-from allib.machinelearning.base import AbstractClassifier
+from ..analysis.base import AnnotationStatistics
 
 from ..environment import AbstractEnvironment
 from ..exceptions import NoOrderingException
@@ -64,6 +63,7 @@ class PoolBasedAL(ActiveLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT,
         self.initialized = False
         self._env: Optional[AbstractEnvironment[IT, KT, DT, VT, RT, LT]] = None
         self.ordering = None
+        self._stats = AnnotationStatistics()
         self.sampled: Set[KT] = set()
         self.identifier = identifier
      
