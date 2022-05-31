@@ -29,7 +29,7 @@ import numpy as np
 We can process the data in R as follows:
 
 ```{r}
-path <- "results/hall/design_matrix_300.csv" 
+path <- "results/hall4/design_matrix_300.csv" 
 df <- rasch.csv(path)
 df
 ```
@@ -54,7 +54,10 @@ To use RCapture, we have to drop some columns.
 
 ```{r}
 source("./allib/estimation/multiple_estimate.R")
-rasch_to_abundance(df)
+df.rc <- rcapture.df(df)
+df.rc
+res <- closedpMS.t(df.rc, T)
+res
 ```
 
 ### Rasch Only Positive

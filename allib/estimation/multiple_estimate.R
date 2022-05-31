@@ -28,8 +28,3 @@ rasch_to_abundance <- function(df){
   result <- closedpCI.0(rcp.df,dfreq = TRUE, t = Inf, m = "Mh", h = "LB")
   return(result)
 }
-rasch_to_abundance <- function(df){
-  rcp.df <- rcapture.df(df)
-  result <- closedpCI.0(rcp.df,dfreq = TRUE, t = Inf, m = "Mh", h = "LB")
-  return(result)
-}
