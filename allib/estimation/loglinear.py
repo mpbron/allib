@@ -3,6 +3,7 @@ import functools
 from typing import Any, Deque, FrozenSet, Generic, Mapping, Tuple
 
 import pandas as pd
+import numpy as np
 from instancelib.typehints import DT, KT, LT, RT, VT
 
 from string import ascii_uppercase
@@ -11,11 +12,26 @@ from ..activelearning.estimator import Estimator
 from ..utils.func import all_subsets, intersection, not_in_supersets, powerset, union
 from .base import AbstractEstimator, Estimate
 from .rasch import EMRaschCombined
+from .rasch_multiple import pos_rasch_numpy
 from .rasch_multiple import ModelStatistics
 from ..typehints import IT
 
-def log_linear_estimate(df: pd.DataFrame) -> Tuple[Estimate, ModelStatistics]:
-    pass
+
+def log_linear_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size: int) -> Tuple[Estimate, ModelStatistics]:
+    df_formatted = df.sort_values([col for col in ascii_uppercase if col in df.columns])
+    df_formatted.insert(0, "intercept", 1)
+    design_mat = (
+        df_formatted.loc[:, df_formatted.columns != 'count'] # type: ignore
+            .values) # type: ignore
+    design_mat = design_mat.astype("float64")
+    obs_counts: np.ndarray = df_formatted["count"].values # type: ignore
+    total_found: int = int(np.sum(obs_counts))
+    
+    point, low, up, beta, mfit, deviance, estimates = pos_rasch_numpy(
+        design_mat, obs_counts, total_found, max_it=multinomial_size)
+    estimate = Estimate(point, low, up)
+    stats = ModelStatistics(beta, mfit, deviance, estimates)
+    return estimate, stats
 
 def learner_key(l: int) -> str:
     return ascii_uppercase[l] 
@@ -86,7 +102,7 @@ class LogLinear(AbstractEstimator[IT, KT, DT, VT, RT, LT],
         df = self.get_design_matrix(estimator, label)
         if not self.dfs or not self.dfs[-1].equals(df):
             self.dfs.append(df)
-            est, stats = log_linear_estimate(df, dataset_size)
+            est, stats = log_linear_estimate(df, dataset_size, self.multinomial_size)
             self.estimates.append(est)
             self.model_info.append(stats)
         return self.estimates[-1]

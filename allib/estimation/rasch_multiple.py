@@ -225,7 +225,7 @@ def pos_rasch_numpy(design_mat: np.ndarray,
                     obs_counts: np.ndarray, 
                     total_found: int, max_it: int = 2000
                     ) -> Tuple[float, float, float, np.ndarray, np.ndarray, float, np.ndarray]:
-    beta, mfit, deviance = glm(design_mat, obs_counts)
+    beta, mfit, deviance = glm(design_mat, obs_counts, epsilon = 0.1)
     estimate = np.exp(beta[0])
     horizon_estimate = int(np.round(total_found + estimate))
     fitted: np.ndarray = np.concatenate((np.array([estimate]), mfit))
@@ -238,7 +238,8 @@ def pos_rasch_numpy(design_mat: np.ndarray,
         multinomial_fits: np.ndarray = np.random.multinomial(horizon_estimate, p_vals, max_it)
             
         for idx in prange(max_it):
-            i_beta, i_mfit, i_deviance = glm(design_mat, multinomial_fits[idx,1:])
+            multinom = multinomial_fits[idx,1:].copy()
+            i_beta, i_mfit, i_deviance = glm(design_mat, multinom, epsilon=0.1)
             betas[idx,:] = i_beta
             mfits[idx,:] = i_mfit
             deviances[idx] = i_deviance
