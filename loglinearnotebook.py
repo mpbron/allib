@@ -24,7 +24,7 @@ from allib.stopcriterion.catalog import StopCriterionCatalog
 import instancelib as il
 from sklearn.naive_bayes import MultinomialNB
 import matplotlib.pyplot as plt
-
+from allib.estimation.mhmodel import AbundanceEstimator
 from allib.utils.func import list_unzip
 
 
@@ -44,6 +44,7 @@ NEG = "Irrelevant"
 al_config = AL_REPOSITORY[ALConfiguration.RaschNBLRRFSVM]
 fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
 stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
+abundance = AbundanceEstimator()
 onlypos = LogLinear(2000)
 initializer = SeparateInitializer(env, 1)
 factory = MainFactory()
@@ -53,8 +54,8 @@ factory = MainFactory()
 al, fe = initialize(factory, al_config, fe_config, initializer, env)
 only_pos_stop = stop_constructor(onlypos, POS)
 # %%
-criteria =  {"POS": only_pos_stop}# "POS": only_pos_stop}
-estimators = {"POS": onlypos} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
+criteria =  dict() #{"POS": only_pos_stop}# "POS": only_pos_stop}
+estimators = {"R": abundance} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
 table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
     10, 10, 10, iteration_hooks=[table_hook])

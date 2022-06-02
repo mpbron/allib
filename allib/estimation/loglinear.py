@@ -33,6 +33,22 @@ def log_linear_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size: i
     stats = ModelStatistics(beta, mfit, deviance, estimates)
     return estimate, stats
 
+def log_linear_em_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size: int) -> Tuple[Estimate, ModelStatistics]:
+    df_formatted = df.sort_values([col for col in ascii_uppercase if col in df.columns])
+    df_formatted.insert(0, "intercept", 1)
+    design_mat = (
+        df_formatted.loc[:, df_formatted.columns != 'count'] # type: ignore
+            .values) # type: ignore
+    design_mat = design_mat.astype("float64")
+    obs_counts: np.ndarray = df_formatted["count"].values # type: ignore
+    total_found: int = int(np.sum(obs_counts))
+    
+    point, low, up, beta, mfit, deviance, estimates = pos_rasch_numpy(
+        design_mat, obs_counts, total_found, max_it=multinomial_size)
+    estimate = Estimate(point, low, up)
+    stats = ModelStatistics(beta, mfit, deviance, estimates)
+    return estimate, stats
+
 def learner_key(l: int) -> str:
     return ascii_uppercase[l] 
 
