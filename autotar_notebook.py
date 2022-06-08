@@ -37,8 +37,9 @@ from allib.stopcriterion.others import BudgetStoppingRule, KneeStoppingRule, Rev
 #%%
 
 #%%
+vandis = Path("../datasets/van_Dis_2020.csv")
 hall = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
-env = read_review_dataset(hall)
+env = read_review_dataset(vandis)
 
 #%%
 POS = "Relevant"
@@ -48,7 +49,7 @@ vect = il.TextInstanceVectorizer(
     il.SklearnVectorizer(TfidfVectorizer(stop_words='english', min_df=2, max_features=3000)))
 # %%
 recall95 = AprioriRecallTarget(POS, 0.95)
-recall100 = AprioriRecallTarget(POS,1.0)
+recall100 = AprioriRecallTarget(POS, 1.0)
 knee = KneeStoppingRule(POS)
 half = ReviewHalfStoppingRule(POS)
 budget = BudgetStoppingRule(POS)
@@ -73,7 +74,7 @@ il.vectorize(vect, at.env)
 
 exp = ExperimentIterator(at, POS, NEG, criteria, estimators)
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, 8800)
+simulator = TarSimulator(exp, plotter, 10000)
 # %%
 simulator.simulate()
 #%%

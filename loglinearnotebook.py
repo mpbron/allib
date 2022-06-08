@@ -34,9 +34,15 @@ from allib.utils.func import list_unzip
 # trec = TrecDataset.from_path(qrel_path)
 # il_env = trec.get_env('401')
 # env = MemoryEnvironment.from_instancelib_simulation(il_env)
-# dis = Path("../datasets/van_Dis_2020.csv")
-hall = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
-env = read_review_dataset(hall)
+dis = Path("../datasets/van_Dis_2020.csv")
+schoot = Path("../datasets/PTSD_VandeSchoot_18.csv")
+hall = Path("../datasets/Software_Engineering_Hall.csv")
+nagtegaal = Path("../datasets/Nagtegaal_2019.csv")
+bos = Path("../datasets/Bos_2018.csv")
+ah = Path("../datasets/Appenzeller-Herzog_2020.csv")
+wolters = Path("../datasets/Wolters_2018.csv")
+kwok = Path("../datasets/Kwok_2020.csv")
+env = read_review_dataset(kwok)
 POS = "Relevant"
 NEG = "Irrelevant"
 # %%
@@ -60,7 +66,7 @@ table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
     10, 10, 10, iteration_hooks=[table_hook])
 plotter = ModelStatsTar(POS, NEG)
-simulator = TarSimulator(exp, plotter, 300, True)
+simulator = TarSimulator(exp, plotter, 1000, True)
 # %%
 simulator.max_it += 100
 simulator.simulate()
