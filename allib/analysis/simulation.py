@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 import itertools
 import random
+from tqdm.auto import tqdm
 import typing as ty
 from abc import ABC, abstractmethod
 from collections import OrderedDict
@@ -107,11 +108,14 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         return self.experiment.it > self.max_it
      
     def simulate(self) -> None:
-        while not self.experiment.finished and not self._debug_finished:
-            result = self.experiment()
-            self.plotter.update(self.experiment, result)
-            if self.print_enabled:
-                self.plotter.print_last_stats()
+        with tqdm(total=len(self.experiment.learner.env.dataset)) as pbar:
+            pbar.update(self.experiment.learner.len_labeled)
+            while not self.experiment.finished and not self._debug_finished:
+                result = self.experiment()
+                self.plotter.update(self.experiment, result)
+                if self.print_enabled:
+                    self.plotter.print_last_stats()
+                pbar.update(1)
 
         
 

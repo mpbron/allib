@@ -14,8 +14,8 @@ from ..stopcriterion.estimation import (CombinedStopCriterion,
 from ..typehints import LT
 from .catalog import ALConfiguration, EstimationConfiguration, FEConfiguration
 from .ensemble import (al_config_ensemble_prob, al_config_entropy,
-                       naive_bayes_estimator, rasch_estimator, rasch_lr,
-                       rasch_rf, rasch_nblrrf, svm_estimator, tf_idf5000, rasch_nblrrfsvm)
+                       naive_bayes_estimator, rasch_estimator, rasch_lr, rasch_nblrrflgbm,
+                       rasch_rf, rasch_nblrrf, rasch_nblrrflgbmrand, svm_estimator, tf_idf5000, rasch_nblrrfsvm)
 
 AL_REPOSITORY = {
     ALConfiguration.NaiveBayesEstimator :  naive_bayes_estimator,
@@ -27,6 +27,8 @@ AL_REPOSITORY = {
     ALConfiguration.RaschNBLRRF: rasch_nblrrf,
     ALConfiguration.RaschNBLRRFSVM: rasch_nblrrfsvm,
     ALConfiguration.RaschRF: rasch_rf,
+    ALConfiguration.RaschNBLRRFLGBM: rasch_nblrrflgbm,
+    ALConfiguration.RaschNBLRRFLGBMRAND: rasch_nblrrflgbmrand
 }
 
 FE_REPOSITORY = {

@@ -266,6 +266,25 @@ rasch_nblrrfsvm =  {
         add_identifier(al_config_svm,"SVM")
     ]
 }
+rasch_nblrrflgbm =  {
+    "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+    "learners": [
+        add_identifier(al_config_nb, "NaiveBayes"),
+        add_identifier(al_config_rf, "RandomForest"),
+        add_identifier(al_config_lr, "LogisticRegression"),
+        add_identifier(al_config_lgbm,"LGBM")
+    ]
+}
+rasch_nblrrflgbmrand =  {
+    "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+    "learners": [
+        add_identifier(al_config_nb, "NaiveBayes"),
+        add_identifier(al_config_rf, "RandomForest"),
+        add_identifier(al_config_lr, "LogisticRegression"),
+        add_identifier(al_config_lgbm,"LGBM"),
+        add_identifier(al_config_random, "Random")
+    ]
+}
 
 rasch_lr = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,

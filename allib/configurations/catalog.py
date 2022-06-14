@@ -11,6 +11,8 @@ class ALConfiguration(Enum):
     ProbabilityEnsemble = "ProbabilityEnsemble"
     RaschNBLRRF = "RaschNBLRRF"
     RaschNBLRRFSVM = "RaschNBLRRFSVM"
+    RaschNBLRRFLGBM = "RaschNBLRRFLBGM"
+    RaschNBLRRFLGBMRAND = "RaschNBLRRFLGBMRAND"
 
 class FEConfiguration(Enum):
     TFIDF5000 = "TfIDF5000"

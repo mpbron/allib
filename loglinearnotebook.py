@@ -29,46 +29,50 @@ from allib.utils.func import list_unzip
 
 
 #%%
-# TOPIC_ID = 'CD008081'
-# qrel_path = Path("/data/tardata/tr")
-# trec = TrecDataset.from_path(qrel_path)
-# il_env = trec.get_env('401')
-# env = MemoryEnvironment.from_instancelib_simulation(il_env)
+TOPIC_ID = 'CD008081'
+qrel_path = Path("/data/tardata/tr")
+#trec = TrecDataset.from_path(qrel_path)
+#il_env = trec.get_env('401')
+#env = MemoryEnvironment.from_instancelib_simulation(il_env)
+wolters = Path("../datasets/Wolters_2018.csv")
 dis = Path("../datasets/van_Dis_2020.csv")
 schoot = Path("../datasets/PTSD_VandeSchoot_18.csv")
 hall = Path("../datasets/Software_Engineering_Hall.csv")
 nagtegaal = Path("../datasets/Nagtegaal_2019.csv")
 bos = Path("../datasets/Bos_2018.csv")
 ah = Path("../datasets/Appenzeller-Herzog_2020.csv")
+bb = Path("../datasets/Bannach-Brown_2019.csv")
 wolters = Path("../datasets/Wolters_2018.csv")
 kwok = Path("../datasets/Kwok_2020.csv")
-env = read_review_dataset(kwok)
+env = read_review_dataset(bb)
 POS = "Relevant"
 NEG = "Irrelevant"
 # %%
 # Retrieve the configuration
-al_config = AL_REPOSITORY[ALConfiguration.RaschNBLRRFSVM]
+al_config = AL_REPOSITORY[ALConfiguration.RaschNBLRRFLGBMRAND]
 fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
 stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
-abundance = AbundanceEstimator()
-onlypos = LogLinear(2000)
+chao = AbundanceEstimator()
+logl = LogLinear(2000)
+rasch = FastOnlyPos(2000)
 initializer = SeparateInitializer(env, 1)
 factory = MainFactory()
 
 #%%
 # Build the experiment objects
 al, fe = initialize(factory, al_config, fe_config, initializer, env)
-only_pos_stop = stop_constructor(onlypos, POS)
+chao_stop = stop_constructor(chao, POS)
+rasch_stop = stop_constructor(rasch, POS)
 # %%
-criteria =  dict() #{"POS": only_pos_stop}# "POS": only_pos_stop}
-estimators = {"R": abundance} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
+criteria =   {"Mh Chao LB": chao_stop, "Rasch": rasch_stop}
+estimators = {"Mh Chao LB": chao, "Rasch": rasch} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
 table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
     10, 10, 10, iteration_hooks=[table_hook])
 plotter = ModelStatsTar(POS, NEG)
-simulator = TarSimulator(exp, plotter, 1000, True)
+simulator = TarSimulator(exp, plotter, 1000)
 # %%
-simulator.max_it += 100
+#simulator.max_it += 1000
 simulator.simulate()
 
 #%%
@@ -85,3 +89,4 @@ def save_to_folder(table_hook, path: "PathLike[str]") -> None:
 
 
 # %%
+cd 
