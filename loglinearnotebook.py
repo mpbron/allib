@@ -44,7 +44,7 @@ ah = Path("../datasets/Appenzeller-Herzog_2020.csv")
 bb = Path("../datasets/Bannach-Brown_2019.csv")
 wolters = Path("../datasets/Wolters_2018.csv")
 kwok = Path("../datasets/Kwok_2020.csv")
-env = read_review_dataset(bb)
+env = read_review_dataset(schoot)
 POS = "Relevant"
 NEG = "Irrelevant"
 # %%
