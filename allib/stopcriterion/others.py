@@ -7,7 +7,8 @@ from .base import AbstractStopCriterion
 from scipy.stats import hypergeom
 import numpy as np
 
-     
+
+
 class StatsStoppingCriterion(AbstractStopCriterion[LT], Generic[KT, LT]):
     stats: AbstractStatistics[KT, LT]
     def __init__(self, pos_label: LT) -> None:
@@ -22,6 +23,16 @@ class StatsStoppingCriterion(AbstractStopCriterion[LT], Generic[KT, LT]):
             self.stats.update(learner)
         
 
+class StopAfterKNegative(StatsStoppingCriterion[KT, LT]):
+    def __init__(self, pos_label: LT, k: int) -> None:
+        super().__init__(pos_label)
+        self.k = k
+    
+    @property
+    def stop_criterion(self) -> bool:
+        annotated_since_last_pos = self.stats.annotations_since_last(self.pos_label)
+        return annotated_since_last_pos >= self.k
+        
 
 class KneeStoppingRule(StatsStoppingCriterion[KT, LT]):
     """

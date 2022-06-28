@@ -150,21 +150,27 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         plt.fill_between(xrs, ls, us, color=color, alpha=alpha)
 
     def _plot_stop_criteria(self) -> None:
-        for crit_name in self.criterion_names:
+        results: Sequence[Tuple[int, float, float, str, str]] = list()
+        for i, crit_name in enumerate(self.criterion_names):
+            color = f"C{i}"
             for it in self.it_axis:
                 frame = self.stop_results[it]
                 if frame[crit_name]:
-                    exp_found = self.exp_random_recall(it)
-                    act_found = self.recall_stats[it].pos_docs_found
                     wss = self.recall_stats[it].wss
                     recall = self.recall_stats[it].recall
-                    plt.vlines(x=self.recall_stats[it].effort,
+                    results.append((it, recall, wss, crit_name, color))
+                    break
+        results_sorted = sorted(results)
+        for it, recall, wss, crit_name, color in results_sorted:
+            exp_found = self.exp_random_recall(it)
+            act_found = self.recall_stats[it].pos_docs_found
+            plt.vlines(x=self.recall_stats[it].effort,
                                ymin=exp_found,
                                ymax=act_found,
                                linestyles="dashed",
+                               color=color,
                                label=f"{crit_name} WSS: {(wss*100):.1f} %, "
                                      f"Recall: {(recall*100):.1f} %")
-                    break
 
     def _graph_setup(self) -> None:
         true_pos = self.dataset_stats[self.it].pos_count

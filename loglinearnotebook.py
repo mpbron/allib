@@ -25,6 +25,8 @@ import instancelib as il
 from sklearn.naive_bayes import MultinomialNB
 import matplotlib.pyplot as plt
 from allib.estimation.mhmodel import AbundanceEstimator
+from allib.stopcriterion.heuristic import AprioriRecallTarget
+from allib.stopcriterion.others import BudgetStoppingRule, KneeStoppingRule, ReviewHalfStoppingRule, Rule2399StoppingRule, StopAfterKNegative
 from allib.utils.func import list_unzip
 
 
@@ -44,7 +46,7 @@ ah = Path("../datasets/Appenzeller-Herzog_2020.csv")
 bb = Path("../datasets/Bannach-Brown_2019.csv")
 wolters = Path("../datasets/Wolters_2018.csv")
 kwok = Path("../datasets/Kwok_2020.csv")
-env = read_review_dataset(schoot)
+env = read_review_dataset(dis)
 POS = "Relevant"
 NEG = "Irrelevant"
 # %%
@@ -62,10 +64,27 @@ factory = MainFactory()
 # Build the experiment objects
 al, fe = initialize(factory, al_config, fe_config, initializer, env)
 chao_stop = stop_constructor(chao, POS)
-rasch_stop = stop_constructor(rasch, POS)
+recall95 = AprioriRecallTarget(POS, 0.95)
+recall100 = AprioriRecallTarget(POS, 1.0)
+knee = KneeStoppingRule(POS)
+half = ReviewHalfStoppingRule(POS)
+budget = BudgetStoppingRule(POS)
+rule2399 = Rule2399StoppingRule(POS)
+stop200 = StopAfterKNegative(POS, 200)
+stop400 = StopAfterKNegative(POS, 400)
+criteria = {
+    "Recall95": recall95, 
+    "Recall100": recall100, 
+    "Half": half,
+    "Knee": knee, 
+    "Budget": budget,
+    "Rule2399": rule2399,
+    "Stop200": stop200,
+    "Stop400": stop400,
+    "Mh Chao LB": chao_stop
+}
 # %%
-criteria =   {"Mh Chao LB": chao_stop, "Rasch": rasch_stop}
-estimators = {"Mh Chao LB": chao, "Rasch": rasch} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
+estimators = {"Mh Chao LB": chao} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
 table_hook = TableCollector(POS)
 exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
     10, 10, 10, iteration_hooks=[table_hook])

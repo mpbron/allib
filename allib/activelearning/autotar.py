@@ -172,6 +172,8 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
         return self.current_sample
         
     def __next__(self) -> IT:
+        if self.env.unlabeled.empty:
+            raise StopIteration
         self.update_sample()
         while self.current_sample:
             ins_key = self.current_sample.popleft()

@@ -24,7 +24,7 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from allib.stopcriterion.heuristic import AprioriRecallTarget
-from allib.stopcriterion.others import BudgetStoppingRule, KneeStoppingRule, ReviewHalfStoppingRule, Rule2399StoppingRule
+from allib.stopcriterion.others import BudgetStoppingRule, KneeStoppingRule, ReviewHalfStoppingRule, Rule2399StoppingRule, StopAfterKNegative
 
 
 #%%
@@ -54,13 +54,17 @@ knee = KneeStoppingRule(POS)
 half = ReviewHalfStoppingRule(POS)
 budget = BudgetStoppingRule(POS)
 rule2399 = Rule2399StoppingRule(POS)
+stop200 = StopAfterKNegative(POS, 200)
+stop400 = StopAfterKNegative(POS, 400)
 criteria = {
-    "Recall95": recall95, 
-    "Recall100": recall100, 
+    "Perfect95": recall95, 
+    "Perfect100": recall100, 
     "Half": half,
     "Knee": knee, 
     "Budget": budget,
     "Rule2399": rule2399,
+    "Stop200": stop200,
+    "Stop400": stop400
 }
 estimators = dict()
 classifier = il.SkLearnVectorClassifier.build(
@@ -70,11 +74,11 @@ at = AutoTarLearner(classifier, POS, NEG, 100, 20)(env)
 #%%
 init(at)
 il.vectorize(vect, at.env)
-
+#%%
 
 exp = ExperimentIterator(at, POS, NEG, criteria, estimators)
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, 10000)
+simulator = TarSimulator(exp, plotter)
 # %%
 simulator.simulate()
 #%%

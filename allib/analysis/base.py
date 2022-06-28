@@ -10,6 +10,7 @@ from ..environment import AbstractEnvironment
 from ..environment.base import AbstractEnvironment
 from ..typehints import DT, IT, KT, LT, RT, VT
 from .base import ActiveLearner
+import numpy as np
 
 
 class AbstractStatistics(ABC, Generic[KT, LT]):
@@ -48,6 +49,12 @@ class AbstractStatistics(ABC, Generic[KT, LT]):
     @abstractmethod
     def annotations_per_round(self) -> Sequence[int]:
         raise NotImplementedError
+
+    def annotations_since_last(self, label: LT) -> int:
+        last_pos_it = max([it for it, count in enumerate(self.label_per_round(label)) if count > 0])
+        annotated_at = np.array(self.annotations_per_round).cumsum()[last_pos_it]
+        return self.current_annotated - annotated_at
+
 
 class StatsMixin(ABC, Generic[KT, LT]):
     @property
