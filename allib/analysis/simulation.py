@@ -20,6 +20,8 @@ from instancelib.feature_extraction.base import BaseVectorizer
 from instancelib.functions.vectorize import vectorize
 from instancelib.instances.base import Instance
 
+from allib.analysis.classificationplotter import ClassificationPlotter
+
 from ..activelearning.base import ActiveLearner
 from ..environment.base import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
@@ -27,7 +29,7 @@ from ..factory.factory import ObjectFactory
 from ..module.component import Component
 from ..stopcriterion.base import AbstractStopCriterion
 from ..typehints import DT, IT, KT, LT, RT, VT
-from .experiments import ExperimentIterator
+from .experiments import ClassificationExperiment, ExperimentIterator
 from .initialization import Initializer
 from .plotter import AbstractPlotter, ExperimentPlotter
 
@@ -118,7 +120,35 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
                 pbar.update(1)
 
         
+class ClassificationSimulator(Generic[IT, KT, DT, VT, RT, LT]):
+    plotter: ClassificationPlotter[LT]
+    experiment: ClassificationExperiment[IT, KT, DT, VT, RT, LT]
 
+    def __init__(self, experiment: ClassificationExperiment[IT, KT, DT, VT, RT, LT], 
+                       plotter: ClassificationPlotter[LT],
+                       max_it: Optional[int]=None,
+                       print_enabled = False) -> None:
+        self.experiment = experiment
+        self.plotter = plotter
+        self.max_it = max_it
+        self.print_enabled = print_enabled
+    
+    @property
+    def _debug_finished(self) -> bool:
+        if self.max_it is None:
+            return False
+        return self.experiment.it > self.max_it
+     
+    def simulate(self) -> None:
+        first_learner = next(iter(self.experiment.learners.values()))
+        with tqdm(total=len(first_learner.env.dataset)) as pbar:
+            pbar.update(first_learner.len_labeled)
+            while not self.experiment.finished and not self._debug_finished:
+                result = self.experiment()
+                self.plotter.update(self.experiment, result)
+                if self.print_enabled:
+                    self.plotter.print_last_stats()
+                pbar.update(1)
 
 
 

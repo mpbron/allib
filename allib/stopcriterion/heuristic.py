@@ -84,4 +84,17 @@ class AprioriRecallTarget(AbstractStopCriterion[LT]):
 
 
 
+class FractionStopCritertion(AbstractStopCriterion[LT], Generic[LT]):
+    read_fraction: float
+    target_fraction: float
+
+    def __init__(self, target_fraction: float):
+        self.target_fraction = target_fraction
+        self.read_fraction = 0.0
     
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
+        self.read_fraction = len(learner.env.labeled) / len(learner.env.dataset)
+    
+    @property
+    def stop_criterion(self) -> bool:
+        return self.read_fraction >= self.target_fraction

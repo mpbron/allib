@@ -31,7 +31,7 @@ from ..typehints import IT, KT, DT, RT, LT, VT
 
 LOGGER = logging.getLogger(__name__)
 
-from .rasch_multiple import ModelStatistics
+from ..analysis.statistics import EstimationModelStatistics
 
 def _check_R():
     """Checks if Python <-> R interop is available
@@ -46,7 +46,7 @@ def _check_R():
 
 
 class AbundanceEstimator(AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
-    name = "BestBICEstimator"
+    name = "Mh Chao Estimator"
     def __init__(self):
         self.matrix_history: Deque[pd.DataFrame] = collections.deque()
         self.contingency_history: Deque[Dict[FrozenSet[int], int]] = collections.deque()
@@ -136,7 +136,7 @@ class AbundanceEstimator(AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, 
 
     def __call__(self, learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT) -> Estimate:
         empty = np.array([])
-        stats = ModelStatistics(empty, empty, 0.0, empty)
+        stats = EstimationModelStatistics(empty, empty, 0.0, empty)
         if not isinstance(learner, Estimator):
             return Estimate(0.0, 0.0, 0.0)
         estimate = self.calculate_abundance(learner, label)

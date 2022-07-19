@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from ..estimation.base import AbstractEstimator, Estimate
-from ..estimation.rasch_multiple import ModelStatistics
+from ..analysis.statistics import EstimationModelStatistics
 from ..typehints import LT
 from .experiments import ExperimentIterator
 from .plotter import ExperimentPlotter
@@ -172,14 +172,16 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
                                label=f"{crit_name} WSS: {(wss*100):.1f} %, "
                                      f"Recall: {(recall*100):.1f} %")
 
-    def _graph_setup(self) -> None:
+    def _graph_setup(self, simulation=True) -> None:
         true_pos = self.dataset_stats[self.it].pos_count
         dataset_size = self.dataset_stats[self.it].size
 
         plt.xlabel(f"number of read documents")
         plt.ylabel("number of retrieved relevant documents")
-        plt.title(
-            f"Run on a dataset with {int(true_pos)} inclusions out of {int(dataset_size)}")
+        if simulation:
+            plt.title(f"Run on a dataset with {int(true_pos)} inclusions out of {int(dataset_size)}")
+        else:
+            plt.title(f"Run on a dataset of {int(dataset_size)}")
 
     def _plot_static_data(self, recall_target: float) -> None:
         # Static data
@@ -196,19 +198,21 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         plt.plot(effort_axis, (effort_axis / dataset_size) *
                  true_pos, ":", label=f"Exp. found at random")
 
-    def _plot_recall_stats(self) -> None:
+    def _plot_recall_stats(self, 
+                           included: Optional[Sequence[str]] = list()) -> None:
         # Gather and reorganize recall data
         recall_stats = TemporalRecallStats.transpose_dict(self.recall_stats)
         # Plot pos docs docs found
         for name, stats in recall_stats.items():
-            self.plot_recall_statistic(
-                stats, "pos_docs_found", f"# found by {name}")
+            if  included is None or name in included:
+                self.plot_recall_statistic(
+                    stats, "pos_docs_found", f"# found by {name}")
 
     def _plot_estimators(self,
-                         included_estimators: Iterable[str] = list()
+                         included_estimators: Optional[Sequence[str]] = None
                          ) -> None:
-        if not included_estimators:
-            included_estimators = self.estimator_names
+        if included_estimators is None:
+            included_estimators = list(self.estimator_names)
         # Plotting estimations
         for i, estimator in enumerate(included_estimators):
             self._plot_estimator(estimator, color=f"C{i}")
@@ -229,11 +233,12 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
              x_lim: Optional[float] = None,
              y_lim: Optional[float] = None,
              recall_target: float = 0.95,
-             included_estimators: Iterable[str] = list(),
+             included_estimators: Optional[Sequence[str]] = None,
+             included_models: Optional[Sequence[str]] = None,
              filename: "Optional[PathLike[str]]" = None) -> None:
         self._graph_setup()
         self._plot_static_data(recall_target)
-        self._plot_recall_stats()
+        self._plot_recall_stats(included_models)
         self._plot_estimators(included_estimators)
         self._plot_stop_criteria()
         self._set_axes(x_lim, y_lim)
@@ -242,6 +247,21 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         if filename is not None:
             plt.savefig(filename, bbox_inches='tight')
 
+    def user_show(self,
+                  x_lim: Optional[float] = None,
+                  y_lim: Optional[float] = None,
+                  included_estimators: Optional[Sequence[str]] = None,
+                  included_models: Optional[Sequence[str]] = None,
+                  filename: "Optional[PathLike[str]]" = None):
+        self._graph_setup(simulation=False)
+        self._plot_recall_stats(included_models)
+        self._plot_estimators(included_estimators)
+        self._plot_stop_criteria()
+        self._set_axes(x_lim, y_lim)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        if filename is not None:
+            plt.savefig(filename, bbox_inches='tight')
+            
     def wss_at_target(self, target: float) -> float:
         for it in self.it_axis:
             frame = self.recall_stats[it]
@@ -250,28 +270,59 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         return float("nan")
 
     def recall_at_stop(self, stop_criterion: str) -> float:
+        stop_it = self._it_at_stop(stop_criterion)
+        if stop_it is not None:
+            return self.recall_stats[stop_it].recall
+        return float("nan")
+
+    def _it_at_stop(self, stop_criterion: str) -> Optional[int]:
         for it in self.it_axis:
             frame = self.stop_results[it]
             if frame[stop_criterion]:
-                return self.recall_stats[it].recall
-        return float("nan")
+                return it
+        return None
 
     def wss_at_stop(self, stop_criterion: str) -> float:
-        for it in self.it_axis:
-            frame = self.stop_results[it]
-            if frame[stop_criterion]:
-                return self.recall_stats[it].wss
+        stop_it = self._it_at_stop(stop_criterion)
+        if stop_it is not None:
+            return self.recall_stats[stop_it].wss
         return float("nan")
 
+    def relative_error(self, 
+                       stop_criterion: str, 
+                       recall_target: float) -> float:
+        recall_at_stop = self.recall_at_stop(stop_criterion)
+        relative_error = abs(recall_at_stop - recall_target) / recall_target
+        return relative_error
 
-def filter_model_infos(mapping: Mapping[str, AbstractEstimator]) -> Mapping[str, ModelStatistics]:
+    def loss_er_at_stop(self, stop_criterion: str) -> float:
+        stop_it = self._it_at_stop(stop_criterion)
+        if stop_it is not None:
+            return self.recall_stats[stop_it].loss_er
+        return float("nan")
+
+    def effort_at_stop(self, stop_criterion: str) -> int:
+        stop_it = self._it_at_stop(stop_criterion)
+        if stop_it is not None:
+            return self.recall_stats[stop_it].effort
+        return self.recall_stats[self.it_axis[-1]].effort
+
+    def proportional_effort_at_stop(self, stop_criterion: str) -> float:
+        stop_it = self._it_at_stop(stop_criterion)
+        if stop_it is not None:
+            return self.recall_stats[stop_it].proportional_effort
+        return 1.0
+
+
+
+def filter_model_infos(mapping: Mapping[str, AbstractEstimator]) -> Mapping[str, EstimationModelStatistics]:
     results = {key: est.model_info[-1] for key,
                est in mapping.items() if hasattr(est, "model_info")}  # type: ignore
     return results
 
 
 class ModelStatsTar(TarExperimentPlotter[LT]):
-    model_stats: ty.OrderedDict[int, Mapping[str, ModelStatistics]]
+    model_stats: ty.OrderedDict[int, Mapping[str, EstimationModelStatistics]]
 
     def __init__(self, pos_label: LT, neg_label: LT, dataset_name: str = "") -> None:
         super().__init__(pos_label, neg_label, dataset_name)
@@ -281,10 +332,11 @@ class ModelStatsTar(TarExperimentPlotter[LT]):
         super().update(exp_iterator, stop_result)
         self.model_stats[self.it] = filter_model_infos(exp_iterator.estimators)
 
-    def _plot_estimators(self, included_estimators: Iterable[str] = list()) -> None:
+    def _plot_estimators(self, included_estimators: Optional[Sequence[str]] = None) -> None:
         super()._plot_estimators(included_estimators)
-        if not included_estimators:
+        if included_estimators is None:
             included_estimators = self.estimator_names
+        assert included_estimators is not None
         for estimator in included_estimators:
             if estimator in self.model_stats[self.it]:
                 deviances = [self.model_stats[it]

@@ -30,16 +30,9 @@ def run_benchmark(dataset_path: PathLike,
     estimation_config = ESTIMATION_REPOSITORY[estimation_setup] 
     stop_constructor = STOP_REPOSITORY[stop_setup]
     
-    
-    
     # Run Benchmark
     uuid = uuid4()
-    result, plot = benchmark(dataset_path, 
-                             al_config, 
-                             fe_config, 
-                             estimation_config,
-                             stop_constructor, 
-                             uuid)
+    result, plot = benchmark(dataset_path, uuid, al_config, fe_config, estimators = {}, stopcriteria= {})
 
     target_path = Path(target_dir)
     

@@ -22,6 +22,7 @@ import instancelib as il
 from instancelib.ingest.qrel import TrecDataset
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import TfidfVectorizer
+from allib.stopcriterion.estimation import Conservative, Optimistic
 
 from allib.stopcriterion.heuristic import AprioriRecallTarget
 from allib.stopcriterion.others import KneeStoppingRule
@@ -37,8 +38,18 @@ from allib.stopcriterion.others import KneeStoppingRule
 #%%
 
 #%%
-hall = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
-env = read_review_dataset(hall)
+wolters = Path("../datasets/Wolters_2018.csv")
+ace = Path("../datasets/ACEInhibitors.csv")
+dis = Path("../datasets/van_Dis_2020.csv")
+schoot = Path("../datasets/PTSD_VandeSchoot_18.csv")
+hall = Path("../datasets/Software_Engineering_Hall.csv")
+nudging = Path("../datasets/Nagtegaal_2019.csv")
+bos = Path("../datasets/Bos_2018.csv")
+wilson = Path("../datasets/Appenzeller-Herzog_2020.csv")
+bb = Path("../datasets/Bannach-Brown_2019.csv")
+wolters = Path("../datasets/Wolters_2018.csv")
+virus = Path("../datasets/Kwok_2020.csv")
+env = read_review_dataset(ace)
 
 #%%
 POS = "Relevant"
@@ -50,8 +61,14 @@ vect = il.TextInstanceVectorizer(
 recall95 = AprioriRecallTarget(POS, 0.95)
 recall100 = AprioriRecallTarget(POS,1.0)
 knee = KneeStoppingRule(POS)
-criteria = {"Recall95": recall95, "Recall100": recall100, "KneeMethod": knee}
-estimators = {"HorvitzThompson2": HorvitzThompsonVar2()}
+hvt = HorvitzThompsonVar2()
+estimators = {"HorvitzThompson2": hvt}
+criteria = {
+    "Recall95": recall95, 
+    "Recall100": recall100, 
+    "KneeMethod": knee,
+    "AutoStop-CON": Conservative(hvt, POS, 0.95),
+    "AutoStop-OPT": Optimistic(hvt, POS, 1)}
 classifier = il.SkLearnVectorClassifier.build(
     LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000), 
     env)
@@ -63,7 +80,7 @@ il.vectorize(vect, al.env)
 #at = AutoTarLearner(classifier, POS, NEG, 100, 20)(env)
 exp = ExperimentIterator(al, POS, NEG, criteria, estimators)
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, 8800, print_enabled=True)
+simulator = TarSimulator(exp, plotter, 8800)
 # %%
 simulator.simulate()
 #%%

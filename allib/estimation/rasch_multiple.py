@@ -1,35 +1,26 @@
 import collections
+import itertools
+import multiprocessing as mp
+import warnings
 from dataclasses import dataclass
 from logging import currentframe
 from os import spawnlp
 from typing import Any, Deque, Generic, List, Optional, Sequence, Tuple
 
-import multiprocessing as mp
-import itertools
-import functools
-import warnings
-import instancelib
-from numpy.linalg import LinAlgError
-from numba.experimental import jitclass
-from numba import jit, types, typed, int32, prange, set_num_threads # type: ignore
-from numba.typed import List as NumbaList
-import pandas as pd
-from allib.activelearning.base import ActiveLearner
-
-from allib.estimation.base import Estimate
-
-from ..activelearning.estimator import Estimator
 import numpy as np
+import pandas as pd
+from numba import (int32, jit, prange, set_num_threads, typed,  # type: ignore
+                   types)
+from numba.experimental import jitclass
+from numba.typed import List as NumbaList
+from numpy.linalg import LinAlgError
+
+from ..activelearning.base import ActiveLearner
+from ..activelearning.estimator import Estimator
+from ..analysis.statistics import EstimationModelStatistics
+from ..estimation.base import Estimate
+from ..typehints.typevars import DT, KT, LT, RT, VT
 from .rasch import EMRaschCombined
-
-from ..typehints.typevars import KT, DT, VT, RT, LT
-
-@dataclass
-class ModelStatistics:
-    beta: np.ndarray
-    mfit: np.ndarray
-    deviance: float
-    preds: np.ndarray
 
 spec = [
     ("positive", int32[:]),
@@ -254,7 +245,7 @@ def pos_rasch_numpy(design_mat: np.ndarray,
 
 
 
-def rasch_estimate_only_pos(freq_df: pd.DataFrame, multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+def rasch_estimate_only_pos(freq_df: pd.DataFrame, multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     learner_cols = list(freq_df.filter(regex=r"^learner"))
     df_formatted = remove_pos_cells(l2_format(freq_df, learner_cols))   
     design_mat = (
@@ -267,7 +258,7 @@ def rasch_estimate_only_pos(freq_df: pd.DataFrame, multinomial_size: int = 2000)
     point, low, up, beta, mfit, deviance, estimates = pos_rasch_numpy(
         design_mat, obs_counts, total_found, max_it=multinomial_size)
     estimate = Estimate(point, low, up)
-    stats = ModelStatistics(beta, mfit, deviance, estimates)
+    stats = EstimationModelStatistics(beta, mfit, deviance, estimates)
     return estimate, stats
 
 
@@ -491,7 +482,7 @@ def rasch_estimate_parametric_proportion(freq_df: pd.DataFrame,
                    proportion: float,
                    tolerance: float = 1e-5,
                    max_it: int = 2000,
-                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+                   multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
@@ -524,14 +515,14 @@ def rasch_estimate_parametric_proportion(freq_df: pd.DataFrame,
     horizon_estimate = obs_pos + positive_estimate
     if np.any(np.isnan(mfit)):
         estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
-        stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+        stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
     else:
         p_vals = mfit / np.sum(mfit)
         multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
         results = rasch_parallel(design_mat, b0, multinomial_fits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
                                     for (_, fitted, _) in results]
-        stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
+        stats = EstimationModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
         low_estimate = obs_pos + np.percentile(estimates, 2.5)
         high_estimate = obs_pos + np.percentile(estimates, 97.5)
         estimate = Estimate(horizon_estimate, low_estimate, high_estimate)
@@ -541,7 +532,7 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
                    n_dataset: int,
                    tolerance: float = 1e-5,
                    max_it: int = 2000,
-                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+                   multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
@@ -575,7 +566,7 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
     horizon_estimate = obs_pos + positive_estimate
     if np.any(np.isnan(mfit)):
         estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
-        stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+        stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
     else:
         p_vals = mfit / np.sum(mfit)
         multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
@@ -583,7 +574,7 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
         results = rasch_parallel(design_mat, b0, multinomial_fits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
                                     for (_, fitted, _) in results]
-        stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
+        stats = EstimationModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
         low_estimate = obs_pos + np.percentile(estimates, 2.5)
         high_estimate = obs_pos + np.percentile(estimates, 97.5)
         estimate = Estimate(horizon_estimate, low_estimate, high_estimate)
@@ -593,7 +584,7 @@ def rasch_estimate_parametric_no_fixed_proportion(freq_df: pd.DataFrame,
                    n_dataset: int,
                    tolerance: float = 1e-5,
                    max_it: int = 2000,
-                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+                   multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
@@ -625,14 +616,14 @@ def rasch_estimate_parametric_no_fixed_proportion(freq_df: pd.DataFrame,
     horizon_estimate = obs_pos + positive_estimate
     if np.any(np.isnan(mfit)):
         estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
-        stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+        stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
     else:
         p_vals = mfit / np.sum(mfit)
         multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
         results = rasch_parallel(design_mat, b0, multinomial_fits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
                                     for (_, fitted, _) in results]
-        stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
+        stats = EstimationModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
         low_estimate = obs_pos + np.percentile(estimates, 2.5)
         high_estimate = obs_pos + np.percentile(estimates, 97.5)
         estimate = Estimate(horizon_estimate, low_estimate, high_estimate)
@@ -642,7 +633,7 @@ def rasch_estimate_parametric_init_by_pos(freq_df: pd.DataFrame,
                    n_dataset: int,
                    tolerance: float = 1e-5,
                    max_it: int = 2000,
-                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+                   multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
@@ -676,19 +667,19 @@ def rasch_estimate_parametric_init_by_pos(freq_df: pd.DataFrame,
     horizon_estimate = obs_pos + positive_estimate
     if np.any(np.isnan(mfit)):
         estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
-        stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+        stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
     else:
         p_vals = mfit / np.sum(mfit)
         try:
             multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
         except ValueError:
             estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
-            stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+            stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
         else:
             results = rasch_parallel(design_mat, b0, multinomial_fits, n_dataset, proportion, masks)
             estimates: List[float] = [fitted[masks.positive_estimate][0]
                                         for (_, fitted, _) in results]
-            stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
+            stats = EstimationModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
             low_estimate = obs_pos + np.percentile(estimates, 2.5)
             high_estimate = obs_pos + np.percentile(estimates, 97.5)
             estimate = Estimate(horizon_estimate, low_estimate, high_estimate)
@@ -698,7 +689,7 @@ def rasch_estimate(freq_df: pd.DataFrame,
                    n_dataset: int,
                    proportion: float,
                    tolerance: float = 1e-5,
-                   max_it: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+                   max_it: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
@@ -729,12 +720,12 @@ def rasch_estimate(freq_df: pd.DataFrame,
     beta, mfit, deviance = rasch_em(design_mat, b0, counts, n_dataset, masks, proportion, tolerance, max_it)
     positive_estimate: float = mfit[masks.positive_estimate][0]
     horizon_estimate = obs_pos + positive_estimate
-    return Estimate(horizon_estimate, horizon_estimate, horizon_estimate), ModelStatistics(beta, mfit, deviance, np.array([]))
+    return Estimate(horizon_estimate, horizon_estimate, horizon_estimate), EstimationModelStatistics(beta, mfit, deviance, np.array([]))
 
 def rasch_estimate_bf(freq_df: pd.DataFrame,
                    n_dataset: int,
                    tolerance: float = 1e-5,
-                   max_it: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+                   max_it: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
@@ -765,7 +756,7 @@ def rasch_estimate_bf(freq_df: pd.DataFrame,
     beta, mfit, deviance = select_best_model(*rasch_bf(design_mat, b0, counts, n_dataset, masks))
     positive_estimate: float = mfit[masks.positive_estimate][0]
     horizon_estimate = obs_pos + positive_estimate
-    return Estimate(horizon_estimate, horizon_estimate, horizon_estimate), ModelStatistics(beta, mfit, deviance, np.array([]))
+    return Estimate(horizon_estimate, horizon_estimate, horizon_estimate), EstimationModelStatistics(beta, mfit, deviance, np.array([]))
 
 def rasch_estimate_bf_stats(freq_df: pd.DataFrame,
                    n_dataset: int,
@@ -807,7 +798,7 @@ def rasch_estimate_bf_parametric(freq_df: pd.DataFrame,
                    n_dataset: int,
                    tolerance: float = 1e-5,
                    max_it: int = 2000, 
-                   multinomial_size: int = 2000) -> Tuple[Estimate, ModelStatistics]:
+                   multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
     counts: np.ndarray = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
@@ -840,19 +831,19 @@ def rasch_estimate_bf_parametric(freq_df: pd.DataFrame,
     proportion = positive_estimate / n_not_read
     if np.any(np.isnan(mfit)):
         estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
-        stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+        stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
     else:
         p_vals = mfit / np.sum(mfit)
         try:
             multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
         except ValueError:
             estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
-            stats = ModelStatistics(beta, mfit, deviance, np.array([]))
+            stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
             return estimate, stats
         results = rasch_parallel(design_mat, beta, multinomial_fits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
                                     for (_, fitted, _) in results]
-        stats = ModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
+        stats = EstimationModelStatistics(beta, mfit, deviance, (obs_pos + np.array(estimates)))
         low_estimate = obs_pos + np.percentile(estimates, 2.5)
         high_estimate = obs_pos + np.percentile(estimates, 97.5)
         estimate = Estimate(horizon_estimate, low_estimate, high_estimate)
@@ -901,7 +892,7 @@ class FastEMRaschPosNeg(
         Generic[KT, DT, VT, RT, LT]):
 
     estimates: Deque[Estimate]
-    model_info: Deque[ModelStatistics]
+    model_info: Deque[EstimationModelStatistics]
     dfs: Deque[pd.DataFrame]
 
     def __init__(self, multinomial_size: int = 2000):

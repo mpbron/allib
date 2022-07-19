@@ -22,3 +22,4 @@ class EstimationConfiguration(str, Enum):
     RaschParametric = "RaschParametric"
     RaschApproxParametric = "RaschApproxParametric"
     RaschApproxConvParametric = "RaschApproxConvParametric"
+    CHAO = "Chao"

@@ -25,7 +25,8 @@ import instancelib as il
 from sklearn.naive_bayes import MultinomialNB
 import matplotlib.pyplot as plt
 from allib.estimation.mhmodel import AbundanceEstimator
-from allib.stopcriterion.heuristic import AprioriRecallTarget
+from allib.stopcriterion.estimation import Conservative
+from allib.stopcriterion.heuristic import AprioriRecallTarget, FractionStopCritertion
 from allib.stopcriterion.others import BudgetStoppingRule, KneeStoppingRule, ReviewHalfStoppingRule, Rule2399StoppingRule, StopAfterKNegative
 from allib.utils.func import list_unzip
 
@@ -37,6 +38,7 @@ qrel_path = Path("/data/tardata/tr")
 #il_env = trec.get_env('401')
 #env = MemoryEnvironment.from_instancelib_simulation(il_env)
 wolters = Path("../datasets/Wolters_2018.csv")
+ace = Path("../datasets/ACEInhibitors.csv")
 dis = Path("../datasets/van_Dis_2020.csv")
 schoot = Path("../datasets/PTSD_VandeSchoot_18.csv")
 hall = Path("../datasets/Software_Engineering_Hall.csv")
@@ -46,14 +48,13 @@ ah = Path("../datasets/Appenzeller-Herzog_2020.csv")
 bb = Path("../datasets/Bannach-Brown_2019.csv")
 wolters = Path("../datasets/Wolters_2018.csv")
 kwok = Path("../datasets/Kwok_2020.csv")
-env = read_review_dataset(dis)
+env = read_review_dataset(ace)
 POS = "Relevant"
 NEG = "Irrelevant"
 # %%
 # Retrieve the configuration
 al_config = AL_REPOSITORY[ALConfiguration.RaschNBLRRFLGBMRAND]
 fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
-stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
 chao = AbundanceEstimator()
 logl = LogLinear(2000)
 rasch = FastOnlyPos(2000)
@@ -63,15 +64,15 @@ factory = MainFactory()
 #%%
 # Build the experiment objects
 al, fe = initialize(factory, al_config, fe_config, initializer, env)
-chao_stop = stop_constructor(chao, POS)
+chao_stop = Conservative(chao, POS, 0.95)
 recall95 = AprioriRecallTarget(POS, 0.95)
 recall100 = AprioriRecallTarget(POS, 1.0)
 knee = KneeStoppingRule(POS)
 half = ReviewHalfStoppingRule(POS)
 budget = BudgetStoppingRule(POS)
 rule2399 = Rule2399StoppingRule(POS)
-stop200 = StopAfterKNegative(POS, 200)
-stop400 = StopAfterKNegative(POS, 400)
+rrfs = {f"rrf@{perc}": FractionStopCritertion(perc/100) for perc in range(10, 100, 10)}
+stopks = {f"stop{k}": StopAfterKNegative(POS, k) for k in range(50, 400, 50)}
 criteria = {
     "Recall95": recall95, 
     "Recall100": recall100, 
@@ -79,9 +80,9 @@ criteria = {
     "Knee": knee, 
     "Budget": budget,
     "Rule2399": rule2399,
-    "Stop200": stop200,
-    "Stop400": stop400,
-    "Mh Chao LB": chao_stop
+    "Mh Chao LB": chao_stop,
+    **rrfs,
+    **stopks
 }
 # %%
 estimators = {"Mh Chao LB": chao} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}

@@ -37,9 +37,18 @@ from allib.stopcriterion.others import BudgetStoppingRule, KneeStoppingRule, Rev
 #%%
 
 #%%
-vandis = Path("../datasets/van_Dis_2020.csv")
-hall = Path("../instancelib/datasets/Software_Engineering_Hall.csv")
-env = read_review_dataset(vandis)
+wolters = Path("../datasets/Wolters_2018.csv")
+ace = Path("../datasets/ACEInhibitors.csv")
+dis = Path("../datasets/van_Dis_2020.csv")
+schoot = Path("../datasets/PTSD_VandeSchoot_18.csv")
+hall = Path("../datasets/Software_Engineering_Hall.csv")
+nudging = Path("../datasets/Nagtegaal_2019.csv")
+bos = Path("../datasets/Bos_2018.csv")
+wilson = Path("../datasets/Appenzeller-Herzog_2020.csv")
+bb = Path("../datasets/Bannach-Brown_2019.csv")
+wolters = Path("../datasets/Wolters_2018.csv")
+virus = Path("../datasets/Kwok_2020.csv")
+env = read_review_dataset(hall)
 
 #%%
 POS = "Relevant"
@@ -78,10 +87,18 @@ il.vectorize(vect, at.env)
 
 exp = ExperimentIterator(at, POS, NEG, criteria, estimators)
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter)
+simulator = TarSimulator(exp, plotter, max_it=200)
 # %%
 simulator.simulate()
 #%%
 plotter.show()
 #%%
-knee.stop_criterion
+from explabox import Explabox
+from instancelib.machinelearning.autovectorizer import AutoVectorizerClassifier
+box = Explabox(data=at.env, model=AutoVectorizerClassifier.from_skvector(at.classifier, vect))
+# %%
+doc = next(at)
+box.explain.explain_prediction(doc, methods=["LIME"], n_features=20)
+# %%
+box.
+# %%

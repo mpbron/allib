@@ -1,8 +1,10 @@
 import collections
-from typing import Any, Deque, Generic
+from typing import Any, Deque, Generic, Optional
 
 from instancelib.utils.func import all_equal, intersection
 import numpy as np
+import math
+from allib.stopcriterion.base import AbstractStopCriterion
 
 from ..activelearning import ActiveLearner
 from ..typehints import LT
@@ -207,3 +209,41 @@ class UpperboundCombinedCritertion(CombinedStopCriterion[LT], Generic[LT]):
 
 class RecallEstimation(AprioriRecallTarget):
     pass
+
+class Conservative(AbstractStopCriterion[LT], Generic[LT]):
+    estimate: Optional[float]
+  
+    def __init__(self, 
+                 calculator: AbstractEstimator[Any, Any, Any, Any, Any, LT], 
+                 label: LT, 
+                 target: float):
+        super().__init__()
+        self.label = label
+        self.calculator = calculator
+        self.estimate = None
+        self.count_found = 0
+        self.target = target
+
+
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
+        self.count_found = learner.env.labels.document_count(self.label)
+        estimate = self.get_estimate(learner)
+        if estimate > len(learner.env.dataset) or estimate == float("nan"):
+            self.estimate = None
+        else:
+            self.estimate = estimate
+           
+    def get_estimate(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> float:
+        return self.calculator(learner, self.label).upper_bound
+    
+
+    @property
+    def stop_criterion(self) -> bool:
+        if self.estimate is None:
+            return False
+        recall_estimate = self.count_found / self.estimate
+        return recall_estimate >= self.target
+
+class Optimistic(Conservative[LT], Generic[LT]):
+    def get_estimate(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> float:
+        return self.calculator(learner, self.label).point

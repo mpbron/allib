@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, OrderedDict, Sequence, Tuple, Dict
+from typing import Any, FrozenSet, Generic, Mapping, OrderedDict, Sequence, Tuple, Dict
+
+import numpy as np
 
 from ..typehints.typevars import LT
 from ..utils.func import flatten_dicts
@@ -11,6 +13,13 @@ from ..activelearning.ensembles import AbstractEnsemble
 from .analysis import process_performance
 
 import instancelib as il
+
+@dataclass
+class EstimationModelStatistics:
+    beta: np.ndarray
+    mfit: np.ndarray
+    deviance: float
+    preds: np.ndarray
 
 @dataclass
 class TarDatasetStats:
@@ -38,6 +47,7 @@ class TemporalRecallStats:
     pos_docs_found: int
     neg_docs_found: int
     effort: int
+    loss_er: float
     child_statistics: Sequence[Tuple[str, TemporalRecallStats]]
 
     @classmethod
@@ -52,10 +62,11 @@ class TemporalRecallStats:
         effort = len(learner.env.labeled)
         prop_effort = effort / len(learner.env.dataset)
         if isinstance(learner, AbstractEnsemble):
-            subresults = tuple([(learner.name, cls.from_learner(learner, pos_label, neg_label)) for learner  in learner.learners])
+            subresults: Sequence[Tuple[str, TemporalRecallStats]] = tuple([
+                (str(learner.name), cls.from_learner(learner, pos_label, neg_label)) for learner  in learner.learners])
         else:
-            subresults = tuple([])
-        return TemporalRecallStats(perf.wss, perf.recall, prop_effort, pos_docs, neg_docs, effort, subresults)
+            subresults: Sequence[Tuple[str, TemporalRecallStats]] = tuple([])
+        return TemporalRecallStats(perf.wss, perf.recall, prop_effort, pos_docs, neg_docs, effort, perf.loss_er, subresults)
     
     def flatten(self, root_name="root") -> Dict[str, TemporalRecallStats]:
         root = {root_name: self}
@@ -63,14 +74,24 @@ class TemporalRecallStats:
         return {**root, **children}
 
     @staticmethod
-    def transpose_dict(recall_stats: OrderedDict[int, TemporalRecallStats]
-                 ) -> Dict[str, OrderedDict[int, TemporalRecallStats]]:
+    def transpose_dict(recall_stats: Mapping[int, TemporalRecallStats]
+                 ) -> Mapping[str, Mapping[int, TemporalRecallStats]]:
         flattened = {key: stat.flatten() for key, stat in recall_stats.items()}
         if flattened:
             learner_names = list(next(iter(flattened.values())).keys())
             ret = {learner: {t: substat[learner] for t,substat in flattened.items()} for learner in learner_names}
             return ret
         return dict()
+
+@dataclass
+class DatasetStats(Generic[LT]):
+    labels: FrozenSet[LT]
+
+@dataclass
+class ALStats:
+    unlabeled: int
+    labeled: int
+    dataset: int
 
 @dataclass
 class LabelALStatistics:

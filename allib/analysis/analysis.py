@@ -76,6 +76,18 @@ class BinaryPerformance(Generic[KT]):
         return wss
 
     @property
+    def loss_er(self) -> float:
+        recall_perc = self.recall * 100
+        R = len(self.true_positives)
+        N = len(union(
+            self.true_positives, self.false_positives, 
+            self.false_negatives, self.true_negatives))
+        n = len(union(self.true_positives, self.false_positives))
+        inability_loss = (100 - recall_perc) ** 2
+        effort_loss = (100 / N) ** 2  * (n / R + 100) ** 2
+        return inability_loss + effort_loss
+
+    @property
     def f1(self) -> float:
         return self.f_beta(beta=1)
 

@@ -13,11 +13,11 @@ from ..utils.func import all_subsets, intersection, not_in_supersets, powerset, 
 from .base import AbstractEstimator, Estimate
 from .rasch import EMRaschCombined
 from .rasch_multiple import pos_rasch_numpy
-from .rasch_multiple import ModelStatistics
+from ..analysis.statistics import EstimationModelStatistics
 from ..typehints import IT
 
 
-def log_linear_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size: int) -> Tuple[Estimate, ModelStatistics]:
+def log_linear_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size: int) -> Tuple[Estimate, EstimationModelStatistics]:
     df_formatted = df.sort_values([col for col in ascii_uppercase if col in df.columns])
     df_formatted.insert(0, "intercept", 1)
     design_mat = (
@@ -30,10 +30,10 @@ def log_linear_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size: i
     point, low, up, beta, mfit, deviance, estimates = pos_rasch_numpy(
         design_mat, obs_counts, total_found, max_it=multinomial_size)
     estimate = Estimate(point, low, up)
-    stats = ModelStatistics(beta, mfit, deviance, estimates)
+    stats = EstimationModelStatistics(beta, mfit, deviance, estimates)
     return estimate, stats
 
-def log_linear_em_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size: int) -> Tuple[Estimate, ModelStatistics]:
+def log_linear_em_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size: int) -> Tuple[Estimate, EstimationModelStatistics]:
     df_formatted = df.sort_values([col for col in ascii_uppercase if col in df.columns])
     df_formatted.insert(0, "intercept", 1)
     design_mat = (
@@ -46,7 +46,7 @@ def log_linear_em_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size
     point, low, up, beta, mfit, deviance, estimates = pos_rasch_numpy(
         design_mat, obs_counts, total_found, max_it=multinomial_size)
     estimate = Estimate(point, low, up)
-    stats = ModelStatistics(beta, mfit, deviance, estimates)
+    stats = EstimationModelStatistics(beta, mfit, deviance, estimates)
     return estimate, stats
 
 def learner_key(l: int) -> str:
@@ -97,7 +97,7 @@ class LogLinear(AbstractEstimator[IT, KT, DT, VT, RT, LT],
         Generic[IT, KT, DT, VT, RT, LT]):
 
     estimates: Deque[Estimate]
-    model_info: Deque[ModelStatistics]
+    model_info: Deque[EstimationModelStatistics]
     dfs: Deque[pd.DataFrame]
 
     def __init__(self, multinomial_size: int = 2000):
