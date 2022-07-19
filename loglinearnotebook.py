@@ -109,4 +109,3 @@ def save_to_folder(table_hook, path: "PathLike[str]") -> None:
 
 
 # %%
-cd 
