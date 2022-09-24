@@ -9,12 +9,24 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from dataclasses import dataclass
 from os import PathLike
-from typing import (Any, Dict, FrozenSet, Generic, List, Mapping, Optional,
-                    Sequence, Tuple, TypeVar, Union)
+from typing import (
+    Any,
+    Dict,
+    FrozenSet,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import instancelib as il
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from instancelib.feature_extraction.base import BaseVectorizer
 from instancelib.functions.vectorize import vectorize
@@ -34,20 +46,25 @@ from .initialization import Initializer
 from .plotter import AbstractPlotter, ExperimentPlotter
 
 
-def reset_environment(vectorizer: BaseVectorizer[IT], 
-                      environment: AbstractEnvironment[IT, KT, DT, np.ndarray, RT, LT]
-                      ) -> AbstractEnvironment[IT, KT, DT, np.ndarray, RT, LT]:
+def reset_environment(
+    vectorizer: BaseVectorizer[IT],
+    environment: AbstractEnvironment[IT, KT, DT, npt.NDArray[Any], RT, LT],
+) -> AbstractEnvironment[IT, KT, DT, np.ndarray, RT, LT]:
     env = MemoryEnvironment.from_environment_only_data(environment)
-    vectorize(vectorizer, env, True, 200)
+    vectorize(vectorizer, env, True, 200)  # type: ignore
     return env
 
-def initialize(factory: ObjectFactory,
-               al_config: Dict[str, Any], 
-               fe_config: Dict[str, Any],
-               initializer: Initializer[IT, KT, LT], 
-               env: AbstractEnvironment[IT, KT, DT, np.ndarray, DT, LT]
-              ) -> Tuple[ActiveLearner[IT, KT, DT, np.ndarray, DT, LT],
-                            BaseVectorizer[Instance[KT, DT, np.ndarray, DT]]]:
+
+def initialize(
+    factory: ObjectFactory,
+    al_config: Mapping[str, Any],
+    fe_config: Mapping[str, Any],
+    initializer: Initializer[IT, KT, LT],
+    env: AbstractEnvironment[IT, KT, DT, np.ndarray, DT, LT],
+) -> Tuple[
+    ActiveLearner[IT, KT, DT, np.ndarray, DT, LT],
+    BaseVectorizer[Instance[KT, DT, np.ndarray, DT]],
+]:
     """Build and initialize an Active Learning method.
 
     Parameters
@@ -69,17 +86,19 @@ def initialize(factory: ObjectFactory,
     Tuple[ActiveLearner[KT, DT, np.ndarray, DT, LT], BaseVectorizer[Instance[KT, DT, np.ndarray, DT]]]
         A tuple that contains:
 
-        - An :class:`~allib.activelearning.base.ActiveLearner` object according 
+        - An :class:`~allib.activelearning.base.ActiveLearner` object according
             to the configuration in `al_config`
-        - An :class:`~allib.feature_extraction.base.BaseVectorizer` object according 
+        - An :class:`~allib.feature_extraction.base.BaseVectorizer` object according
             to the configuration in `fe_config`
-    """    
+    """
     # Build the active learners and feature extraction models
     learner: ActiveLearner[IT, KT, DT, np.ndarray, DT, LT] = factory.create(
-        Component.ACTIVELEARNER, **al_config)
+        Component.ACTIVELEARNER, **al_config
+    )
     vectorizer: BaseVectorizer[IT] = factory.create(
-        Component.FEATURE_EXTRACTION, **fe_config)
-    
+        Component.FEATURE_EXTRACTION, **fe_config
+    )
+
     ## Copy the data to memory
     start_env = reset_environment(vectorizer, env)
 
@@ -90,25 +109,29 @@ def initialize(factory: ObjectFactory,
     learner = initializer(learner)
     return learner, vectorizer
 
+
 class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
     plotter: ExperimentPlotter[LT]
     experiment: ExperimentIterator
 
-    def __init__(self, experiment: ExperimentIterator[IT, KT, DT, VT, RT, LT], 
-                       plotter: ExperimentPlotter[LT],
-                       max_it: Optional[int]=None,
-                       print_enabled = False) -> None:
+    def __init__(
+        self,
+        experiment: ExperimentIterator[IT, KT, DT, VT, RT, LT],
+        plotter: ExperimentPlotter[LT],
+        max_it: Optional[int] = None,
+        print_enabled=False,
+    ) -> None:
         self.experiment = experiment
         self.plotter = plotter
         self.max_it = max_it
         self.print_enabled = print_enabled
-    
+
     @property
     def _debug_finished(self) -> bool:
         if self.max_it is None:
             return False
         return self.experiment.it > self.max_it
-     
+
     def simulate(self) -> None:
         with tqdm(total=len(self.experiment.learner.env.dataset)) as pbar:
             pbar.update(self.experiment.learner.len_labeled)
@@ -119,26 +142,29 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
                     self.plotter.print_last_stats()
                 pbar.update(1)
 
-        
+
 class ClassificationSimulator(Generic[IT, KT, DT, VT, RT, LT]):
     plotter: ClassificationPlotter[LT]
     experiment: ClassificationExperiment[IT, KT, DT, VT, RT, LT]
 
-    def __init__(self, experiment: ClassificationExperiment[IT, KT, DT, VT, RT, LT], 
-                       plotter: ClassificationPlotter[LT],
-                       max_it: Optional[int]=None,
-                       print_enabled = False) -> None:
+    def __init__(
+        self,
+        experiment: ClassificationExperiment[IT, KT, DT, VT, RT, LT],
+        plotter: ClassificationPlotter[LT],
+        max_it: Optional[int] = None,
+        print_enabled=False,
+    ) -> None:
         self.experiment = experiment
         self.plotter = plotter
         self.max_it = max_it
         self.print_enabled = print_enabled
-    
+
     @property
     def _debug_finished(self) -> bool:
         if self.max_it is None:
             return False
         return self.experiment.it > self.max_it
-     
+
     def simulate(self) -> None:
         first_learner = next(iter(self.experiment.learners.values()))
         with tqdm(total=len(first_learner.env.dataset)) as pbar:
@@ -151,27 +177,13 @@ class ClassificationSimulator(Generic[IT, KT, DT, VT, RT, LT]):
                 pbar.update(1)
 
 
-
-
-
-
-        
-
-
-
-    
-   
-
-
-
-
-
-def simulate(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
-             stop_crit: AbstractStopCriterion[LT],
-             plotter: AbstractPlotter[LT],
-             batch_size: int) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT],
-                         AbstractPlotter[LT]]:
-    """Simulates the Active Learning 
+def simulate(
+    learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
+    stop_crit: AbstractStopCriterion[LT],
+    plotter: AbstractPlotter[LT],
+    batch_size: int,
+) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], AbstractPlotter[LT]]:
+    """Simulates the Active Learning
 
     Parameters
     ----------
@@ -188,7 +200,7 @@ def simulate(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
     -------
     Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], BinaryPlotter[LT]]
         [description]
-    """    
+    """
     while not stop_crit.stop_criterion:
         # Train the model
         learner.update_ordering()
@@ -204,16 +216,18 @@ def simulate(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
 
         plotter.update(learner)
         stop_crit.update(learner)
-    
+
     return learner, plotter
 
-def simulate_stop_iteration(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
-             stop_crit: AbstractStopCriterion[LT],
-             plotter: AbstractPlotter[LT],
-             batch_size: int,
-             check_stop: int = 10) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT],
-                         AbstractPlotter[LT]]:
-    """Simulates the Active Learning 
+
+def simulate_stop_iteration(
+    learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
+    stop_crit: AbstractStopCriterion[LT],
+    plotter: AbstractPlotter[LT],
+    batch_size: int,
+    check_stop: int = 10,
+) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], AbstractPlotter[LT]]:
+    """Simulates the Active Learning
 
     Parameters
     ----------
@@ -249,21 +263,28 @@ def simulate_stop_iteration(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
         if it % check_stop == 0:
             plotter.update(learner)
             stop_crit.update(learner)
-    
+
     return learner, plotter
 
-def multilabel_all_non_empty(learner: ActiveLearner[Any, Any, Any, Any, Any, Any], count: int) -> bool:
+
+def multilabel_all_non_empty(
+    learner: ActiveLearner[Any, Any, Any, Any, Any, Any], count: int
+) -> bool:
     provider = learner.env.labels
     non_empty = all(
-        [provider.document_count(label) > count for label in provider.labelset])
+        [provider.document_count(label) > count for label in provider.labelset]
+    )
     return non_empty
 
-def simulate_with_cold_start(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
-             stop_crit: AbstractStopCriterion[LT],
-             plotter: AbstractPlotter[LT],
-             batch_size: int, start_count=2) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT],
-                         AbstractPlotter[LT]]:
-    """Simulates the Active Learning 
+
+def simulate_with_cold_start(
+    learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
+    stop_crit: AbstractStopCriterion[LT],
+    plotter: AbstractPlotter[LT],
+    batch_size: int,
+    start_count=2,
+) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], AbstractPlotter[LT]]:
+    """Simulates the Active Learning
 
     Parameters
     ----------
@@ -303,14 +324,17 @@ def simulate_with_cold_start(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
 
         plotter.update(learner)
         stop_crit.update(learner)
-    
+
     return learner, plotter
 
-def simulate_classification(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
-             stop_crit: AbstractStopCriterion[LT],
-             plotter: AbstractPlotter[LT],
-             batch_size: int, start_count=2) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT],
-                         AbstractPlotter[LT]]:
+
+def simulate_classification(
+    learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
+    stop_crit: AbstractStopCriterion[LT],
+    plotter: AbstractPlotter[LT],
+    batch_size: int,
+    start_count=2,
+) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], AbstractPlotter[LT]]:
     """Simulates the Active Learning procedure
 
     Parameters
@@ -322,9 +346,9 @@ def simulate_classification(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
     plotter : BinaryPlotter[LT]
         A plotter that tracks the results
     batch_size : int
-        The batch size of each sample 
+        The batch size of each sample
     start_count : int
-        The number of instances that each class recieves before training the classification process. 
+        The number of instances that each class recieves before training the classification process.
 
     Returns
     -------
@@ -354,6 +378,5 @@ def simulate_classification(learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
 
         plotter.update(learner)
         stop_crit.update(learner)
-    
-    return learner, plotter
 
+    return learner, plotter

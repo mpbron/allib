@@ -94,14 +94,14 @@ class ALStats:
     dataset: int
 
 @dataclass
-class LabelALStatistics:
-    label: str
+class LabelALStatistics(Generic[LT]):
+    label: LT
     seen: int
     generated: int
 
 @dataclass
-class BinaryClassificationStatistics:
-    label: str
+class BinaryClassificationStatistics(Generic[LT]):
+    label: LT
     recall: float
     precision: float
     accuracy: float

@@ -1,6 +1,17 @@
-from typing import Any, Callable, Dict, Generic, Mapping, MutableMapping, Optional, Sequence, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Union,
+)
 
 import instancelib as il
+from instancelib.utils.func import value_map
 from instancelib import InstanceProvider, LabelProvider
 from instancelib.analysis.base import MulticlassModelMetrics
 
@@ -21,17 +32,23 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
     stopping_criteria: Mapping[str, AbstractStopCriterion[LT]]
     estimators: Mapping[str, AbstractEstimator[IT, KT, DT, VT, RT, LT]]
 
-    def __init__(self, 
-                 learner: ActiveLearner[IT, KT, DT, VT, RT ,LT],
-                 pos_label: LT,
-                 neg_label: LT,
-                 stopping_criteria: Mapping[str,AbstractStopCriterion[LT]],
-                 estimators: Mapping[str, AbstractEstimator[IT, KT, DT, VT, RT, LT]],
-                 batch_size: int = 1, 
-                 stop_interval: Union[int, Mapping[str, int]] = 1,
-                 estimation_interval: Union[int, Mapping[str, int]] = 1,
-                 iteration_hooks: Sequence[Callable[[ActiveLearner[IT, KT, DT, VT, RT ,LT]], Any]] = list(),
-                 estimator_hooks: Mapping[str, Callable[[AbstractEstimator[IT, KT, DT, VT, RT, LT]], Any]] = dict()) -> None:
+    def __init__(
+        self,
+        learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
+        pos_label: LT,
+        neg_label: LT,
+        stopping_criteria: Mapping[str, AbstractStopCriterion[LT]],
+        estimators: Mapping[str, AbstractEstimator[IT, KT, DT, VT, RT, LT]],
+        batch_size: int = 1,
+        stop_interval: Union[int, Mapping[str, int]] = 1,
+        estimation_interval: Union[int, Mapping[str, int]] = 1,
+        iteration_hooks: Sequence[
+            Callable[[ActiveLearner[IT, KT, DT, VT, RT, LT]], Any]
+        ] = list(),
+        estimator_hooks: Mapping[
+            str, Callable[[AbstractEstimator[IT, KT, DT, VT, RT, LT]], Any]
+        ] = dict(),
+    ) -> None:
         # Iteration tracker
         self.it = 0
         # Algorithm selection
@@ -42,21 +59,29 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         # Labels
         self.pos_label = pos_label
         self.neg_label = neg_label
-        
+
         # Estimation tracker
-        self.estimation_tracker: Dict[str, Estimate]= dict()
+        self.estimation_tracker: Dict[str, Estimate] = dict()
         self.iteration_hooks = iteration_hooks
         self.estimator_hooks = estimator_hooks
 
         # Batch sizes
         self.batch_size = batch_size
-        self.stop_interval = {k: stop_interval for k in self.stopping_criteria} if isinstance(stop_interval, int) else stop_interval 
-        self.estimation_interval = {k: estimation_interval for k in self.estimators} if isinstance(estimation_interval, int) else estimation_interval
+        self.stop_interval = (
+            {k: stop_interval for k in self.stopping_criteria}
+            if isinstance(stop_interval, int)
+            else stop_interval
+        )
+        self.estimation_interval = (
+            {k: estimation_interval for k in self.estimators}
+            if isinstance(estimation_interval, int)
+            else estimation_interval
+        )
 
     def _retrain(self) -> None:
         if self.it % self.batch_size == 0:
             self.learner.update_ordering()
-        
+
     def determine_stop(self) -> Mapping[str, bool]:
         result: Dict[str, bool] = dict()
         for k, crit in self.stopping_criteria.items():
@@ -92,8 +117,10 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         results = [hook(self.learner) for hook in self.iteration_hooks]
         return results
 
-    def call_estimate_hooks(self) -> Mapping[str,Any]:
-        results = {k: hook(self.estimators[k]) for k,hook in self.estimator_hooks.items()}
+    def call_estimate_hooks(self) -> Mapping[str, Any]:
+        results = {
+            k: hook(self.estimators[k]) for k, hook in self.estimator_hooks.items()
+        }
         return results
 
     def iter_increment(self) -> None:
@@ -108,6 +135,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         self.iter_increment()
         return stop_result
 
+
 class ClassificationExperiment(Generic[IT, KT, DT, VT, RT, LT]):
     learners: Mapping[str, ActiveLearner[IT, KT, DT, VT, RT, LT]]
     it: int
@@ -115,22 +143,32 @@ class ClassificationExperiment(Generic[IT, KT, DT, VT, RT, LT]):
     stop_interval: Mapping[str, int]
     test_set: InstanceProvider[IT, KT, DT, VT, RT]
     ground_truth: LabelProvider[KT, LT]
-    label_stats_tracker: MutableMapping[int, Mapping[str, Mapping[LT, LabelALStatistics]]]
-    stopping_criteria:  Mapping[str, Mapping[str, AbstractStopCriterion[LT]]]
+    label_stats_tracker: MutableMapping[
+        int, Mapping[str, Mapping[LT, LabelALStatistics]]
+    ]
+    stopping_criteria: Mapping[str, Mapping[str, AbstractStopCriterion[LT]]]
     estimators: Mapping[str, AbstractEstimator[IT, KT, DT, VT, RT, LT]]
-    iteration_hooks: Mapping[str, Sequence[Callable[[ActiveLearner[IT, KT, DT, VT, RT ,LT]], Any]]]
+    iteration_hooks: Mapping[
+        str, Sequence[Callable[[ActiveLearner[IT, KT, DT, VT, RT, LT]], Any]]
+    ]
     main_stats_tracker: MutableMapping[int, Mapping[str, ALStats]]
     metrics_tracker: MutableMapping[int, Mapping[str, MulticlassModelMetrics]]
     stop_tracker: MutableMapping[int, Mapping[str, Mapping[str, bool]]]
 
-    def __init__(self, 
-                 learners: Mapping[str, ActiveLearner[IT, KT, DT, VT, RT ,LT]],
-                 test_set: InstanceProvider[IT, KT, DT, VT, RT],
-                 ground_truth: LabelProvider[KT, LT],
-                 stopping_criteria: Mapping[str, Mapping[str, AbstractStopCriterion[LT]]] = dict(),
-                 batch_size: int = 1, 
-                 stop_interval: Union[int, Mapping[str, int]] = 1,
-                 iteration_hooks: Mapping[str, Sequence[Callable[[ActiveLearner[IT, KT, DT, VT, RT ,LT]], Any]]] = dict()) -> None:
+    def __init__(
+        self,
+        learners: Mapping[str, ActiveLearner[IT, KT, DT, VT, RT, LT]],
+        test_set: InstanceProvider[IT, KT, DT, VT, RT],
+        ground_truth: LabelProvider[KT, LT],
+        stopping_criteria: Mapping[
+            str, Mapping[str, AbstractStopCriterion[LT]]
+        ] = dict(),
+        batch_size: int = 1,
+        stop_interval: Union[int, Mapping[str, int]] = 1,
+        iteration_hooks: Mapping[
+            str, Sequence[Callable[[ActiveLearner[IT, KT, DT, VT, RT, LT]], Any]]
+        ] = dict(),
+    ) -> None:
         # Iteration tracker
         self.it = 0
         # Algorithm selection
@@ -138,24 +176,27 @@ class ClassificationExperiment(Generic[IT, KT, DT, VT, RT, LT]):
         self.test_set = test_set
         self.ground_truth = ground_truth
         self.stopping_criteria = stopping_criteria
-        
+
         self.iteration_hooks = iteration_hooks
 
         self.label_stats_tracker = dict()
         self.metrics_tracker = dict()
         self.stop_tracker = dict()
         self.main_stats_tracker = dict()
-     
+
         # Batch sizes
         self.batch_size = batch_size
-        self.stop_interval = {k: stop_interval for k in self.stopping_criteria} if isinstance(stop_interval, int) else stop_interval 
-    
+        self.stop_interval = (
+            {k: stop_interval for k in self.stopping_criteria}
+            if isinstance(stop_interval, int)
+            else stop_interval
+        )
 
     def _retrain(self) -> None:
         if self.it % self.batch_size == 0:
             for learner in self.learners.values():
                 learner.update_ordering()
-        
+
     def determine_stop(self) -> Mapping[str, Mapping[str, bool]]:
         result: Dict[str, Dict[str, bool]] = dict()
         for l_key, learner in self.learners.items():
@@ -166,42 +207,44 @@ class ClassificationExperiment(Generic[IT, KT, DT, VT, RT, LT]):
                     result[l_key][k] = crit.stop_criterion
         return result
 
-
-    def _label_stats(self) -> Mapping[str, Mapping[LT, LabelALStatistics]]:
-        result: Dict[str, Dict[str, LabelALStatistics]] = dict()
+    def _label_stats(self) -> Mapping[str, Mapping[LT, LabelALStatistics[LT]]]:
+        result: Dict[str, Dict[LT, LabelALStatistics]] = dict()
         for l_key, learner in self.learners.items():
             for label in learner.env.labels.labelset:
                 subset = learner.env.get_subset_by_labels(learner.env.labeled, label)
-                generated = frozenset(learner.env.get_subset_by_labels(learner.env.all_instances, label)).difference(subset)
-                stats = LabelALStatistics(
-                            label, 
-                            len(subset),
-                            len(generated)
-                            )
+                generated = frozenset(
+                    learner.env.get_subset_by_labels(learner.env.all_instances, label)
+                ).difference(subset)
+                stats = LabelALStatistics(label, len(subset), len(generated))
                 result.setdefault(l_key, dict())[label] = stats
         return result
 
     def _al_stats(self) -> Mapping[str, ALStats]:
-        result =  {
-            l_key: ALStats(len(learner.env.unlabeled), len(learner.env.labeled), len(learner.env.dataset))
+        result = {
+            l_key: ALStats(
+                len(learner.env.unlabeled),
+                len(learner.env.labeled),
+                len(learner.env.dataset),
+            )
             for l_key, learner in self.learners.items()
         }
         return result
 
     @property
-    def label_stats(self) ->  Mapping[str, Mapping[LT, LabelALStatistics]]:
+    def label_stats(self) -> Mapping[str, Mapping[LT, LabelALStatistics]]:
         return self.label_stats_tracker[self.it - 1]
 
     @property
     def stop_result(self) -> Mapping[str, Mapping[str, bool]]:
         return self.stop_tracker[self.it - 1]
 
-    
     def _calculate_metrics(self) -> Mapping[str, MulticlassModelMetrics]:
         result: Dict[str, MulticlassModelMetrics] = dict()
         for l_key, learner in self.learners.items():
             if isinstance(learner, ILMLBased):
-                result[l_key] = il.classifier_performance(learner.classifier, self.test_set, self.ground_truth)
+                result[l_key] = il.classifier_performance(
+                    learner.classifier, self.test_set, self.ground_truth
+                )
         return result
 
     @property
@@ -214,7 +257,7 @@ class ClassificationExperiment(Generic[IT, KT, DT, VT, RT, LT]):
 
     @property
     def main_stats(self) -> Mapping[str, ALStats]:
-        return self.main_stats_tracker[self.it -1]
+        return self.main_stats_tracker[self.it - 1]
 
     def _query_and_label(self) -> None:
         for learner in self.learners.values():
@@ -226,10 +269,12 @@ class ClassificationExperiment(Generic[IT, KT, DT, VT, RT, LT]):
             learner.set_as_labeled(instance)
 
     def call_hooks(self) -> Mapping[str, Sequence[Any]]:
-        results = {l_key: [hook(self.learners[l_key]) for hook in hooks] for l_key, hooks in self.iteration_hooks}
+        results = {
+            l_key: [hook(self.learners[l_key]) for hook in hooks]
+            for l_key, hooks in self.iteration_hooks.items()
+        }
         return results
 
-   
     def iter_increment(self) -> None:
         self.it += 1
 

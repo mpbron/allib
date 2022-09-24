@@ -1,6 +1,7 @@
 import functools
 from dataclasses import dataclass
 from os import PathLike
+from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -52,7 +53,7 @@ LT = TypeVar("LT")
 
 
 def read_review_dataset(
-    path: "PathLike[str]",
+    path: Path,
 ) -> AbstractEnvironment[
     TextInstance[Union[int, UUID], np.ndarray],
     Union[int, UUID],
@@ -65,7 +66,7 @@ def read_review_dataset(
 
     Parameters
     ----------
-    path : PathLike
+    path : Path
         The path to the CSV file
 
     Returns
@@ -94,7 +95,7 @@ def read_review_dataset(
 
 @dataclass
 class BenchmarkResult:
-    dataset: PathLike
+    dataset: Path
     uuid: UUID
     stop_wss: Mapping[str, float]
     stop_recall: Mapping[str, float]
@@ -104,22 +105,35 @@ class BenchmarkResult:
 
 
 def benchmark(
-    path: PathLike,
+    path: Path,
     uuid: UUID,
-    al_config: Dict[str, Any],
-    fe_config: Dict[str, Any],
+    al_config: Mapping[str, Any],
+    fe_config: Mapping[str, Any],
     estimators: Mapping[str, AbstractEstimator[Any, Any, Any, Any, Any, str]],
     stopcriteria: Mapping[str, AbstractStopCriterion[str]],
+    batch_size: int = 10,
+    stop_interval: Union[int, Mapping[str, int]] = 10,
+    estimation_interval: Union[int, Mapping[str, int]] = 10,
 ) -> Tuple[BenchmarkResult, TarExperimentPlotter[str]]:
     env = read_review_dataset(path)
     factory = MainFactory()
     initializer = SeparateInitializer(env, 1)
     al, _ = initialize(factory, al_config, fe_config, initializer, env)
-    exp = ExperimentIterator(al, POS, NEG, stopcriteria, estimators, 10, 10, 10)
+    exp = ExperimentIterator(
+        al,
+        POS,
+        NEG,
+        stopcriteria,
+        estimators,
+        batch_size,
+        stop_interval,
+        estimation_interval,
+    )
     plotter = ModelStatsTar(POS, NEG)
     simulator = TarSimulator(exp, plotter)
     simulator.simulate()
     # Criterion results
+
     stop_wss = {crit: plotter.wss_at_stop(crit) for crit in stopcriteria}
     stop_recall = {crit: plotter.recall_at_stop(crit) for crit in stopcriteria}
     stop_loss_er = {crit: plotter.loss_er_at_stop(crit) for crit in stopcriteria}
