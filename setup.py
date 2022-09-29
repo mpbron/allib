@@ -19,7 +19,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setuptools.setup( # type: ignore
     name="python-allib",
-    version="0.1.8.0",
+    version="0.1.8.1",
     description="A typed Active Learning Library",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -31,7 +31,7 @@ setuptools.setup( # type: ignore
         "Programming Language :: Python",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    package_data={"allib": ["py.typed"]},
+    package_data={"allib": ["py.typed", "estimation/mhmodel.R"]},
     packages=setuptools.find_packages(), # type: ignore
     python_requires=">=3.8",
     install_requires=[
