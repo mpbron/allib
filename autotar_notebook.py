@@ -100,5 +100,5 @@ box = Explabox(data=at.env, model=AutoVectorizerClassifier.from_skvector(at.clas
 doc = next(at)
 box.explain.explain_prediction(doc, methods=["LIME"], n_features=20)
 # %%
-box.
+
 # %%

@@ -7,6 +7,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import (Any, Deque, Dict, FrozenSet, Generic, Iterable, List,
                     Optional, Sequence, Tuple, TypeVar)
+import warnings
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
@@ -111,12 +112,14 @@ class AbundanceEstimator(AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, 
 
     def calculate_abundance_R(self, estimator: Estimator[Any, KT, DT, VT, RT, LT], 
                               label: LT) -> pd.DataFrame:
-        df = self.get_label_matrix(estimator, label)
-        with localconverter(ro.default_converter + pandas2ri.converter):
-            df_r = ro.conversion.py2rpy(df)
-            abundance_r = ro.globalenv["get_abundance"]
-            r_df = abundance_r(df_r)
-            res_df = ro.conversion.rpy2py(r_df)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            df = self.get_label_matrix(estimator, label)
+            with localconverter(ro.default_converter + pandas2ri.converter):
+                df_r = ro.conversion.py2rpy(df)
+                abundance_r = ro.globalenv["get_abundance"]
+                r_df = abundance_r(df_r)
+                res_df: pd.DataFrame = ro.conversion.rpy2py(r_df)
         return res_df
 
     def calculate_abundance(self, 

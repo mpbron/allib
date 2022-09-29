@@ -1,3 +1,4 @@
+from enum import Enum
 from ..activelearning import ALCatalog
 from ..feature_extraction import FECatalog
 from ..balancing import BalancerCatalog 
@@ -15,3 +16,8 @@ class ModuleCatalog:
         pass
     class ML(MachineLearningCatalog):
         pass
+
+
+class ActiveLearningTasks(Enum):
+    TAR = "TAR"
+    CLASSIFICATION = "CLASS"

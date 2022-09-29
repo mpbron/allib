@@ -1,10 +1,11 @@
+from uuid import UUID
 from numpy.lib.function_base import average
 from allib.utils.func import union
 import itertools
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, FrozenSet, Generic, Sequence, TypeVar, Any, Tuple
+from typing import Dict, FrozenSet, Generic, Mapping, Sequence, TypeVar, Any, Tuple
 
 import numpy as np  # type: ignore
 from scipy import stats  # type: ignore
@@ -29,6 +30,15 @@ class ResultUnit(Enum):
     ABSOLUTE = "Absolute"
     FRACTION = "Fraction"
 
+@dataclass
+class BenchmarkResult:
+    dataset: Path
+    uuid: UUID
+    stop_wss: Mapping[str, float]
+    stop_recall: Mapping[str, float]
+    stop_loss_er: Mapping[str, float]
+    stop_effort: Mapping[str, int]
+    stop_prop_effort: Mapping[str, float]
 
 
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import functools
 import itertools
+from pathlib import Path
+import pickle
 import random
 from tqdm.auto import tqdm
 import typing as ty
@@ -113,6 +115,10 @@ def initialize(
 class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
     plotter: ExperimentPlotter[LT]
     experiment: ExperimentIterator
+    output_pkl_path: Optional[Path]
+    output_pdf_path: Optional[Path]
+    plot_interval: int
+    
 
     def __init__(
         self,
@@ -120,11 +126,17 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         plotter: ExperimentPlotter[LT],
         max_it: Optional[int] = None,
         print_enabled=False,
+        output_path: Optional[Path] = None,
+        output_pdf_path: Optional[Path] = None,
+        plot_interval: int = 20
     ) -> None:
         self.experiment = experiment
         self.plotter = plotter
         self.max_it = max_it
         self.print_enabled = print_enabled
+        self.output_pkl_path = output_path
+        self.output_pdf_path = output_pdf_path
+        self.plot_interval = plot_interval
 
     @property
     def _debug_finished(self) -> bool:
@@ -141,6 +153,11 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
                 if self.print_enabled:
                     self.plotter.print_last_stats()
                 pbar.update(1)
+                if self.output_pkl_path is not None:
+                    with self.output_pkl_path.open("wb") as fh:
+                        pickle.dump(self.plotter, fh)
+                if self.experiment.it % self.plot_interval == 0 and self.output_pdf_path is not None:
+                    self.plotter.show(filename=self.output_pdf_path)
 
 
 class ClassificationSimulator(Generic[IT, KT, DT, VT, RT, LT]):

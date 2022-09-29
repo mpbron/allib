@@ -1,67 +1,66 @@
+import logging
 import pickle
-from allib.analysis.tarplotter import TarExperimentPlotter
-from allib.stopcriterion.catalog import StopCriterionCatalog
-from allib.configurations.catalog import EstimationConfiguration
-from .configurations.base import ESTIMATION_REPOSITORY, STOP_REPOSITORY
-from allib.analysis.plotter import BinaryPlotter
 from pathlib import Path
-
-from .benchmarking.reviews import benchmark
-from .configurations import (
-    ALConfiguration,
-    FEConfiguration,
-    AL_REPOSITORY,
-    FE_REPOSITORY,
-)
 from uuid import uuid4
 
-import pandas as pd
+from instancelib.utils.func import list_unzip
+
+from .analysis.tarplotter import TarExperimentPlotter
+from .benchmarking.reviews import benchmark
+from .configurations import AL_REPOSITORY, FE_REPOSITORY
+from .configurations.base import EXPERIMENT_REPOSITORY, STOP_BUILDER_REPOSITORY
+from .configurations.catalog import ExperimentCombination
+from .utils.func import flatten_dicts
+from .utils.io import create_dir_if_not_exists
+
+LOGGER = logging.getLogger(__name__)
 
 
-def run_benchmark(
+
+def tar_benchmark(
     dataset_path: Path,
     target_path: Path,
-    al_choice: str,
-    fe_choice: str,
-    estimation_choice: str,
-    stop_choice: str,
+    exp_choice: ExperimentCombination,
+    pos_label: str,
+    neg_label: str,
 ) -> None:
+    LOGGER.info(f"Start Experiment on {dataset_path} with {exp_choice}")
+    exp = EXPERIMENT_REPOSITORY[exp_choice]
+    
     # Parse Configuration
-    al_setup = ALConfiguration(al_choice)
-    fe_setup = FEConfiguration(fe_choice)
-    estimation_setup = EstimationConfiguration(estimation_choice)
-    stop_setup = StopCriterionCatalog(stop_choice)
-
+   
     # Retrieve Configuration
-    al_config = AL_REPOSITORY[al_setup]
-    fe_config = FE_REPOSITORY[fe_setup]
-    estimation_config = ESTIMATION_REPOSITORY[estimation_setup]
-    stop_constructor = STOP_REPOSITORY[stop_setup]
-
-    # Run Benchmark
+    al_config = AL_REPOSITORY[exp.al_configuration]
+    fe_config = FE_REPOSITORY[exp.fe_configuration]
+    stop_builders = [STOP_BUILDER_REPOSITORY[config] for config in exp.stop_builder_configuration]
+    estimator_dicts, stop_criteria_dicts = list_unzip(map(lambda f: f(pos_label,neg_label), stop_builders))
+    estimators = flatten_dicts(*estimator_dicts)
+    stop_criteria = flatten_dicts(*stop_criteria_dicts)
+    
+    
+    # Specify benchmark targets and outputs
     uuid = uuid4()
-    result, plot = benchmark(
-        dataset_path, uuid, al_config, fe_config, estimators={}, stopcriteria={}
-    )
-
     target_path = Path(target_path)
-
-    # Save the benchmark results (or append if the file already exists)
-    target_file = target_path / "benchmark_results.pkl"
-    if target_file.exists():
-        result_df = pd.read_pickle(target_file)
-        new_result = pd.DataFrame([result])
-        result_df = pd.concat([result_df, new_result], ignore_index=True)  # type: ignore
-    else:
-        result_df = pd.DataFrame(data=[result])  # type: ignore
-    result_df.to_pickle(target_file)
-
-    # Save the plot table
-    df_filename_csv = target_path / f"run_{uuid}.pkl"
-    df_filename_pkl = target_path / f"run_{uuid}.csv"
-
-    plot_filename = target_path / f"run_{uuid}.pdf"
-    assert isinstance(plot, TarExperimentPlotter)
-    with df_filename_pkl.open("wb") as fh:
+    dataset_name = dataset_path.stem
+    # Save the plotter object
+    dataset_dir = target_path / dataset_name
+    plot_filename_pkl = dataset_dir / f"run_{uuid}.pkl"
+    plot_filename_pdf = dataset_dir / f"run_{uuid}.pdf"
+    create_dir_if_not_exists(dataset_dir)
+    plot = benchmark(
+        dataset_path,
+        plot_filename_pkl,
+        plot_filename_pdf,
+        al_config,
+        fe_config,
+        estimators,
+        stop_criteria,
+        pos_label,
+        neg_label,
+        batch_size=exp.batch_size,
+        stop_interval=exp.stop_interval,
+        estimation_interval=exp.estimation_interval,
+    )
+    with plot_filename_pkl.open("wb") as fh:
         pickle.dump(plot, fh)
-    plot.show(filename=plot_filename)
+    plot.show(filename=plot_filename_pdf)

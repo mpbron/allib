@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class ALConfiguration(Enum):
     NaiveBayesEstimator = "NaiveBayesEstimator"
     SVMEstimator = "SVMEstimator"
@@ -14,8 +15,10 @@ class ALConfiguration(Enum):
     RaschNBLRRFLGBM = "RaschNBLRRFLBGM"
     RaschNBLRRFLGBMRAND = "RaschNBLRRFLGBMRAND"
 
+
 class FEConfiguration(Enum):
     TFIDF5000 = "TfIDF5000"
+
 
 class EstimationConfiguration(str, Enum):
     RaschRidge = "RaschRidge"
@@ -23,3 +26,11 @@ class EstimationConfiguration(str, Enum):
     RaschApproxParametric = "RaschApproxParametric"
     RaschApproxConvParametric = "RaschApproxConvParametric"
     CHAO = "Chao"
+
+
+class StopBuilderConfiguration(str, Enum):
+    CHAO_CONS_OPT = "Chao_CONS_OPT"
+
+
+class ExperimentCombination(str, Enum):
+    CHAO4 = "CHAO4"

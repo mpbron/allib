@@ -74,7 +74,7 @@ def not_in_supersets(
     return ret_dict
 
 
-def flatten_dicts(*dicts: Dict[_T, _U]) -> Dict[_T, _U]:
+def flatten_dicts(*dicts: Mapping[_T, _U]) -> Dict[_T, _U]:
     """Recursive function that combines a list of dictionaries
     into a single dictionary. When a key exists multiple times, 
     the last one is preserved.

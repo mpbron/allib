@@ -122,7 +122,7 @@ class MemoryEnvironment(
                          environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT], 
                          shared_labels: bool = True,
                          *args, **kwargs) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
-        dataset = environment.all_datapoints
+        dataset = environment.all_instances
         unlabeled = MemoryBucketProvider(dataset, environment.unlabeled.key_list)
         labeled = MemoryBucketProvider(dataset, environment.labeled.key_list)
         if shared_labels:
@@ -141,7 +141,7 @@ class MemoryEnvironment(
     def from_environment_only_data(cls, 
             environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
             ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
-        dataset = environment.all_datapoints
+        dataset = environment.all_instances
         unlabeled = MemoryBucketProvider(dataset, dataset.key_list)
         labeled = MemoryBucketProvider(dataset, [])
         labels = MemoryLabelProvider[KT, LT](
@@ -157,7 +157,7 @@ class MemoryEnvironment(
     def from_instancelib(cls, 
                          environment: ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT]
                          )-> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
-        dataset = environment.all_datapoints
+        dataset = environment.all_instances
         labeled_docs = union(*(environment.labels.get_instances_by_label(label)
                              for label in environment.labels.labelset))
         unlabeled_docs = frozenset(dataset.key_list).difference(labeled_docs)
@@ -194,7 +194,7 @@ class MemoryEnvironment(
                                             environment: ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
                                             train_set: ins.InstanceProvider[IT, KT, DT, VT, RT]
                                             )-> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
-        dataset = environment.all_datapoints
+        dataset = environment.all_instances
         unlabeled = MemoryBucketProvider(dataset, train_set.key_list)
         labeled = MemoryBucketProvider(dataset, [])
         labels = MemoryLabelProvider[KT, LT].from_data(

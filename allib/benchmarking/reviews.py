@@ -1,16 +1,8 @@
-import functools
 from dataclasses import dataclass
-from os import PathLike
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
-    Dict,
-    FrozenSet,
-    List,
     Mapping,
-    Sequence,
-    Set,
     Tuple,
     TypeVar,
     Union,
@@ -39,10 +31,11 @@ from ..estimation.rasch import ParametricRasch
 from ..estimation.rasch_python import EMRaschRidgePython
 from ..module.factory import MainFactory
 from ..utils.func import list_unzip3
+import logging
 
 POS = "Relevant"
 NEG = "Irrelevant"
-
+LOGGER = logging.getLogger(__name__)
 
 def binary_mapper(value: Any) -> str:
     return POS if value == 1 else NEG
@@ -93,36 +86,30 @@ def read_review_dataset(
     return al_env
 
 
-@dataclass
-class BenchmarkResult:
-    dataset: Path
-    uuid: UUID
-    stop_wss: Mapping[str, float]
-    stop_recall: Mapping[str, float]
-    stop_loss_er: Mapping[str, float]
-    stop_effort: Mapping[str, int]
-    stop_prop_effort: Mapping[str, float]
 
 
 def benchmark(
     path: Path,
-    uuid: UUID,
+    output_path: Path,
+    output_pdf_path: Path,
     al_config: Mapping[str, Any],
     fe_config: Mapping[str, Any],
     estimators: Mapping[str, AbstractEstimator[Any, Any, Any, Any, Any, str]],
     stopcriteria: Mapping[str, AbstractStopCriterion[str]],
+    pos_label: str,
+    neg_label: str,
     batch_size: int = 10,
     stop_interval: Union[int, Mapping[str, int]] = 10,
     estimation_interval: Union[int, Mapping[str, int]] = 10,
-) -> Tuple[BenchmarkResult, TarExperimentPlotter[str]]:
+) -> TarExperimentPlotter[str]:
     env = read_review_dataset(path)
     factory = MainFactory()
     initializer = SeparateInitializer(env, 1)
     al, _ = initialize(factory, al_config, fe_config, initializer, env)
     exp = ExperimentIterator(
         al,
-        POS,
-        NEG,
+        pos_label,
+        neg_label,
         stopcriteria,
         estimators,
         batch_size,
@@ -130,18 +117,11 @@ def benchmark(
         estimation_interval,
     )
     plotter = ModelStatsTar(POS, NEG)
-    simulator = TarSimulator(exp, plotter)
-    simulator.simulate()
-    # Criterion results
+    simulator = TarSimulator(exp, plotter, output_path=output_path, output_pdf_path=output_pdf_path)
+    try:
+        simulator.simulate()
+    except Exception as e:
+        LOGGER.error("Exited with %s", e)
+        pass
+    return plotter
 
-    stop_wss = {crit: plotter.wss_at_stop(crit) for crit in stopcriteria}
-    stop_recall = {crit: plotter.recall_at_stop(crit) for crit in stopcriteria}
-    stop_loss_er = {crit: plotter.loss_er_at_stop(crit) for crit in stopcriteria}
-    stop_effort = {crit: plotter.effort_at_stop(crit) for crit in stopcriteria}
-    stop_prop_effort = {
-        crit: plotter.proportional_effort_at_stop(crit) for crit in stopcriteria
-    }
-    result = BenchmarkResult(
-        path, uuid, stop_wss, stop_recall, stop_loss_er, stop_effort, stop_prop_effort
-    )
-    return result, plotter

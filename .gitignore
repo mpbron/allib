@@ -1,5 +1,6 @@
-#mse_files/
-#mse_tar_files/
+results/
+mse_files/
+mse_tar_files/
 multilabel_notebook.py
 .RData
 .Rhistory

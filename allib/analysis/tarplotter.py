@@ -268,6 +268,7 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
 
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
+        plt.close()
 
     def user_show(
         self,
@@ -285,6 +286,7 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
+        plt.close()
 
     def wss_at_target(self, target: float) -> float:
         for it in self.it_axis:
