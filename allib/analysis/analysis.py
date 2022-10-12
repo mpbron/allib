@@ -94,7 +94,7 @@ class BinaryPerformance(Generic[KT]):
             self.false_negatives, self.true_negatives))
         n = len(union(self.true_positives, self.false_positives))
         inability_loss = (100 - recall_perc) ** 2
-        effort_loss = (100 / N) ** 2  * (n / R + 100) ** 2
+        effort_loss = (100 / N) ** 2  * (n / (R + 100)) ** 2
         return inability_loss + effort_loss
 
     @property

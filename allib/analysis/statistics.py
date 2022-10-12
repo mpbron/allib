@@ -33,8 +33,8 @@ class TarDatasetStats:
                      learner: ActiveLearner[Any, Any, Any, Any, Any, LT],
                      pos_label: LT,
                      neg_label: LT) -> TarDatasetStats:
-        pos_count = learner.env.truth.document_count(pos_label)
-        neg_count = learner.env.truth.document_count(neg_label)
+        pos_count = len(learner.env.get_subset_by_labels(learner.env.dataset, pos_label, labelprovider=learner.env.truth))
+        neg_count = len(learner.env.get_subset_by_labels(learner.env.dataset, neg_label, labelprovider=learner.env.truth))
         size = len(learner.env.dataset)
         prevalence = pos_count / size
         return TarDatasetStats(pos_count, neg_count, size, prevalence)
