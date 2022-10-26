@@ -5,6 +5,7 @@
 #                     Tuple)
 
 # import numpy as np
+# import numpy.typing as npt
 # import pandas as pd
 # from numpy.linalg import inv
 # from numpy.random import multivariate_normal
@@ -45,12 +46,12 @@
 #         self.var_distance = np.var(cosine_similarity(vec_mat))
 #         self.super_size = super_size
 
-#     def get_context_vector(self) -> np.ndarray:
+#     def get_context_vector(self) -> npt.NDArray[Any]:
 #         """Generates a context vector that describes the cluster
 
 #         Returns
 #         -------
-#         np.ndarray
+#         npt.NDArray[Any]
 #             A (normalized) feature vector of size `4 + len(labels)`
 #         """
 #         vec = [
@@ -73,9 +74,9 @@
 #     cluster_dict: Dict[int, ATSCluster]
 #     cluster_dict_doc: Dict[str, ATSCluster]
 #     dims: int
-#     mat_b: np.ndarray
-#     vec_mu_hat: np.ndarray
-#     vec_f: np.ndarray
+#     mat_b: npt.NDArray[Any]
+#     vec_mu_hat: npt.NDArray[Any]
+#     vec_f: npt.NDArray[Any]
 #     v_squared: float = 0.25
 #     t: int
 
@@ -83,7 +84,7 @@
 
 #     alpha = 0.61
 #     beta = 0.12
-#     stored_hypothesis: np.ndarray
+#     stored_hypothesis: npt.NDArray[Any]
 
 #     def __init__(
 #             self,
@@ -133,24 +134,24 @@
 #         cluster = self.cluster_dict_doc[doc_id]
 #         cluster.label_instance(doc_id, label)
 
-#     def calculate_hypothesis(self) -> np.ndarray:
+#     def calculate_hypothesis(self) -> npt.NDArray[Any]:
 #         """Calculate the hypothesis, the result of the prediction of all documents in all clusters (flattened)
 
 #         Returns
 #         -------
-#         np.ndarray
+#         npt.NDArray[Any]
 #             The resulting flattened vector
 #         """
 #         vectors = np.array([vec for vec in self.vector_generator()])
 #         pred = self.estimator.predict_proba(vectors)
 #         return pred.toarray().flatten()
 
-#     def store_hypothesis(self, hypothesis: np.ndarray) -> None:
+#     def store_hypothesis(self, hypothesis: npt.NDArray[Any]) -> None:
 #         """Store the hypothesis (overwrite)
 
 #         Parameters
 #         ----------
-#         hypothesis : np.ndarray
+#         hypothesis : npt.NDArray[Any]
 #             The (new) hypothesis
 #         """
 #         self.stored_hypothesis = hypothesis

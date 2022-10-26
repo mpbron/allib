@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from typing import Generic, Sequence, TypeVar, Iterable, Dict, Any, Set
+from joblib import Memory
 
-import numpy as np # type: ignore
+import numpy as np
+import numpy.typing as npt
 
-from instancelib.instances.hdf5 import HDF5Instance, HDF5Provider 
+from instancelib.instances.memory import MemoryBucketProvider
+from instancelib.instances.hdf5 import HDF5Instance, HDF5Provider
 from instancelib.labels.memory import MemoryLabelProvider
 from ..history import MemoryLogger
 
@@ -12,7 +15,7 @@ from .base import AbstractEnvironment
 
 # TODO Adjust MemoryEnvironment Generic Type (ADD ST)
 
-class HDF5Environment(AbstractEnvironment[int, str, np.ndarray, str, str]):
+class HDF5Environment(AbstractEnvironment[int, str, npt.NDArray[Any], str, str]):
     def __init__(
             self,
             dataset: HDF5Provider,
@@ -40,8 +43,8 @@ class HDF5Environment(AbstractEnvironment[int, str, np.ndarray, str, str]):
             data_location: str,
             vector_location: str) -> HDF5Environment:
         dataset = HDF5Provider.from_data_and_indices(indices, data, data_location, vector_location)
-        unlabeled = HDF5BucketProvider(dataset, dataset.key_list)
-        labeled = HDF5BucketProvider(dataset, [])
+        unlabeled = MemoryBucketProvider(dataset, dataset.key_list)
+        labeled = MemoryBucketProvider(dataset, [])
         labels = MemoryLabelProvider[int, str].from_data(target_labels, indices, [])
         logger = MemoryLogger[int, str, Any](labels)
         truth = MemoryLabelProvider[int, str].from_data(target_labels, indices, ground_truth)
@@ -49,15 +52,15 @@ class HDF5Environment(AbstractEnvironment[int, str, np.ndarray, str, str]):
 
     @classmethod
     def from_environment(cls, 
-                         environment: AbstractEnvironment[int, str, np.ndarray, str, str], 
+                         environment: AbstractEnvironment[int, str, npt.NDArray[Any], str, str], 
                          data_location: str = "", vector_location: str = "", 
                          shared_labels: bool = True, *args, **kwargs) -> HDF5Environment:
         if isinstance(environment.dataset, HDF5Provider):
             dataset = environment.dataset
         else:
             dataset = HDF5Provider.from_provider(environment.dataset, data_location, vector_location)
-        unlabeled = HDF5BucketProvider(dataset, environment.unlabeled.key_list)
-        labeled = HDF5BucketProvider(dataset, environment.labeled.key_list)
+        unlabeled = MemoryBucketProvider(dataset, environment.unlabeled.key_list)
+        labeled = MemoryBucketProvider(dataset, environment.labeled.key_list)
         if isinstance(environment.labels, MemoryLabelProvider) and shared_labels:
             labels: MemoryLabelProvider[int, str] = environment.labels
         else:
@@ -74,14 +77,14 @@ class HDF5Environment(AbstractEnvironment[int, str, np.ndarray, str, str]):
 
     @classmethod
     def from_environment_only_data(cls, 
-                                   environment: AbstractEnvironment[int, str, np.ndarray, str, str],
+                                   environment: AbstractEnvironment[int, str, npt.NDArray[Any], str, str],
                                    data_location: str, vector_location: str) -> HDF5Environment:
         if isinstance(environment.dataset, HDF5Provider):
             dataset = environment.dataset
         else:
             dataset = HDF5Provider.from_provider(environment.dataset, data_location, vector_location)
-        unlabeled = HDF5BucketProvider(dataset, environment.dataset.key_list)
-        labeled = HDF5BucketProvider(dataset, [])
+        unlabeled = MemoryBucketProvider(dataset, environment.dataset.key_list)
+        labeled = MemoryBucketProvider(dataset, [])
         labels = MemoryLabelProvider[int, str](environment.labels.labelset, {}, {}) # type: ignore
         if isinstance(environment.logger, MemoryLogger):
             logger: MemoryLogger[int, str, Any] = environment.logger
@@ -94,7 +97,7 @@ class HDF5Environment(AbstractEnvironment[int, str, np.ndarray, str, str]):
         return cls(dataset, unlabeled, labeled, labels, logger, truth)
 
     def create_named_provider(self, name: str) -> HDF5Provider:
-        self._named_providers[name] = HDF5BucketProvider(self._dataset, [])
+        self._named_providers[name] = MemoryBucketProvider(self._dataset, [])
         return self._named_providers[name]
 
     def get_named_provider(self, name: str) -> HDF5Provider:
@@ -102,8 +105,8 @@ class HDF5Environment(AbstractEnvironment[int, str, np.ndarray, str, str]):
             self.create_named_provider(name)
         return self._named_providers[name]
 
-    def create_empty_provider(self) -> HDF5BucketProvider:
-        return HDF5BucketProvider(self._dataset, [])
+    def create_empty_provider(self) -> MemoryBucketProvider:
+        return MemoryBucketProvider(self._dataset, [])
 
     @property
     def dataset(self):

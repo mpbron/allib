@@ -9,6 +9,7 @@ from typing import (Any, Dict, FrozenSet, Generic, Iterable, List, Mapping, Muta
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 
 from ..estimation.base import AbstractEstimator, Estimate
 from ..typehints import LT
@@ -28,8 +29,8 @@ _W = TypeVar("_W")
 
 
 
-def smooth_similar(xs: Union[np.ndarray, Sequence[_T]],
-                   ys: Union[np.ndarray, Sequence[_V]]
+def smooth_similar(xs: Union[npt.NDArray[Any], Sequence[_T]],
+                   ys: Union[npt.NDArray[Any], Sequence[_V]]
                    ) -> Tuple[Sequence[_T], Sequence[_V]]:
     assert len(xs) == len(ys), f"len(xs) != len(ys); {len(xs)} !=  {len(ys)}"
     x_smoothed: List[_T] = list()
@@ -43,9 +44,9 @@ def smooth_similar(xs: Union[np.ndarray, Sequence[_T]],
     return x_smoothed, y_smoothed
 
 
-def smooth_similar3(xs: Union[np.ndarray, Sequence[_T]],
-                    ys: Union[np.ndarray, Sequence[_V]],
-                    zs: Union[np.ndarray, Sequence[_W]]
+def smooth_similar3(xs: Union[npt.NDArray[Any], Sequence[_T]],
+                    ys: Union[npt.NDArray[Any], Sequence[_V]],
+                    zs: Union[npt.NDArray[Any], Sequence[_W]]
                     ) -> Tuple[Sequence[_T], Sequence[_V], Sequence[_W]]:
     assert len(xs) == len(ys) == len(
         zs), f"len(xs) != len(ys) != len(zs); {len(xs)} !=  {len(ys)} != {len(zs)}"
@@ -134,7 +135,7 @@ class ClassificationPlotter(ExperimentPlotter[LT], Generic[LT]):
                 plt.plot(effort_axis, metrics[metric], linestyle="-.", label=f"{model} -- {metric} -- {label}", color=color)
                 i += 1
 
-    def _effort_axis(self, model: str) -> np.ndarray:
+    def _effort_axis(self, model: str) -> npt.NDArray[Any]:
         effort_axis = np.array([self.main_stats[it][model].labeled / self.main_stats[it][model].dataset for it in self.it_axis])
         return effort_axis * 100
 

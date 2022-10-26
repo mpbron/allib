@@ -1,18 +1,20 @@
 import collections
 import random
-from typing import (Deque, Dict, FrozenSet, Generic, Mapping, Optional,
-                    Sequence, Tuple)
+from typing import (Any, Callable, Deque, Dict, FrozenSet, Generic, Mapping,
+                    Optional, Sequence, Tuple)
 
 import instancelib as il
 import numpy as np
+import numpy.typing as npt
 from instancelib.typehints import DT, KT, LT, RT, VT
 
 from ..environment.base import AbstractEnvironment
+from ..machinelearning.transductive.il_tsvm import TSVM
 from ..typehints import IT
 from ..utils.func import list_unzip, sort_on
 from ..utils.numpy import raw_proba_chainer
+from .base import ActiveLearner
 from .poolbased import PoolBasedAL
-from ..machinelearning.transductive.il_tsvm import TSVM
 
 
 class TSVMLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], 
@@ -20,14 +22,15 @@ class TSVMLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
     rank_history: Dict[int, Mapping[KT, int]]
     sampled_sets: Dict[int, Sequence[KT]]
     current_sample: Deque[KT]
-    classifier: il.AbstractClassifier[IT, KT, DT, VT, RT, LT, np.ndarray, np.ndarray]
+    classifier: il.AbstractClassifier[IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]]
     def __init__(self, 
+                 env: AbstractEnvironment[IT, KT, DT, VT, RT, LT], 
                  pos_label: LT, 
                  neg_label: LT, 
                  k_sample: int,
                  batch_size: int,  
                  *_, identifier: Optional[str] = None, **__) -> None:
-        super().__init__(*_, identifier=identifier, **__)
+        super().__init__(env, *_, identifier=identifier, **__)
         # Problem definition
         self.classifier = TSVM()
         self.pos_label = pos_label
@@ -63,7 +66,7 @@ class TSVMLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
     def _temp_augment_and_train(self):
         self.classifier.fit_provider(self.env.dataset, self.env.labels)
 
-    def _predict(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> Tuple[Sequence[KT], np.ndarray]:
+    def _predict(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> Tuple[Sequence[KT], npt.NDArray[Any]]:
         raw_probas = self.classifier.predict_proba_provider_raw(provider)
         keys, matrix = raw_proba_chainer(raw_probas)
         return keys, matrix
@@ -115,6 +118,10 @@ class TSVMLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
         if not self.env.unlabeled.empty:
             return self.__next__()
         raise StopIteration()
+
+    @classmethod
+    def builder(cls, *args: Any, **kwargs: Any) -> Callable[..., ActiveLearner[IT, KT, DT, VT, RT, LT],]:
+        return super().builder(*args, **kwargs)
             
             
             

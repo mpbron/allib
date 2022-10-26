@@ -1,15 +1,16 @@
 from os import PathLike
-from typing import Generic, Iterable, Optional
+from typing import Any, Generic, Iterable, Optional
 
 from instancelib.labels.encoder import DictionaryEncoder
 import instancelib as il
 import numpy as np
+import numpy.typing as npt
 
 from allib.typehints.typevars import IT, KT, LT
 from .tsvm_sklearn import SKTSVM
 
 class TSVMEncoder(DictionaryEncoder[LT]):
-    def encode(self, labels: Iterable[LT]) -> np.ndarray:
+    def encode(self, labels: Iterable[LT]) -> npt.NDArray[Any]:
         label_list = list(labels)
         if not label_list:
             return np.array([-1])
@@ -27,5 +28,5 @@ class TSVM(il.SkLearnVectorClassifier[IT, KT, LT], Generic[IT, KT, LT]):
         encoder = TSVMEncoder.from_list([])
         super().__init__(estimator, encoder, storage_location, filename)
 
-    def _filter_x_only_encoded_y(self, instances: Iterable[_T], labelings: Sequence[Iterable[LT]]) -> Tuple[Iterable[_T], np.ndarray]:
+    def _filter_x_only_encoded_y(self, instances: Iterable[_T], labelings: Sequence[Iterable[LT]]) -> Tuple[Iterable[_T], npt.NDArray[Any]]:
         return super()._filter_x_only_encoded_y(instances, labelings)

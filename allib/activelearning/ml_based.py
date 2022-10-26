@@ -135,8 +135,6 @@ class MLBased(
         """
         LOGGER.info("[%s] Start with the retraining procedure", self.name)
         # Some sanity checks
-        if not self.initialized:
-            raise NotInitializedException("This AL object has no attached environment")
         if self.env.labeled.empty:
             raise NoLabeledDataException(
                 "There are no labeled instances for retraining"
@@ -179,14 +177,7 @@ class MLBased(
         -------
         Sequence[FrozenSet[LT]]
             A list of labelings, matching the order of the `instances` parameters
-
-        Raises
-        ------
-        NotInitializedException
-            If the model has no attached Environment
         """
-        if not self.initialized:
-            raise NotInitializedException
         return self.classifier.predict_instances(instances)
 
     def predict_proba(
@@ -206,14 +197,7 @@ class MLBased(
         Sequence[FrozenSet[Tuple[LT, float]]]
             A list of labelings and probabilities,
             matching the order of the `instances` parameters
-
-        Raises
-        ------
-        NotInitializedException
-            If the model has no attached Environment
         """
-        if not self.initialized:
-            raise NotInitializedException
         return self.classifier.predict_proba_instances(instances)
 
     @property
@@ -474,7 +458,7 @@ class ProbabilityBased(
     ) -> Callable[..., ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT],]:
         def wrap_func(
             env: AbstractEnvironment[IT, KT, DT, npt.NDArray[Any], RT, LT], 
-            ,*_, **__
+            *_, **__
         ):
             built_classifier = classifier(env)
             fallback = fallback_builder(env)

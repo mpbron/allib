@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Sequence, Optional, Callable, List, Dict, Any
 from tempfile import NamedTemporaryFile
 
-import numpy as np # type: ignore
+import numpy as np
+import numpy.typing as npt
 from sklearn.exceptions import NotFittedError # type: ignore
 
 from gensim.models.doc2vec import Doc2Vec, TaggedLineDocument # type: ignore
@@ -56,7 +57,7 @@ class Doc2VecVectorizer(BaseVectorizer[str], SaveableInnerModel[Doc2Vec]):
         return self
 
     @SaveableInnerModel.load_model_fallback
-    def transform(self, x_data: Sequence[str], **kwargs: Any) -> np.ndarray: # type: ignore
+    def transform(self, x_data: Sequence[str], **kwargs: Any) -> npt.NDArray[Any]: # type: ignore
         if self.fitted and self.innermodel is not None:
             return np.array( # type: ignore
                 [
@@ -65,7 +66,7 @@ class Doc2VecVectorizer(BaseVectorizer[str], SaveableInnerModel[Doc2Vec]):
                 ]) 
         raise NotFittedError
 
-    def fit_transform(self, x_data: Sequence[str], **kwargs: Any) -> np.ndarray: # type: ignore
+    def fit_transform(self, x_data: Sequence[str], **kwargs: Any) -> npt.NDArray[Any]: # type: ignore
         self.fit(x_data)
         return self.transform(x_data) # type: ignore
 

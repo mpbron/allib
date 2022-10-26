@@ -11,7 +11,8 @@ from ..machinelearning import AbstractClassifier
 from ..activelearning.ml_based import FeatureMatrix
 from sklearn.linear_model import LogisticRegression # type: ignore
 
-import numpy as np # type: ignore
+import numpy as np
+import numpy.typing as npt
 
 KT = TypeVar("KT")
 VT = TypeVar("VT")
@@ -27,8 +28,8 @@ class DecisionRow(Generic[KT]):
     pos_labeled: bool
     order: Optional[int]
 
-def semi(learner: MLBased[KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], pos_label: LT, neg_label: LT) -> int:
-    def temporary_label_indices(y_pred_proba: np.ndarray) -> List[int]:
+def semi(learner: MLBased[KT, DT, npt.NDArray[Any], RT, LT, npt.NDArray[Any], npt.NDArray[Any]], pos_label: LT, neg_label: LT) -> int:
+    def temporary_label_indices(y_pred_proba: npt.NDArray[Any]) -> List[int]:
         order = np.argsort(y_pred_proba)[::-1]
         print(f"{y_pred_proba[order[0]]}, {y_pred_proba[order[-1]]}") # type: ignore
         count = 0

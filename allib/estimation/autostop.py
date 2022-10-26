@@ -2,6 +2,7 @@ from re import M
 from typing import Any, Generic, Tuple
 
 import numpy as np
+import numpy.typing as npt
 
 from ..activelearning import ActiveLearner
 from ..activelearning.autostop import AutoStopLearner
@@ -11,12 +12,12 @@ from .base import AbstractEstimator, Estimate
 from numba import njit
 
 
-def calc_fo_mask(learner: AutoStopLearner[Any, Any, Any, Any, Any, Any], it: int) -> np.ndarray:
+def calc_fo_mask(learner: AutoStopLearner[Any, Any, Any, Any, Any, Any], it: int) -> npt.NDArray[Any]:
     labeled = learner.cumulative_sampled[it]
     fo_mask = np.array([int(k in labeled) for k in learner.key_seq]).reshape((1,-1))
     return fo_mask
 
-def calc_so_mask(fo_mask: np.ndarray, big_n: int) -> np.ndarray:
+def calc_so_mask(fo_mask: npt.NDArray[Any], big_n: int) -> npt.NDArray[Any]:
     mat = np.tile(fo_mask, (big_n, 1))
     mat_t = mat.T
     so_mask = mat * mat_t

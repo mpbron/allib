@@ -7,6 +7,7 @@ from typing import (Any, Dict, FrozenSet, Generic, Iterable, List, Mapping,
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 
 from ..analysis.statistics import EstimationModelStatistics
 from ..estimation.base import AbstractEstimator, Estimate
@@ -21,7 +22,7 @@ _W = TypeVar("_W")
 
 
 def smooth_similar(
-    xs: Union[np.ndarray, Sequence[_T]], ys: Union[np.ndarray, Sequence[_V]]
+    xs: Union[npt.NDArray[Any], Sequence[_T]], ys: Union[npt.NDArray[Any], Sequence[_V]]
 ) -> Tuple[Sequence[_T], Sequence[_V]]:
     assert len(xs) == len(ys), f"len(xs) != len(ys); {len(xs)} !=  {len(ys)}"
     x_smoothed: List[_T] = list()
@@ -36,9 +37,9 @@ def smooth_similar(
 
 
 def smooth_similar3(
-    xs: Union[np.ndarray, Sequence[_T]],
-    ys: Union[np.ndarray, Sequence[_V]],
-    zs: Union[np.ndarray, Sequence[_W]],
+    xs: Union[npt.NDArray[Any], Sequence[_T]],
+    ys: Union[npt.NDArray[Any], Sequence[_V]],
+    zs: Union[npt.NDArray[Any], Sequence[_W]],
 ) -> Tuple[Sequence[_T], Sequence[_V], Sequence[_W]]:
     assert (
         len(xs) == len(ys) == len(zs)
@@ -113,7 +114,7 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
             return frozenset(self.stop_results[self.it].keys())
         return frozenset()
 
-    def _effort_axis(self) -> np.ndarray:
+    def _effort_axis(self) -> npt.NDArray[Any]:
         effort_axis = np.array([self.recall_stats[it].effort for it in self.it_axis])
         return effort_axis
 

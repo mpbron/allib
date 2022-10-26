@@ -1,6 +1,7 @@
 # from typing import Any, Optional, Set, Tuple
 
 # import numpy as np
+# import numpy.typing as npt
 
 # from .base import AbstractActiveLearner
 # from .oracles import OracleFunction
@@ -19,7 +20,7 @@
 #                 - The document vector
 #                 - The document data
 #         """
-#         def least_confidence(vector: np.ndarray) -> float:
+#         def least_confidence(vector: npt.NDArray[Any]) -> float:
 #             prob_vec = self.estimator.predict_proba(vector)
 #             min_prob = np.amin(np.abs(prob_vec - 0.5))
 #             return min_prob
@@ -74,7 +75,7 @@
 #                 - The document vector
 #                 - The document data
 #         """
-#         def entropy(vector: np.ndarray) -> float:
+#         def entropy(vector: npt.NDArray[Any]) -> float:
 #             prob_vec = self.estimator.predict_proba(vector)
 #             entropy = -np.matmul(prob_vec, np.log(prob_vec))
 #             return entropy

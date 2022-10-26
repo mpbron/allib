@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Generic, Sequence, TypeVar, List, Any
 
 from sklearn.exceptions import NotFittedError # type: ignore
-import numpy as np # type: ignore
-
+import numpy as np
+import numpy.typing as npt
 DT = TypeVar("DT")
 CT = TypeVar("CT")
 LT = TypeVar("LT")
@@ -59,7 +59,7 @@ class BaseVectorizer(ABC, Generic[DT]):
         pass
 
     @abstractmethod
-    def transform(self, x_data: Sequence[DT], **kwargs: Any) -> np.ndarray: # type: ignore
+    def transform(self, x_data: Sequence[DT], **kwargs: Any) -> npt.NDArray[Any]: # type: ignore
         """Transform a list raw data points to a feature matrix 
         according to the fitted vectorizer
 
@@ -70,7 +70,7 @@ class BaseVectorizer(ABC, Generic[DT]):
 
         Returns
         -------
-        np.ndarray
+        npt.NDArray[Any]
             A feature matrix with shape `(n_examples, n_features)`
 
         Examples
@@ -82,7 +82,7 @@ class BaseVectorizer(ABC, Generic[DT]):
         pass
 
     @abstractmethod
-    def fit_transform(self, x_data: Sequence[DT], **kwargs: Any) -> np.ndarray: # type: ignore
+    def fit_transform(self, x_data: Sequence[DT], **kwargs: Any) -> npt.NDArray[Any]: # type: ignore
         """Transform a list of data to a feature matrix. The transformation
         is based on the data contained in the parameter `x_data`. Subsequent
         transformations with :meth:`~.transform()` will be based on the fit
@@ -95,7 +95,7 @@ class BaseVectorizer(ABC, Generic[DT]):
 
         Returns
         -------
-        np.ndarray
+        npt.NDArray[Any]
             A feature matrix with shape `(n_examples, n_features)`
 
         Examples
@@ -211,7 +211,7 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
             self,
             x_data: Sequence[DT],
             context_data: Sequence[CT],
-            **kwargs: Any) -> np.ndarray: # type: ignore
+            **kwargs: Any) -> npt.NDArray[Any]: # type: ignore
         """Transform a list raw data points to a feature matrix 
         according to the fitted vectorizers
 
@@ -225,7 +225,7 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
 
         Returns
         -------
-        np.ndarray
+        npt.NDArray[Any]
             A feature matrix of concatenated vectors with shape
             `(n_docs, n_features_data + n_features_context)`
 
@@ -241,8 +241,8 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
         same data point.
         """        
         if self.fitted:
-            data_part: np.ndarray = self.data_vectorizer.transform(x_data, **kwargs) # type: ignore
-            context_part: np.ndarray = self.context_vectorizer.transform( # type: ignore
+            data_part: npt.NDArray[Any] = self.data_vectorizer.transform(x_data, **kwargs) # type: ignore
+            context_part: npt.NDArray[Any] = self.context_vectorizer.transform( # type: ignore
                 context_data, **kwargs) # type: ignore
             return np.concatenate((data_part, context_part), axis=1) # type: ignore
         raise NotFittedError
@@ -251,7 +251,7 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
             self,
             x_data: Sequence[DT],
             context_data: Sequence[CT],
-            **kwargs: Any) -> np.ndarray: # type: ignore
+            **kwargs: Any) -> npt.NDArray[Any]: # type: ignore
         """Fit and transform a list raw data points to a feature matrix 
         according to the fitted vectorizers. Subsequent
         transformations with :meth:`~.transform()` will be based on the fit
@@ -267,7 +267,7 @@ class SeparateContextVectorizer(ABC, Generic[DT, CT]):
 
         Returns
         -------
-        np.ndarray
+        npt.NDArray[Any]
             A feature matrix of concatenated vectors with shape
             `(n_docs, n_features_data + n_features_context)`
         """        
@@ -336,7 +336,7 @@ class StackVectorizer(BaseVectorizer[DT], Generic[DT]):
     def fitted(self) -> bool:
         return all([vec.fitted for vec in self.vectorizers])
 
-    def transform(self, x_data: Sequence[DT], **kwargs: Any) -> np.ndarray: # type: ignore
+    def transform(self, x_data: Sequence[DT], **kwargs: Any) -> npt.NDArray[Any]: # type: ignore
         if self.fitted:
             sub_vectors = [ # type: ignore
                 vec.transform(x_data, **kwargs) # type: ignore
@@ -344,6 +344,6 @@ class StackVectorizer(BaseVectorizer[DT], Generic[DT]):
             return np.concatenate(sub_vectors, axis=1) # type: ignore
         raise NotFittedError
 
-    def fit_transform(self, x_data: Sequence[DT], **kwargs: Any) -> np.ndarray: # type: ignore
+    def fit_transform(self, x_data: Sequence[DT], **kwargs: Any) -> npt.NDArray[Any]: # type: ignore
         self.fit(x_data, **kwargs)
         return self.transform(x_data, **kwargs) # type: ignore

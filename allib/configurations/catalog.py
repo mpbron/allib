@@ -15,10 +15,20 @@ class ALConfiguration(Enum):
     RaschNBLRRFLGBM = "RaschNBLRRFLBGM"
     RaschNBLRRFLGBMRAND = "RaschNBLRRFLGBMRAND"
     AUTOTAR = "AUTOTAR"
+    AUTOSTOP = "AUTOSTOP"
+
+class INITConfiguration(Enum):
+    IDENTITY = "IDENTITY"
+    RANDOM = "RANDOM"
+    UNIFORM = "UNIFORM"
+    SEPARATE = "SEPARATE"
+    POSITVEUNIFORM = "POSITIVEUNIFORM"
+
 
 
 class FEConfiguration(Enum):
     TFIDF5000 = "TfIDF5000"
+    TFIDFTAR = "TFIDFTAR"
 
 
 class EstimationConfiguration(str, Enum):
@@ -37,3 +47,4 @@ class StopBuilderConfiguration(str, Enum):
 class ExperimentCombination(str, Enum):
     CHAO4 = "CHAO4"
     AUTOTAR = "AUTOTAR"
+    AUTOSTOP = "AUTOSTOP"

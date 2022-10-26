@@ -1,8 +1,9 @@
-from typing import Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
 
 from h5py._hl.dataset import Dataset # type: ignore
 
-import numpy as np  # type: ignore
+import numpy as np
+import numpy.typing as npt
 from .func import list_unzip
 import itertools
 
@@ -21,7 +22,7 @@ def get_lists(slices: Iterable[Tuple[int, Optional[int]]]) -> Sequence[int]:
     return result
 
 
-def memslicer(matrix: Union[Dataset, np.ndarray], slices: Iterable[Tuple[int, Optional[int]]]) -> np.ndarray:
+def memslicer(matrix: Union[Dataset, npt.NDArray[Any]], slices: Iterable[Tuple[int, Optional[int]]]) -> npt.NDArray[Any]:
     idxs = get_lists(slices)
     min_idx, max_idx= min(idxs), max(idxs)
     new_idxs = tuple([idx - min_idx for idx in idxs])
@@ -45,7 +46,7 @@ def memslicer(matrix: Union[Dataset, np.ndarray], slices: Iterable[Tuple[int, Op
     raise NotImplementedError("No Slicing for 3d yet")
 
 
-def slicer(matrix: Union[Dataset, np.ndarray], slices: Iterable[Tuple[int, Optional[int]]]) -> np.ndarray:
+def slicer(matrix: Union[Dataset, npt.NDArray[Any]], slices: Iterable[Tuple[int, Optional[int]]]) -> npt.NDArray[Any]:
         def get_slices_1d():
             for slice_min, slice_max in slices:
                 if slice_max is not None:
@@ -63,24 +64,24 @@ def slicer(matrix: Union[Dataset, np.ndarray], slices: Iterable[Tuple[int, Optio
             return np.hstack(list(get_slices_1d())) # type: ignore
         return np.vstack(list(get_slices_2d())) # type: ignore
 
-def matrix_to_vector_list(matrix: np.ndarray) -> Sequence[np.ndarray]:
-    def get_vector(index: int) -> np.ndarray:
+def matrix_to_vector_list(matrix: npt.NDArray[Any]) -> Sequence[npt.NDArray[Any]]:
+    def get_vector(index: int) -> npt.NDArray[Any]:
         return matrix[index, :]
     n_rows = matrix.shape[0]
     rows = range(n_rows)
     return list(map(get_vector, rows))
 
 def matrix_tuple_to_vectors(keys: Sequence[KT], 
-                            matrix: np.ndarray
-                           ) -> Tuple[Sequence[KT], Sequence[np.ndarray]]:
+                            matrix: npt.NDArray[Any]
+                           ) -> Tuple[Sequence[KT], Sequence[npt.NDArray[Any]]]:
     return keys, matrix_to_vector_list(matrix)
 
 def matrix_tuple_to_zipped(keys: Sequence[KT], 
-                           matrix: np.ndarray) -> Sequence[Tuple[KT, np.ndarray]]:
+                           matrix: npt.NDArray[Any]) -> Sequence[Tuple[KT, npt.NDArray[Any]]]:
     result = list(zip(keys, matrix_to_vector_list(matrix)))
     return result
 
-def raw_proba_chainer(itera: Iterator[Tuple[Sequence[KT], np.ndarray]]) -> Tuple[Sequence[KT], np.ndarray]:
+def raw_proba_chainer(itera: Iterator[Tuple[Sequence[KT], npt.NDArray[Any]]]) -> Tuple[Sequence[KT], npt.NDArray[Any]]:
     key_lists, matrices = list_unzip(itera)
     keys = list(itertools.chain(*key_lists))
     matrix = np.vstack(matrices)

@@ -12,10 +12,12 @@ from numpy.linalg import LinAlgError
 from numba.experimental import jitclass
 from numba import jit, types, typed, int32, prange # type: ignore
 from numba.typed import List as NumbaList
+
 import pandas as pd
 
 from ..activelearning.estimator import Estimator
 import numpy as np
+import numpy.typing as npt
 from .rasch import EMRaschCombined
 
 from ..typehints.typevars import KT, DT, VT, RT, LT
@@ -34,14 +36,14 @@ spec = [
 @jitclass(spec)
 class Masks:
     def __init__(self, 
-                 positive: np.ndarray, 
-                 estimate: np.ndarray, 
-                 negative: np.ndarray, 
-                 observed: np.ndarray, 
-                 positive_estimate: np.ndarray, 
-                 negative_estimate: np.ndarray, 
-                 positive_observed: np.ndarray, 
-                 negative_observed: np.ndarray):
+                 positive: npt.NDArray[Any], 
+                 estimate: npt.NDArray[Any], 
+                 negative: npt.NDArray[Any], 
+                 observed: npt.NDArray[Any], 
+                 positive_estimate: npt.NDArray[Any], 
+                 negative_estimate: npt.NDArray[Any], 
+                 positive_observed: npt.NDArray[Any], 
+                 negative_observed: npt.NDArray[Any]):
         self.positive = positive
         self.estimate = estimate
         self.negative = negative
@@ -52,7 +54,7 @@ class Masks:
         self.negative_observed = negative_observed
 
 def create_mask(poses: List[bool], estes: List[bool]) -> Masks:
-    def convert(bool_list: Sequence[bool]) -> np.ndarray:
+    def convert(bool_list: Sequence[bool]) -> npt.NDArray[Any]:
         converted = np.array([i for (i,b) in enumerate(bool_list) if b], dtype=np.int32)
         return converted
     positive = convert(poses)
@@ -70,14 +72,14 @@ def create_mask(poses: List[bool], estes: List[bool]) -> Masks:
                  positive_estimate, negative_estimate, 
                  positive_observed, negative_observed)
 @jit(nopython=True) # type: ignore
-def l2(b0: np.ndarray,
-       design_mat: np.ndarray,
-       counts: np.ndarray,
+def l2(b0: npt.NDArray[Any],
+       design_mat: npt.NDArray[Any],
+       counts: npt.NDArray[Any],
        lam: float = 0.0,
        tolerance: float = 1e-8,
        max_it: int = 10000,
        epsilon: float = 0.1
-       ) -> np.ndarray:
+       ) -> npt.NDArray[Any]:
     counts = counts + epsilon
     current_tolerance = 1
     b = b0
@@ -86,8 +88,8 @@ def l2(b0: np.ndarray,
         it = it + 1
 
         mu = np.exp(design_mat @ b0)
-        all_but_first_b0: np.ndarray = b0[1:]
-        lbpart: np.ndarray = 2 * np.concatenate(
+        all_but_first_b0: npt.NDArray[Any] = b0[1:]
+        lbpart: npt.NDArray[Any] = 2 * np.concatenate(
             (
                 np.array([0.0]),
                 (lam * all_but_first_b0)
@@ -115,7 +117,7 @@ def l2(b0: np.ndarray,
 
 
 @jit(nopython=True)  # type: ignore
-def calc_deviance(y: np.ndarray, y_hat: np.ndarray) -> float:
+def calc_deviance(y: npt.NDArray[Any], y_hat: npt.NDArray[Any]) -> float:
     pos_y_idx = np.where(y > 0)
     pos_y = y[pos_y_idx]
     deviance = (
@@ -170,7 +172,7 @@ def calculate_ci_rasch(intercept: float,
     return min_result, max_result
 
 @jit(nopython=True)  # type: ignore
-def initial_fit(n_not_read: float, design_mat: np.ndarray) -> np.ndarray:
+def initial_fit(n_not_read: float, design_mat: npt.NDArray[Any]) -> npt.NDArray[Any]:
     not_read = np.array([n_not_read])
     b0 = np.hstack(
         (
@@ -180,12 +182,12 @@ def initial_fit(n_not_read: float, design_mat: np.ndarray) -> np.ndarray:
     return b0
 
 @jit(nopython=True)  # type: ignore
-def rasch_glm(design_mat: np.ndarray,
-              efit: np.ndarray,
-              counts: np.ndarray,
-              b0: np.ndarray,
+def rasch_glm(design_mat: npt.NDArray[Any],
+              efit: npt.NDArray[Any],
+              counts: npt.NDArray[Any],
+              b0: npt.NDArray[Any],
               masks: Masks
-              ) -> Tuple[np.ndarray, np.ndarray, float]:
+              ) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], float]:
     obs_counts = counts[masks.observed]
     beta = l2(b0, design_mat, counts)
     mfit = np.exp(design_mat @ beta)
@@ -198,13 +200,13 @@ def rasch_glm(design_mat: np.ndarray,
 
 
 @jit(nopython=True)  # type: ignore
-def rasch_em(design_mat: np.ndarray, 
-             counts: np.ndarray,
+def rasch_em(design_mat: npt.NDArray[Any], 
+             counts: npt.NDArray[Any],
              n_dataset: float,
              masks: Masks,
              proportion: float,
              tolerance: float = 1e-5,
-             max_it=1000) -> Tuple[np.ndarray, np.ndarray, float]:
+             max_it=1000) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], float]:
     orig_counts = counts[masks.observed]
     n_not_read = n_dataset - np.sum(orig_counts)
     
@@ -232,14 +234,14 @@ def rasch_em(design_mat: np.ndarray,
     return beta, mfit, deviance
 
 @jit(nopython=True, parallel=True) # type: ignore
-def rasch_numpy(design_mat: np.ndarray,
-                counts: np.ndarray,
+def rasch_numpy(design_mat: npt.NDArray[Any],
+                counts: npt.NDArray[Any],
                 n_dataset: float,
                 masks: Masks,
-                proportions: np.ndarray = np.array([0.001, 0.01, 0.1, 0.5, 0.75, 0.9]),
+                proportions: npt.NDArray[Any] = np.array([0.001, 0.01, 0.1, 0.5, 0.75, 0.9]),
                 tolerance: float = 1e-5,
                 max_it=1000
-                ) -> Tuple[np.ndarray, np.ndarray, float]:
+                ) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], float]:
     deviances = np.zeros(proportions.shape)
     betas = np.zeros((proportions.shape[0], design_mat.shape[1]))
     mfits = np.zeros((proportions.shape[0], design_mat.shape[0]))
@@ -266,14 +268,14 @@ def rasch_numpy(design_mat: np.ndarray,
     return best_beta, best_mfit, best_deviance
 
 @jit(nopython=True) # type: ignore
-def rasch_numpy_single_thread(design_mat: np.ndarray,
-                counts: np.ndarray,
+def rasch_numpy_single_thread(design_mat: npt.NDArray[Any],
+                counts: npt.NDArray[Any],
                 n_dataset: float,
                 masks: Masks,
-                proportions: np.ndarray = np.array([0.001, 0.01, 0.1, 0.5, 0.75, 0.9]),
+                proportions: npt.NDArray[Any] = np.array([0.001, 0.01, 0.1, 0.5, 0.75, 0.9]),
                 tolerance: float = 1e-5,
                 max_it=1000
-                ) -> Tuple[np.ndarray, np.ndarray, float]:
+                ) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], float]:
     deviances = np.zeros(proportions.shape)
     betas = np.zeros((proportions.shape[0], design_mat.shape[1]))
     mfits = np.zeros((proportions.shape[0], design_mat.shape[0]))
@@ -304,7 +306,7 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
                    max_it: int = 2000,
                    multinomial_size: int = 50) -> Tuple[float, float, float]:
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -320,17 +322,17 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
     
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
 
     beta, mfit, deviance = rasch_numpy(
         design_mat, counts, n_dataset, masks, tolerance=tolerance, max_it=max_it)
     positive_estimate: float = mfit[masks.positive_estimate][0]
     p_vals = mfit / np.sum(mfit)
-    multinomial_fits: np.ndarray = np.random.multinomial(
+    multinomial_fits: npt.NDArray[Any] = np.random.multinomial(
         n_dataset, p_vals, multinomial_size)
     low_estimate = positive_estimate
     high_estimate = positive_estimate
@@ -347,8 +349,8 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
     return positive_estimate, low_estimate, high_estimate
 
 @jit(nopython=True, parallel=True) # type: ignore
-def rasch_parallel(design_mat: np.ndarray, 
-                   rounded_mfits: np.ndarray, 
+def rasch_parallel(design_mat: npt.NDArray[Any], 
+                   rounded_mfits: npt.NDArray[Any], 
                    n_dataset: int, masks: Masks):
     deviances = np.zeros(rounded_mfits.shape[0])
     betas = np.zeros((rounded_mfits.shape[0], design_mat.shape[1]))
@@ -372,7 +374,7 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
                    max_it: int = 2000,
                    multinomial_size: int = 50) -> Tuple[float, float, float]:
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -388,11 +390,11 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
     
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
 
        
     beta, mfit, deviance = rasch_numpy(
@@ -404,7 +406,7 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
     design_mat_t = design_mat.conj().transpose()
     vcov = np.linalg.inv(design_mat_t @ mat_w @ design_mat)
     
-    predictors_sampled: np.ndarray = np.random.multivariate_normal(beta, vcov, size=50)
+    predictors_sampled: npt.NDArray[Any] = np.random.multivariate_normal(beta, vcov, size=50)
     sampled_mfits = np.exp(design_mat @ predictors_sampled.T).T
     rounded_mfits = np.round(sampled_mfits)
     low_estimate = positive_estimate

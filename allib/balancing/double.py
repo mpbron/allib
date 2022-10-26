@@ -13,9 +13,10 @@
 # limitations under the License.
 
 from math import log, floor
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Any
 
-import numpy as np # type: ignore
+import numpy as np
+import numpy.typing as npt
 
 from .base import BaseBalancer
 from .base import IdentityBalancer
@@ -60,7 +61,7 @@ class DoubleBalancer(BaseBalancer):
         self.fallback_model = IdentityBalancer()
         self._rng = get_random_generator(rng) # type: ignore
 
-    def resample(self, x_data: np.ndarray, y_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def resample(self, x_data: npt.NDArray[Any], y_data: npt.NDArray[Any]) -> Tuple[npt.NDArray[Any], npt.NDArray[Any]]:
         if y_data.ndim > 1:
             positive_indices = np.where(np.any(y_data == 1, axis=1))[0] # type: ignore
             negative_indices = np.where(np.all(y_data == 0, axis=1))[0]
@@ -125,7 +126,7 @@ def random_round(value: float, rng: np.random.Generator) -> int: # type: ignore
     return base
 
 
-def fill_training(src_idx: np.ndarray, n_train: int, rng: np.random.Generator) -> np.ndarray: # type: ignore
+def fill_training(src_idx: npt.NDArray[Any], n_train: int, rng: np.random.Generator) -> npt.NDArray[Any]: # type: ignore
     """Copy/sample until there are n_train indices sampled/copied.
     """
     # Number of copies needed.

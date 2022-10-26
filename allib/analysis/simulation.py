@@ -104,7 +104,7 @@ def initialize(
     start_env = reset_environment(vectorizer, env)
 
     # Attach the environment to the active learner
-    learner = learner(start_env)
+    learner = learner(start_env, pos_label="Relevant", neg_label="Irrelevant")
 
     # Initialize the learner with initial knowledge
     learner = initializer(learner)

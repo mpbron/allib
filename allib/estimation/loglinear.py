@@ -4,6 +4,7 @@ from typing import Any, Deque, FrozenSet, Generic, Mapping, Tuple
 
 import pandas as pd
 import numpy as np
+import numpy.typing as npt
 from instancelib.typehints import DT, KT, LT, RT, VT
 
 from string import ascii_uppercase
@@ -24,7 +25,7 @@ def log_linear_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size: i
         df_formatted.loc[:, df_formatted.columns != 'count'] # type: ignore
             .values) # type: ignore
     design_mat = design_mat.astype("float64")
-    obs_counts: np.ndarray = df_formatted["count"].values # type: ignore
+    obs_counts: npt.NDArray[Any] = df_formatted["count"].values # type: ignore
     total_found: int = int(np.sum(obs_counts))
     
     point, low, up, beta, mfit, deviance, estimates = pos_rasch_numpy(
@@ -40,7 +41,7 @@ def log_linear_em_estimate(df: pd.DataFrame, dataset_size: int, multinomial_size
         df_formatted.loc[:, df_formatted.columns != 'count'] # type: ignore
             .values) # type: ignore
     design_mat = design_mat.astype("float64")
-    obs_counts: np.ndarray = df_formatted["count"].values # type: ignore
+    obs_counts: npt.NDArray[Any] = df_formatted["count"].values # type: ignore
     total_found: int = int(np.sum(obs_counts))
     
     point, low, up, beta, mfit, deviance, estimates = pos_rasch_numpy(

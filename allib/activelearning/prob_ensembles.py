@@ -11,6 +11,7 @@ from typing import (Any, Callable, Dict, FrozenSet, Generic, Iterable, Iterator,
                     Optional, Sequence, Set, Tuple, TypeVar)
 
 import numpy as np  # type: ignore
+import numpy.typing as npt
 from sklearn.exceptions import NotFittedError  # type: ignore
 
 from ..environment import AbstractEnvironment
@@ -48,18 +49,18 @@ def get_probabilities(probabilities: Optional[Sequence[float]], learners: Sequen
 
 
 
-class ProbabilityBasedEnsemble(AbstractEnsemble[IT, KT, DT, np.ndarray, RT, LT], 
+class ProbabilityBasedEnsemble(AbstractEnsemble[IT, KT, DT, npt.NDArray[Any], RT, LT], 
                        ProbabilityBased[IT, KT, DT, RT, LT], 
                        Generic[IT, KT, DT, RT, LT]):
     _name = "ProbabilityBasedEnsemble"
 
-    def __init__(self,
-                 classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray],
+    def __init__(self, 
+                 classifier: AbstractClassifier[KT, npt.NDArray[Any], LT, npt.NDArray[Any], npt.NDArray[Any]],
                  strategies: Sequence[AbstractSelectionCriterion],
                  probabilities: Optional[Sequence[float]] = None, rng: Any = None,
                  batch_size = 200,
                  identifier: Optional[str] = None, 
-                 fallback = RandomSampling[IT, KT, DT, np.ndarray, RT, LT].builder(), *_, **__) -> None:
+                 fallback = RandomSampling[IT, KT, DT, npt.NDArray[Any], RT, LT].builder(), *_, **__) -> None:
         self.classifier = classifier
         self.strategies = strategies
         self.learners = [FixedOrdering(identifier=strategy.name) for strategy in self.strategies]
@@ -71,7 +72,7 @@ class ProbabilityBasedEnsemble(AbstractEnsemble[IT, KT, DT, np.ndarray, RT, LT],
         self.batch_size = batch_size
         self.identifier = identifier
     
-    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, np.ndarray, RT, LT]):
+    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, npt.NDArray[Any], RT, LT]):
         """Initialize the learner with an environment
 
         Args:
@@ -84,12 +85,11 @@ class ProbabilityBasedEnsemble(AbstractEnsemble[IT, KT, DT, np.ndarray, RT, LT],
         self.classifier = self.classifier(self.env)
         for learner in self.learners:
             learner(self.env)
-        self.initialized = True
         return self
 
     def process_predictions(self, 
-                            predictions: Tuple[Sequence[KT], np.ndarray]
-                            ) -> Tuple[Sequence[KT], np.ndarray]:
+                            predictions: Tuple[Sequence[KT], npt.NDArray[Any]]
+                            ) -> Tuple[Sequence[KT], npt.NDArray[Any]]:
         keys, matrix = predictions
         results = np.transpose(np.array([sel_criterion(matrix) for sel_criterion in self.strategies]))
         return keys, results
@@ -109,7 +109,7 @@ class ProbabilityBasedEnsemble(AbstractEnsemble[IT, KT, DT, np.ndarray, RT, LT],
             - A list of scores, matching with the instance keys
         """        
                
-        def to_tuples(pair: Tuple[Sequence[KT], np.ndarray]
+        def to_tuples(pair: Tuple[Sequence[KT], npt.NDArray[Any]]
                      ) -> Sequence[Tuple[KT, Sequence[float]]]:
             keys, matrix = pair
             results: Sequence[Sequence[float]] = [[]]
@@ -138,7 +138,7 @@ class ProbabilityBasedEnsemble(AbstractEnsemble[IT, KT, DT, np.ndarray, RT, LT],
         # Apply selections strategies on the predictions
         metric_results = map(self.process_predictions, predictions)
     
-        # Convert each Tuple[Sequence[KT], np.ndarray] with the metric results to a list 
+        # Convert each Tuple[Sequence[KT], npt.NDArray[Any]] with the metric results to a list 
         metric_tuples = map(to_tuples, metric_results)
 
         # Chain them together
@@ -183,7 +183,7 @@ class ProbabilityBasedEnsemble(AbstractEnsemble[IT, KT, DT, np.ndarray, RT, LT],
             return True
 
 
-    def _choose_learner(self) -> ActiveLearner[IT, KT, DT, np.ndarray, RT, LT]:
+    def _choose_learner(self) -> ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT]:
         """Internal functions that selects the next active learner for the next query
 
         Returns:
@@ -210,12 +210,12 @@ class LabelProbEnsemble(ProbabilityBasedEnsemble[IT, KT, DT, RT, LT],
                         Generic[IT, KT, DT, RT, LT]):
 
     def __init__(self,
-                 classifier: AbstractClassifier[KT, np.ndarray, LT, np.ndarray, np.ndarray],
+                 classifier: AbstractClassifier[KT, npt.NDArray[Any], LT, npt.NDArray[Any], npt.NDArray[Any]],
                  strategy: Callable[..., AbstractSelectionCriterion],
                  batch_size = 200,
                  rng: Any = None,
                  identifier: Optional[str] = None, 
-                 fallback = RandomSampling[IT, KT, DT, np.ndarray, RT, LT].builder(), *_, **__) -> None:
+                 fallback = RandomSampling[IT, KT, DT, npt.NDArray[Any], RT, LT].builder(), *_, **__) -> None:
         super().__init__(classifier, [], [], 
                          batch_size=batch_size, 
                          identifier=identifier,
@@ -223,7 +223,7 @@ class LabelProbEnsemble(ProbabilityBasedEnsemble[IT, KT, DT, RT, LT],
                          fallback=fallback)
         self._strategy_builder = strategy
 
-    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, np.ndarray, RT, LT]) -> LabelProbEnsemble[IT, KT, DT, RT, LT]:
+    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, npt.NDArray[Any], RT, LT]) -> LabelProbEnsemble[IT, KT, DT, RT, LT]:
         super().__call__(environment)
         labelset = list(self.env.labels.labelset)
         self.label_dict = {label: idx for idx, label in enumerate(labelset)}
@@ -232,7 +232,7 @@ class LabelProbEnsemble(ProbabilityBasedEnsemble[IT, KT, DT, RT, LT],
         self.probabilities = get_probabilities(None, self.strategies)
         zipped = zip(labelset, self.strategies)
         self.learners = [
-            FixedOrdering[IT, KT,DT, np.ndarray, RT, LT](env, identifier=strategy.name, label=label) 
+            FixedOrdering[IT, KT,DT, npt.NDArray[Any], RT, LT](env, identifier=strategy.name, label=label) 
             for label, strategy in zipped
         ]
         return self
@@ -242,7 +242,7 @@ class LabelProbEnsemble(ProbabilityBasedEnsemble[IT, KT, DT, RT, LT],
 class LabelMinProbEnsemble(LabelProbEnsemble[IT, KT, DT, RT, LT], 
                              Generic[IT, KT, DT, RT, LT]):
     
-    def _choose_learner(self) -> ActiveLearner[IT, KT, DT, np.ndarray, RT, LT]:
+    def _choose_learner(self) -> ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT]:
         labelcounts = [(self.env.labels.document_count(label), label)
                        for label in self.env.labels.labelset]
         min_label = min(labelcounts)[1]

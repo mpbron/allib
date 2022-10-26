@@ -65,7 +65,6 @@ class PoolBasedAL(
         identifier: Optional[str] = None,
         **__,
     ) -> None:
-        self.initialized = False
         self.env = env
         self.ordering = None
         self._stats = AnnotationStatistics()

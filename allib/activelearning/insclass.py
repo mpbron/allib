@@ -125,8 +125,6 @@ class ILMLBased(
         NotInitializedException
             If the model has no attached Environment
         """
-        if not self.initialized:
-            raise NotInitializedException
         _, labels = list_unzip(self.classifier.predict(instances))
         return labels
 

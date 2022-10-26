@@ -3,7 +3,8 @@ from __future__ import annotations
 from abc import abstractmethod, ABC
 from typing import Tuple, Optional
 
-import numpy as np # type: ignore
+import numpy as np
+import numpy.typing as npt
 
 from ..environment import AbstractEnvironment
 
@@ -30,19 +31,19 @@ class BaseBalancer(ABC):
         return self
 
     @abstractmethod
-    def resample(self, x_data: np.ndarray, y_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def resample(self, x_data: npt.NDArray[Any], y_data: npt.NDArray[Any]) -> Tuple[npt.NDArray[Any], npt.NDArray[Any]]:
         """Resample the training data
         
         Parameters
         ----------
-        x_data : np.ndarray
+        x_data : npt.NDArray[Any]
             The feature matrix of the training data
-        y_data : np.ndarray
+        y_data : npt.NDArray[Any]
             The encoded labels for all the training data
         
         Returns
         -------
-        Tuple[np.ndarray, np.ndarray]
+        Tuple[npt.NDArray[Any], npt.NDArray[Any]]
             the resampled feature matrix, and corresponding labels.
         
        
@@ -53,19 +54,19 @@ class IdentityBalancer(BaseBalancer):
     def __init__(self) -> None:
         self._environment = None
         
-    def resample(self, x_data: np.ndarray, y_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def resample(self, x_data: npt.NDArray[Any], y_data: npt.NDArray[Any]) -> Tuple[npt.NDArray[Any], npt.NDArray[Any]]:
         """Resample the training data (identity function)
         
         Parameters
         ----------
-        x_data : np.ndarray
+        x_data : npt.NDArray[Any]
             The feature matrix of the training data
-        y_data : np.ndarray
+        y_data : npt.NDArray[Any]
             The encoded labels for all the training data
         
         Returns
         -------
-        Tuple[np.ndarray, np.ndarray]
+        Tuple[npt.NDArray[Any], npt.NDArray[Any]]
             the resampled feature matrix, and corresponding labels.
         """        
         return x_data, y_data

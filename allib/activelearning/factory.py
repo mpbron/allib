@@ -1,9 +1,11 @@
-from distutils.command.build import build
 import functools
 from abc import ABC
+from distutils.command.build import build
 from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar
 
 import instancelib as il
+from instancelib.machinelearning.sklearn import SkLearnClassifier
+from instancelib.typehints.typevars import DT, KT, LMT, LT, PMT, RT, VT
 from sklearn.base import ClassifierMixin, TransformerMixin
 from sklearn.linear_model import LogisticRegression
 
@@ -11,6 +13,8 @@ from ..environment.base import AbstractEnvironment
 from ..factory import AbstractBuilder, ObjectFactory
 from ..machinelearning import AbstractClassifier, MachineLearningFactory
 from ..module.component import Component
+from ..typehints.typevars import IT
+from .autostop import AutoStopLearner
 from .autotar import AutoTarLearner
 from .base import ActiveLearner
 from .catalog import ALCatalog as AL
@@ -18,31 +22,15 @@ from .ensembles import StrategyEnsemble
 from .estimator import CycleEstimator, Estimator, RetryEstimator
 from .labelmethods import LabelProbabilityBased
 from .ml_based import ProbabilityBased
-from .mostcertain import (
-    LabelMaximizer,
-    LabelMaximizerNew,
-    MostCertainSampling,
-    MostConfidence,
-)
-from .prob_ensembles import (
-    LabelMinProbEnsemble,
-    LabelProbEnsemble,
-    ProbabilityBasedEnsemble,
-)
+from .mostcertain import (LabelMaximizer, LabelMaximizerNew,
+                          MostCertainSampling, MostConfidence)
+from .prob_ensembles import (LabelMinProbEnsemble, LabelProbEnsemble,
+                             ProbabilityBasedEnsemble)
 from .random import RandomSampling
 from .selectioncriterion import AbstractSelectionCriterion
-from .uncertainty import (
-    EntropySampling,
-    LabelUncertainty,
-    LabelUncertaintyNew,
-    LeastConfidence,
-    MarginSampling,
-    NearDecisionBoundary,
-    RandomMLStrategy,
-)
-from instancelib.typehints.typevars import KT, DT, VT, RT, LT, LMT, PMT
-from instancelib.machinelearning.sklearn import SkLearnClassifier
-from allib.typehints.typevars import IT
+from .uncertainty import (EntropySampling, LabelUncertainty,
+                          LabelUncertaintyNew, LeastConfidence, MarginSampling,
+                          NearDecisionBoundary, RandomMLStrategy)
 
 
 class FallbackBuilder(AbstractBuilder):
@@ -87,7 +75,6 @@ class LabelProbabilityBasedBuilder(AbstractBuilder):
         self,
         query_type: AL.QueryType,
         machinelearning: Dict,
-        label: Any,
         fallback: Dict = dict(),
         identifier: Optional[str] = None,
         **kwargs,
@@ -100,8 +87,7 @@ class LabelProbabilityBasedBuilder(AbstractBuilder):
         return LabelProbabilityBased.builder(
             classifier,
             selection_criterion,
-            label,
-            built_fallback,
+            built_fallback,            
             identifier=identifier,
         )
 
@@ -111,6 +97,10 @@ class PoolbasedBuilder(AbstractBuilder):
         self, query_type: AL.QueryType, identifier: Optional[str] = None, **kwargs
     ):
         return self._factory.create(query_type, identifier=identifier, **kwargs)
+
+class CustomBuilder(AbstractBuilder):
+    def __call__(self, method: AL.CustomMethods, **kwargs):
+        return self._factory.create(method, **kwargs)
 
 
 class StrategyEnsembleBuilder(AbstractBuilder):
@@ -260,7 +250,14 @@ class AutoTARBuilder(AbstractBuilder):
     def __call__(self, k_sample: int, batch_size: int, **kwargs):
         logreg = LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000)
         builder = classifier_builder(logreg, il.SkLearnVectorClassifier.build)
-        at = AutoTarLearner.builder(builder, k_sample, batch_size)
+        at = AutoTarLearner.builder(builder, k_sample, batch_size, **kwargs)
+        return at
+
+class AutoSTOPBuilder(AbstractBuilder):
+    def __call__(self, k_sample: int, batch_size: int, **kwargs):
+        logreg = LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000)
+        builder = classifier_builder(logreg, il.SkLearnVectorClassifier.build)
+        at = AutoStopLearner.builder(builder, k_sample, batch_size, **kwargs)
         return at
 
 
@@ -278,6 +275,7 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_builder(AL.Paradigm.PROBABILITY_BASED, ProbabilityBasedBuilder())
         self.register_builder(AL.Paradigm.ESTIMATOR, EstimatorBuilder())
         self.register_builder(AL.Paradigm.CYCLE_ESTIMATOR, CycleEstimatorBuilder())
+        self.register_builder(AL.Paradigm.CUSTOM, CustomBuilder())
         self.register_builder(AL.Paradigm.ENSEMBLE, StrategyEnsembleBuilder())
         self.register_builder(
             AL.Paradigm.LABEL_PROBABILITY_BASED, LabelProbabilityBasedBuilder()
@@ -292,7 +290,8 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_builder(
             AL.Paradigm.LABEL_MIN_PROB_ENSEMBLE, LabelMinProbilityBasedEnsembleBuilder()
         )
-
+        self.register_builder(AL.CustomMethods.AUTOTAR, AutoTARBuilder())
+        self.register_builder(AL.CustomMethods.AUTOSTOP, AutoSTOPBuilder())
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling.builder)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)
         self.register_constructor(AL.QueryType.MAX_ENTROPY, EntropySampling)
@@ -309,3 +308,4 @@ class ActiveLearningFactory(ObjectFactory):
             AL.QueryType.LABELUNCERTAINTY_NEW, LabelUncertaintyNew
         )
         self.register_constructor(AL.QueryType.RANDOM_ML, RandomMLStrategy)
+  

@@ -8,6 +8,7 @@ from os import spawnlp
 from typing import Any, Deque, Generic, List, Optional, Sequence, Tuple
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from numba import (int32, jit, prange, set_num_threads, typed,  # type: ignore
                    types)
@@ -36,14 +37,14 @@ spec = [
 @jitclass(spec)
 class Masks:
     def __init__(self, 
-                 positive: np.ndarray, 
-                 estimate: np.ndarray, 
-                 negative: np.ndarray, 
-                 observed: np.ndarray, 
-                 positive_estimate: np.ndarray, 
-                 negative_estimate: np.ndarray, 
-                 positive_observed: np.ndarray, 
-                 negative_observed: np.ndarray):
+                 positive: npt.NDArray[Any], 
+                 estimate: npt.NDArray[Any], 
+                 negative: npt.NDArray[Any], 
+                 observed: npt.NDArray[Any], 
+                 positive_estimate: npt.NDArray[Any], 
+                 negative_estimate: npt.NDArray[Any], 
+                 positive_observed: npt.NDArray[Any], 
+                 negative_observed: npt.NDArray[Any]):
         self.positive = positive
         self.estimate = estimate
         self.negative = negative
@@ -54,7 +55,7 @@ class Masks:
         self.negative_observed = negative_observed
 
 def create_mask(poses: List[bool], estes: List[bool]) -> Masks:
-    def convert(bool_list: Sequence[bool]) -> np.ndarray:
+    def convert(bool_list: Sequence[bool]) -> npt.NDArray[Any]:
         converted = np.array([i for (i,b) in enumerate(bool_list) if b], dtype=np.int32)
         return converted
     positive = convert(poses)
@@ -73,14 +74,14 @@ def create_mask(poses: List[bool], estes: List[bool]) -> Masks:
                  positive_observed, negative_observed)
 
 @jit(nopython=True, cache=True) # type: ignore
-def l2(b0: np.ndarray,
-       design_mat: np.ndarray,
-       counts: np.ndarray,
+def l2(b0: npt.NDArray[Any],
+       design_mat: npt.NDArray[Any],
+       counts: npt.NDArray[Any],
        lam: float = 0.0,
        tolerance: float = 1e-8,
        max_it: int = 10000,
        epsilon: float = 0.1
-       ) -> np.ndarray:
+       ) -> npt.NDArray[Any]:
     counts = counts + epsilon
     current_tolerance = 1
     b = b0
@@ -91,8 +92,8 @@ def l2(b0: np.ndarray,
         mu = np.exp(design_mat @ b0)
 
         # db <- crossprod(D, Freq) - crossprod(D, mu) - 2 * c(0, lambda * b0[-1])
-        all_but_first_b0: np.ndarray = b0[1:]
-        lbpart: np.ndarray = 2 * np.concatenate(
+        all_but_first_b0: npt.NDArray[Any] = b0[1:]
+        lbpart: npt.NDArray[Any] = 2 * np.concatenate(
             (
                 np.array([0.0]),
                 (lam * all_but_first_b0)
@@ -119,7 +120,7 @@ def l2(b0: np.ndarray,
 
 
 @jit(nopython=True, cache=True)  # type: ignore
-def calc_deviance(y: np.ndarray, y_hat: np.ndarray) -> float:
+def calc_deviance(y: npt.NDArray[Any], y_hat: npt.NDArray[Any]) -> float:
     pos_y_idx = np.where(y > 0)
     pos_y = y[pos_y_idx]
     deviance = (
@@ -174,7 +175,7 @@ def calculate_ci_rasch(intercept: float,
     return min_result, max_result
 
 @jit(nopython=True, cache=True)  # type: ignore
-def initial_fit(n_not_read: float, design_mat: np.ndarray) -> np.ndarray:
+def initial_fit(n_not_read: float, design_mat: npt.NDArray[Any]) -> npt.NDArray[Any]:
     not_read = np.array([n_not_read])
     b0 = np.hstack(
         (
@@ -184,13 +185,13 @@ def initial_fit(n_not_read: float, design_mat: np.ndarray) -> np.ndarray:
     return b0
 
 @jit(nopython=True, cache=True)  # type: ignore
-def rasch_glm(design_mat: np.ndarray,
-              efit: np.ndarray,
-              counts: np.ndarray,
-              b0: np.ndarray,
+def rasch_glm(design_mat: npt.NDArray[Any],
+              efit: npt.NDArray[Any],
+              counts: npt.NDArray[Any],
+              b0: npt.NDArray[Any],
               masks: Masks,
               epsilon: float = 0.0
-              ) -> Tuple[np.ndarray, np.ndarray, float]:
+              ) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], float]:
     obs_counts = counts[masks.observed]
     beta = l2(b0, design_mat, efit, epsilon=epsilon)
     mfit = np.exp(design_mat @ beta)
@@ -199,7 +200,7 @@ def rasch_glm(design_mat: np.ndarray,
     return beta, mfit, deviance
 
 @jit(nopython=True, cache=True) # type: ignore
-def glm(design_mat: np.ndarray, counts: np.ndarray, epsilon=0.1) -> Tuple[np.ndarray, np.ndarray, float]:
+def glm(design_mat: npt.NDArray[Any], counts: npt.NDArray[Any], epsilon=0.1) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], float]:
     b0 = np.repeat(1.0, design_mat.shape[1])
     beta = l2(b0, design_mat, counts, epsilon=epsilon)
     mfit = np.exp(design_mat @ beta)
@@ -212,21 +213,21 @@ def remove_pos_cells(df: pd.DataFrame) -> pd.DataFrame:
     return not_pos_cols
 
 @jit(nopython=True, parallel=True, cache=True) # type: ignore
-def pos_rasch_numpy(design_mat: np.ndarray, 
-                    obs_counts: np.ndarray, 
+def pos_rasch_numpy(design_mat: npt.NDArray[Any], 
+                    obs_counts: npt.NDArray[Any], 
                     total_found: int, max_it: int = 2000
-                    ) -> Tuple[float, float, float, np.ndarray, np.ndarray, float, np.ndarray]:
+                    ) -> Tuple[float, float, float, npt.NDArray[Any], npt.NDArray[Any], float, npt.NDArray[Any]]:
     beta, mfit, deviance = glm(design_mat, obs_counts, epsilon = 0.1)
     estimate = np.exp(beta[0])
     horizon_estimate = int(np.round(total_found + estimate))
-    fitted: np.ndarray = np.concatenate((np.array([estimate]), mfit))
+    fitted: npt.NDArray[Any] = np.concatenate((np.array([estimate]), mfit))
     p_vals = fitted / np.sum(fitted)
     
     if not np.isnan(estimate):
         deviances = np.zeros(max_it)
         betas = np.zeros((max_it, design_mat.shape[1]))
         mfits = np.zeros((max_it, design_mat.shape[0]))
-        multinomial_fits: np.ndarray = np.random.multinomial(horizon_estimate, p_vals, max_it)
+        multinomial_fits: npt.NDArray[Any] = np.random.multinomial(horizon_estimate, p_vals, max_it)
             
         for idx in prange(max_it):
             multinom = multinomial_fits[idx,1:].copy()
@@ -252,7 +253,7 @@ def rasch_estimate_only_pos(freq_df: pd.DataFrame, multinomial_size: int = 2000)
         df_formatted.loc[:, df_formatted.columns != 'count'] # type: ignore
             .values) # type: ignore
     design_mat = design_mat.astype("float64")
-    obs_counts: np.ndarray = df_formatted["count"].values # type: ignore
+    obs_counts: npt.NDArray[Any] = df_formatted["count"].values # type: ignore
     total_found: int = int(np.sum(obs_counts))
     
     point, low, up, beta, mfit, deviance, estimates = pos_rasch_numpy(
@@ -266,14 +267,14 @@ def rasch_estimate_only_pos(freq_df: pd.DataFrame, multinomial_size: int = 2000)
 
 
 @jit(nopython=True, cache=True)  # type: ignore
-def rasch_em(design_mat: np.ndarray,
-             b0: np.ndarray,
-             counts: np.ndarray,
+def rasch_em(design_mat: npt.NDArray[Any],
+             b0: npt.NDArray[Any],
+             counts: npt.NDArray[Any],
              n_dataset: float,
              masks: Masks,
              proportion: float,
              tolerance: float = 1e-5,
-             max_it=1000) -> Tuple[np.ndarray, np.ndarray, float]:
+             max_it=1000) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], float]:
     em_b0 = b0.copy()
     em_counts = counts.copy()
     orig_counts = em_counts[masks.observed]
@@ -302,11 +303,11 @@ def rasch_em(design_mat: np.ndarray,
     return beta, mfit, deviance
 
 @jit(nopython=True, cache=True)  # type: ignore
-def rasch_bf(design_mat: np.ndarray,
-             b0: np.ndarray,
-             counts: np.ndarray,
+def rasch_bf(design_mat: npt.NDArray[Any],
+             b0: npt.NDArray[Any],
+             counts: npt.NDArray[Any],
              n_dataset: float,
-             masks: Masks) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+             masks: Masks) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
     em_b0 = b0.copy()
     em_counts = counts.copy()
     orig_counts = em_counts[masks.observed]
@@ -332,7 +333,7 @@ def rasch_bf(design_mat: np.ndarray,
     return betas, mfits, deviances
 
 @jit(nopython=True, cache=True)
-def select_best_model(betas: np.ndarray, mfits: np.ndarray, deviances: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float]:
+def select_best_model(betas: npt.NDArray[Any], mfits: npt.NDArray[Any], deviances: npt.NDArray[Any]) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], float]:
     best_beta = np.zeros((betas.shape[1],))
     best_mfit = np.zeros((mfits.shape[1],))
     best_deviance = 2000000.0
@@ -347,14 +348,14 @@ def select_best_model(betas: np.ndarray, mfits: np.ndarray, deviances: np.ndarra
     return best_beta, best_mfit, best_deviance
 
 @jit(nopython=True, parallel=True, cache=True) # type: ignore
-def rasch_numpy(design_mat: np.ndarray,
-                counts: np.ndarray,
+def rasch_numpy(design_mat: npt.NDArray[Any],
+                counts: npt.NDArray[Any],
                 n_dataset: float,
                 masks: Masks,
-                proportions: np.ndarray = np.array([0.001, 0.01, 0.1, 0.5, 0.75, 0.9]),
+                proportions: npt.NDArray[Any] = np.array([0.001, 0.01, 0.1, 0.5, 0.75, 0.9]),
                 tolerance: float = 1e-5,
                 max_it=1000
-                ) -> Tuple[np.ndarray, np.ndarray, float, float]:
+                ) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], float, float]:
     deviances = np.zeros(proportions.shape)
     betas = np.zeros((proportions.shape[0], design_mat.shape[1]))
     mfits = np.zeros((proportions.shape[0], design_mat.shape[0]))
@@ -385,9 +386,9 @@ def rasch_numpy(design_mat: np.ndarray,
     return best_beta, best_mfit, best_deviance, best_proportion
 
 @jit(nopython=True, parallel=True, nogil=True, cache=True) # type: ignore
-def rasch_parallel(design_mat: np.ndarray,
-                   b0: np.ndarray, 
-                   rounded_mfits: np.ndarray, 
+def rasch_parallel(design_mat: npt.NDArray[Any],
+                   b0: npt.NDArray[Any], 
+                   rounded_mfits: npt.NDArray[Any], 
                    n_dataset: int,
                    proportion: float,
                    masks: Masks):
@@ -421,7 +422,7 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
                    max_it: int = 2000,
                    multinomial_size: int = 2000) -> Tuple[float, float, float]:
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -437,11 +438,11 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
     
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
 
     only_pos_estimate = rasch_estimate_only_pos(freq_df)[0].point
     proportion: float = only_pos_estimate / (n_dataset - np.sum(counts[masks.observed]))
@@ -456,7 +457,7 @@ def rasch_estimate_parametric_approx(freq_df: pd.DataFrame,
     design_mat_t = design_mat.conj().transpose()
     try:
         vcov = np.linalg.inv(design_mat_t @ mat_w @ design_mat)
-        predictors_sampled: np.ndarray = np.random.multivariate_normal(
+        predictors_sampled: npt.NDArray[Any] = np.random.multivariate_normal(
             beta, vcov, size=multinomial_size)
     except LinAlgError:
         warnings.warn("Could not determine confidence interval")
@@ -484,7 +485,7 @@ def rasch_estimate_parametric_proportion(freq_df: pd.DataFrame,
                    max_it: int = 2000,
                    multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -500,11 +501,11 @@ def rasch_estimate_parametric_proportion(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
     
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
     obs_pos = np.sum(counts[masks.positive_observed])
     #only_pos_estimate = rasch_estimate_only_pos(freq_df)[0].point
     
@@ -518,7 +519,7 @@ def rasch_estimate_parametric_proportion(freq_df: pd.DataFrame,
         stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
     else:
         p_vals = mfit / np.sum(mfit)
-        multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
+        multinomial_fits: npt.NDArray[Any] = np.random.multinomial(n_dataset, p_vals, multinomial_size)
         results = rasch_parallel(design_mat, b0, multinomial_fits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
                                     for (_, fitted, _) in results]
@@ -534,7 +535,7 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
                    max_it: int = 2000,
                    multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -550,11 +551,11 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
     
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
     obs_pos = np.sum(counts[masks.positive_observed])
     #only_pos_estimate = rasch_estimate_only_pos(freq_df)[0].point
     
@@ -569,7 +570,7 @@ def rasch_estimate_parametric(freq_df: pd.DataFrame,
         stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
     else:
         p_vals = mfit / np.sum(mfit)
-        multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
+        multinomial_fits: npt.NDArray[Any] = np.random.multinomial(n_dataset, p_vals, multinomial_size)
         rounded_beta = np.around(beta, 3)
         results = rasch_parallel(design_mat, b0, multinomial_fits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
@@ -586,7 +587,7 @@ def rasch_estimate_parametric_no_fixed_proportion(freq_df: pd.DataFrame,
                    max_it: int = 2000,
                    multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -602,11 +603,11 @@ def rasch_estimate_parametric_no_fixed_proportion(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
     
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
     obs_pos = np.sum(counts[masks.positive_observed])
    
     n_not_read = n_dataset - np.sum(counts[masks.observed])
@@ -619,7 +620,7 @@ def rasch_estimate_parametric_no_fixed_proportion(freq_df: pd.DataFrame,
         stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
     else:
         p_vals = mfit / np.sum(mfit)
-        multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
+        multinomial_fits: npt.NDArray[Any] = np.random.multinomial(n_dataset, p_vals, multinomial_size)
         results = rasch_parallel(design_mat, b0, multinomial_fits, n_dataset, proportion, masks)
         estimates: List[float] = [fitted[masks.positive_estimate][0]
                                     for (_, fitted, _) in results]
@@ -635,7 +636,7 @@ def rasch_estimate_parametric_init_by_pos(freq_df: pd.DataFrame,
                    max_it: int = 2000,
                    multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -651,11 +652,11 @@ def rasch_estimate_parametric_init_by_pos(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
     
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
     obs_pos = np.sum(counts[masks.positive_observed])
    
     n_not_read = n_dataset - np.sum(counts[masks.observed])
@@ -671,7 +672,7 @@ def rasch_estimate_parametric_init_by_pos(freq_df: pd.DataFrame,
     else:
         p_vals = mfit / np.sum(mfit)
         try:
-            multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
+            multinomial_fits: npt.NDArray[Any] = np.random.multinomial(n_dataset, p_vals, multinomial_size)
         except ValueError:
             estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
             stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))
@@ -691,7 +692,7 @@ def rasch_estimate(freq_df: pd.DataFrame,
                    tolerance: float = 1e-5,
                    max_it: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -707,11 +708,11 @@ def rasch_estimate(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
 
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
     obs_pos = np.sum(counts[masks.positive_observed])
     #only_pos_estimate = rasch_estimate_only_pos(freq_df)[0].point
     
@@ -727,7 +728,7 @@ def rasch_estimate_bf(freq_df: pd.DataFrame,
                    tolerance: float = 1e-5,
                    max_it: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -743,11 +744,11 @@ def rasch_estimate_bf(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
 
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
     obs_pos = np.sum(counts[masks.positive_observed])
     #only_pos_estimate = rasch_estimate_only_pos(freq_df)[0].point
     
@@ -764,7 +765,7 @@ def rasch_estimate_bf_stats(freq_df: pd.DataFrame,
                    tolerance: float = 1e-5,
                    max_it: int = 2000):
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -780,11 +781,11 @@ def rasch_estimate_bf_stats(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
 
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
     obs_pos = np.sum(counts[masks.positive_observed])
     #only_pos_estimate = rasch_estimate_only_pos(freq_df)[0].point
     
@@ -800,7 +801,7 @@ def rasch_estimate_bf_parametric(freq_df: pd.DataFrame,
                    max_it: int = 2000, 
                    multinomial_size: int = 2000) -> Tuple[Estimate, EstimationModelStatistics]:
     # Calculate general frequency statistics
-    counts: np.ndarray = freq_df["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = freq_df["count"].values  # type: ignore
     # Add place holder rows for the counts that we aim to estimate
     df_w_missing = add_missing_count_rows(freq_df, float("nan"), float("nan"))
 
@@ -816,11 +817,11 @@ def rasch_estimate_bf_parametric(freq_df: pd.DataFrame,
     pos_mask: List[bool] = list(df_formatted.positive > 0)
     masks = create_mask(pos_mask, est_mask)
 
-    design_mat: np.ndarray = (
+    design_mat: npt.NDArray[Any] = (
         df_formatted.loc[:, df_formatted.columns != 'count']  # type: ignore
         .values)  # type: ignore
 
-    counts: np.ndarray = df_formatted["count"].values  # type: ignore
+    counts: npt.NDArray[Any] = df_formatted["count"].values  # type: ignore
     obs_pos = np.sum(counts[masks.positive_observed])
         
     n_not_read = n_dataset - np.sum(counts[masks.observed])
@@ -835,7 +836,7 @@ def rasch_estimate_bf_parametric(freq_df: pd.DataFrame,
     else:
         p_vals = mfit / np.sum(mfit)
         try:
-            multinomial_fits: np.ndarray = np.random.multinomial(n_dataset, p_vals, multinomial_size)
+            multinomial_fits: npt.NDArray[Any] = np.random.multinomial(n_dataset, p_vals, multinomial_size)
         except ValueError:
             estimate = Estimate(horizon_estimate, horizon_estimate, horizon_estimate)
             stats = EstimationModelStatistics(beta, mfit, deviance, np.array([]))

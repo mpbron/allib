@@ -5,6 +5,7 @@
 # from typing import List, Optional
 
 # import numpy as np
+# import numpy.typing as npt
 # from sklearn.exceptions import NotFittedError
 # from scipy.stats import entropy
 
@@ -33,7 +34,7 @@
 #         return self
 
 #     @staticmethod
-#     def selection_criterion(prob_mat: np.ndarray) -> np.ndarray:
+#     def selection_criterion(prob_mat: npt.NDArray[Any]) -> npt.NDArray[Any]:
 #         return - entropy(prob_vec, axis=0)
 
 #     @MLBased.query_fallback

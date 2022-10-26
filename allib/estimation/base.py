@@ -1,19 +1,21 @@
-from abc import ABC, abstractmethod
-from allib.activelearning.base import ActiveLearner
-from dataclasses import dataclass
 import itertools
+from abc import ABC, abstractmethod
 from collections import Counter
-import pandas as pd # type: ignore
-from typing import Any, FrozenSet, Generic, Optional, Tuple, TypeVar, List, Sequence, Set
-from ..environment import AbstractEnvironment
-from ..activelearning.ml_based import MLBased
-from ..machinelearning import AbstractClassifier
+from dataclasses import dataclass
+from typing import (Any, FrozenSet, Generic, List, Optional, Sequence, Set,
+                    Tuple, TypeVar)
+
+import numpy as np
+import numpy.typing as npt
+import pandas as pd  # type: ignore
+from sklearn.linear_model import LogisticRegression  # type: ignore
+
+from ..activelearning.base import ActiveLearner
 from ..activelearning.ml_based import FeatureMatrix, MLBased
-from sklearn.linear_model import LogisticRegression # type: ignore
+from ..environment import AbstractEnvironment
+from ..machinelearning import AbstractClassifier
+from ..typehints import DT, IT, KT, LT, RT, VT
 
-import numpy as np # type: ignore
-
-from ..typehints import IT, KT, DT, VT, RT, LT
 
 @dataclass
 class Estimate:
@@ -37,12 +39,12 @@ class DecisionRow(Generic[KT]):
     pos_labeled: bool
     order: Optional[int]
 
-class SemiEstimator(AbstractEstimator[IT, KT, DT, np.ndarray, RT, LT]):
+class SemiEstimator(AbstractEstimator[IT, KT, DT, npt.NDArray[Any], RT, LT]):
     @abstractmethod
     def semi(self, 
-             learner: MLBased[IT, KT, DT, np.ndarray, RT, LT, np.ndarray, np.ndarray], 
+             learner: MLBased[IT, KT, DT, npt.NDArray[Any], RT, LT, npt.NDArray[Any], npt.NDArray[Any]], 
              pos_label: LT) -> Tuple[float, Optional[float], Optional[float]]:
-        def temporary_label_indices(y_pred_proba: np.ndarray) -> List[int]:
+        def temporary_label_indices(y_pred_proba: npt.NDArray[Any]) -> List[int]:
             order = np.argsort(y_pred_proba)[::-1]
             print(f"{y_pred_proba[order[0]]}, {y_pred_proba[order[-1]]}")
             count = 0
@@ -118,8 +120,8 @@ class SemiEstimator(AbstractEstimator[IT, KT, DT, np.ndarray, RT, LT]):
 
 
 
-def semi(learner: MLBased[IT, Any, Any, np.ndarray, Any, LT, np.ndarray, np.ndarray], pos_label: LT, neg_label: LT) -> int:
-    def temporary_label_indices(y_pred_proba: np.ndarray) -> List[int]:
+def semi(learner: MLBased[IT, Any, Any, npt.NDArray[Any], Any, LT, npt.NDArray[Any], npt.NDArray[Any]], pos_label: LT, neg_label: LT) -> int:
+    def temporary_label_indices(y_pred_proba: npt.NDArray[Any]) -> List[int]:
         order = np.argsort(y_pred_proba)[::-1]
         print(f"{y_pred_proba[order[0]]}, {y_pred_proba[order[-1]]}")
         count = 0

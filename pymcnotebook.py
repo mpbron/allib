@@ -3,6 +3,7 @@ import pymc3 as pm
 from theano import tensor as tt
 import pandas as pd
 import numpy as np
+import numpy.typing as npt
 import arviz as az
 from scipy.special import binom
 #%%
@@ -85,7 +86,7 @@ with pm.Model() as model:
     beta = pm.Normal("Member", mu = 0, sigma=sigma2, 
         shape=(n_members, 1))
 
-    def logp(d_seen: np.ndarray):
+    def logp(d_seen: npt.NDArray[Any]):
         # Create vectors for unseen values
         d_missing = tt.zeros((n_missing, n_members))
         mat = tt.concatenate((d_seen, d_missing))

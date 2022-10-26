@@ -9,7 +9,9 @@ from typing import (Any, Deque, Dict, FrozenSet, Generic, Iterable, List,
                     Optional, Sequence, Tuple, TypeVar)
 import warnings
 
-import numpy as np  # type: ignore
+import numpy as np
+import numpy.typing as npt
+
 import pandas as pd  # type: ignore
 
 from ..activelearning.base import ActiveLearner
@@ -93,7 +95,7 @@ class AbundanceEstimator(AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, 
 
     def get_matrix(self, 
                    estimator: Estimator[Any, KT, DT, VT, RT, LT], 
-                   label: LT) -> np.ndarray:
+                   label: LT) -> npt.NDArray[Any]:
         learner_sets = {
             learner_key: learner.env.labels.get_instances_by_label(
                 label).intersection(learner.env.labeled)

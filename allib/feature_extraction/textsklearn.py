@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Sequence, Optional, Any
 
-import numpy as np # type: ignore
+import numpy as np
+import numpy.typing as npt
 from sklearn.base import BaseEstimator # type: ignore
 from sklearn.exceptions import NotFittedError # type: ignore
 
@@ -30,13 +31,13 @@ class SklearnVectorizer(BaseVectorizer[str], SaveableInnerModel[BaseEstimator]):
         return self
 
     @SaveableInnerModel.load_model_fallback
-    def transform(self, x_data: Sequence[str], **kwargs: Any) -> np.ndarray: # type: ignore
+    def transform(self, x_data: Sequence[str], **kwargs: Any) -> npt.NDArray[Any]: # type: ignore
         if self.fitted:
             # TODO Check for performance issues with .toarray()
             return self.innermodel.transform(x_data).toarray() # type: ignore
         raise NotFittedError
 
-    def fit_transform(self, x_data: Sequence[str], **kwargs: Any) -> np.ndarray: # type: ignore
+    def fit_transform(self, x_data: Sequence[str], **kwargs: Any) -> npt.NDArray[Any]: # type: ignore
         self.fit(x_data)
         return self.transform(x_data) # type: ignore
     

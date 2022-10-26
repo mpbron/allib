@@ -2,6 +2,7 @@ import array as arr
 import copy as cp
 import logging
 import numpy as np
+import numpy.typing as npt
 import sys
 from scipy import optimize
 import scipy.sparse.csc as csc
@@ -46,7 +47,7 @@ class QN_S3VM:
             self.__data_type = "sparse"
             self.__model = QN_S3VM_Sparse(X_l, L_l, X_u, random_generator, ** kw)
         # Initiate model for dense data
-        elif (isinstance(X_l[0], list)) or (isinstance(X_l[0], np.ndarray)):
+        elif (isinstance(X_l[0], list)) or (isinstance(X_l[0], npt.NDArray[Any])):
             self.__data_type = "dense"
             self.__model = QN_S3VM_Dense(X_l, L_l, X_u, random_generator, ** kw)
         # Data format unknown

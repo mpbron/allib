@@ -1,26 +1,27 @@
+import itertools
+import warnings
 from logging import currentframe
 from typing import Any, Generic, List, Optional, Sequence, Tuple
 
-import itertools
-import warnings
-from numpy.linalg import LinAlgError
+import numpy as np
+import numpy.typing as npt
 import pandas as pd
+from numpy.linalg import LinAlgError
 
 from ..activelearning.estimator import Estimator
-import numpy as np
+from ..typehints.typevars import DT, KT, LT, RT, VT
 from .rasch import EMRaschCombined
 
-from ..typehints.typevars import KT, DT, VT, RT, LT
 
-def l2(b0: np.ndarray, 
-       design_mat: np.ndarray, 
-       counts: np.ndarray,
+def l2(b0: npt.NDArray[Any], 
+       design_mat: npt.NDArray[Any], 
+       counts: npt.NDArray[Any],
        N: int,
        lam: float = 0, 
        tolerance: float = 1e-8,
        max_it: int = 10000,
        epsilon: float = 0.1
-       ) -> np.ndarray:
+       ) -> npt.NDArray[Any]:
     counts = counts + epsilon
     current_tolerance = 1
     b = b0
@@ -29,8 +30,8 @@ def l2(b0: np.ndarray,
         it = it + 1
 
         mu = np.exp(design_mat @ b0)
-        all_but_first_b0: np.ndarray = b0[1:]
-        lbpart: np.ndarray = 2 * np.concatenate(
+        all_but_first_b0: npt.NDArray[Any] = b0[1:]
+        lbpart: npt.NDArray[Any] = 2 * np.concatenate(
             [
                 np.array([0]), 
                 (lam * all_but_first_b0)
@@ -54,7 +55,7 @@ def l2(b0: np.ndarray,
         warnings.warn(f"Exceeded maximum L2 iterations ({max_it}). Estimate might not be accurate")
     return b
 
-def calc_deviance(y: np.ndarray, y_hat: np.ndarray) -> float:
+def calc_deviance(y: npt.NDArray[Any], y_hat: npt.NDArray[Any]) -> float:
     pos_y_idx = np.where(y > 0)
     pos_y = y[pos_y_idx]
     deviance = (

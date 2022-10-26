@@ -32,32 +32,31 @@ class IdentityInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
         return learner
 
 class RandomInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
-    def __init__(self, env: AbstractEnvironment[IT, KT, Any, Any, Any, LT], sample_size: int = 1, **kwargs) -> None:
-        self.env = env
+    def __init__(self, sample_size: int = 1, *args, **kwargs) -> None:
         self.sample_size = sample_size
 
-    def get_random_sample_for_label(self, label: LT) -> Sequence[KT]:
-        docs = random.sample(self.env.truth.get_instances_by_label(label), self.sample_size)
+    def get_random_sample_for_label(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT], label: LT) -> Sequence[KT]:
+        docs = random.sample(learner.env.truth.get_instances_by_label(label), self.sample_size)
         return docs
 
-    def get_initialization_sample(self) -> Sequence[KT]:
+    def get_initialization_sample(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> Sequence[KT]:
         docs = list(
             itertools.chain.from_iterable(
                 map(
-                    self.get_random_sample_for_label, 
-                    self.env.labels.labelset)
+                    lambda lbl: self.get_random_sample_for_label(learner, lbl), 
+                    learner.env.labels.labelset)
                 )
             )
         return docs
 
     def add_doc(self, learner: ActiveLearner[IT, KT, Any, Any, Any, LT], identifier: KT):
         doc = learner.env.dataset[identifier]
-        labels = self.env.truth.get_labels(doc)
+        labels = learner.env.truth.get_labels(doc)
         learner.env.labels.set_labels(doc, *labels)
         learner.set_as_labeled(doc)
 
     def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
-        docs = self.get_initialization_sample()
+        docs = self.get_initialization_sample(learner)
         for doc in docs:
             self.add_doc(learner, doc)
         return learner
@@ -66,7 +65,7 @@ class UniformInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
     def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         if not isinstance(learner, Estimator):
             return super().__call__(learner)
-        docs = self.get_initialization_sample()
+        docs = self.get_initialization_sample(learner)
         for sublearner in learner.learners:
             for doc in docs:
                 self.add_doc(sublearner, doc)
@@ -78,7 +77,7 @@ class SeparateInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
         if not isinstance(learner, Estimator):
             return super().__call__(learner)
         for sublearner in learner.learners:
-            docs = self.get_initialization_sample()
+            docs = self.get_initialization_sample(learner)
             for doc in docs:
                 self.add_doc(sublearner, doc)
                 self.add_doc(learner, doc)
@@ -88,10 +87,8 @@ class SeparateInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
 
 
 class PositiveUniformInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
-    def __init__(self, 
-                 env: AbstractEnvironment[IT, KT, Any, Any, Any, LT], 
-                 pos_label: LT, neg_label: LT, sample_size: int = 1, **kwargs) -> None:
-        super().__init__(env, sample_size, **kwargs)
+    def __init__(self, pos_label: LT, neg_label: LT, sample_size: int = 1, **kwargs) -> None:
+        super().__init__(sample_size, **kwargs)
         self.pos_label = pos_label
         self.neg_label = neg_label
 
@@ -99,13 +96,13 @@ class PositiveUniformInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, 
     def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         if not isinstance(learner, Estimator):
             return super().__call__(learner)
-        pos_docs = self.get_random_sample_for_label(self.pos_label)
+        pos_docs = self.get_random_sample_for_label(learner, self.pos_label)
         for sublearner in learner.learners:
             for doc in pos_docs:
                 self.add_doc(sublearner, doc)
                 self.add_doc(learner, doc)
         for sublearner in learner.learners:
-            neg_docs = self.get_random_sample_for_label(self.neg_label)
+            neg_docs = self.get_random_sample_for_label(learner, self.neg_label)
             for doc in neg_docs:
                 self.add_doc(sublearner, doc)
                 self.add_doc(learner, doc)

@@ -3,6 +3,7 @@ import multiprocessing as mp
 from typing import Any, Dict, FrozenSet, Generic, List, Optional, Sequence, Tuple
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from ..activelearning.estimator import Estimator
@@ -16,7 +17,7 @@ def l2_format(freq_df: pd.DataFrame, learner_cols: Sequence[str]) -> pd.DataFram
     df.insert(0, "intercept", 1)
     return df
 
-def glm(design_mat: np.ndarray, counts: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float]:
+def glm(design_mat: npt.NDArray[Any], counts: npt.NDArray[Any]) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], float]:
     b0 = np.hstack(
         [
             np.repeat(1, design_mat.shape[1])
@@ -43,18 +44,18 @@ def rasch_estimate(freq_df: pd.DataFrame,
         df_formatted.loc[:, df_formatted.columns != 'count'] # type: ignore
             .values) # type: ignore
     
-    obs_counts: np.ndarray = df_formatted["count"].values # type: ignore
+    obs_counts: npt.NDArray[Any] = df_formatted["count"].values # type: ignore
     total_found = np.sum(obs_counts)
     
     beta, mfit, deviance = glm(design_mat, obs_counts)
     estimate =np.exp(beta[0])
     horizon_estimate = total_found + estimate
 
-    fitted: np.ndarray = np.concatenate((np.array([estimate]), mfit))
+    fitted: npt.NDArray[Any] = np.concatenate((np.array([estimate]), mfit))
     p_vals = fitted / np.sum(fitted)
 
     if not np.isnan(estimate):
-        multinomial_fits: np.ndarray = np.random.multinomial(horizon_estimate, p_vals, max_it)
+        multinomial_fits: npt.NDArray[Any] = np.random.multinomial(horizon_estimate, p_vals, max_it)
         only_observable_counts: List[List[float]] = multinomial_fits[:,1:].tolist()
         
         workload = [(design_mat, np.array(m_count)) for m_count in only_observable_counts]

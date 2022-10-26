@@ -4,6 +4,7 @@ from typing import Any, Mapping, TypeVar, Union
 from uuid import UUID
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from instancelib import TextInstance
 from instancelib.ingest.spreadsheet import read_csv_dataset
@@ -35,10 +36,10 @@ LT = TypeVar("LT")
 def read_review_dataset(
     path: Path,
 ) -> AbstractEnvironment[
-    TextInstance[Union[int, UUID], np.ndarray],
+    TextInstance[Union[int, UUID], npt.NDArray[Any]],
     Union[int, UUID],
     str,
-    np.ndarray,
+    npt.NDArray[Any],
     str,
     str,
 ]:
@@ -51,7 +52,7 @@ def read_review_dataset(
 
     Returns
     -------
-    MemoryEnvironment[int, str, np.ndarray, str]
+    MemoryEnvironment[int, str, npt.NDArray[Any], str]
         A MemoryEnvironment. The labels that
     """
     df = pd.read_csv(path)
@@ -89,7 +90,7 @@ def benchmark(
 ) -> TarExperimentPlotter[str]:
     env = read_review_dataset(path)
     factory = MainFactory()
-    initializer = SeparateInitializer(env, 1)
+    initializer = SeparateInitializer(1)
     al, _ = initialize(factory, al_config, fe_config, initializer, env)
     exp = ExperimentIterator(
         al,

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, FrozenSet, Generic, Mapping, OrderedDict, Sequence, Tuple, Dict
 
 import numpy as np
+import numpy.typing as npt
 
 from ..typehints.typevars import LT
 from ..utils.func import flatten_dicts
@@ -16,10 +17,10 @@ import instancelib as il
 
 @dataclass
 class EstimationModelStatistics:
-    beta: np.ndarray
-    mfit: np.ndarray
+    beta: npt.NDArray[Any]
+    mfit: npt.NDArray[Any]
     deviance: float
-    preds: np.ndarray
+    preds: npt.NDArray[Any]
 
 @dataclass
 class TarDatasetStats:

@@ -65,6 +65,38 @@ class LabelProbabilityBased(
         keys = matrix.indices
         return keys, sliced_prob_vec
 
+    @classmethod
+    def builder(
+        cls,
+        classifier: AbstractClassifier[
+            KT, npt.NDArray[Any], LT, npt.NDArray[Any], npt.NDArray[Any]
+        ],
+        selection_criterion: AbstractSelectionCriterion,
+        fallback_builder: Callable[
+            ..., ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT]
+        ],
+        batch_size=200,
+        *_,
+        identifier: Optional[str] = None,
+        **__,
+    ) -> Callable[..., ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT],]:
+        def wrap_func(
+            env: AbstractEnvironment[IT, KT, DT, npt.NDArray[Any], RT, LT], 
+            pos_label: LT, *_, **__
+        ):
+            built_classifier = classifier(env)
+            fallback = fallback_builder(env)
+            return cls(
+                env,
+                built_classifier,
+                selection_criterion,
+                pos_label,
+                fallback,
+                batch_size=batch_size,
+                identifier=identifier,
+            )
+        return wrap_func
+
 
 class LabelEnsemble(
     AbstractEnsemble[IT, KT, DT, npt.NDArray[Any], RT, LT],

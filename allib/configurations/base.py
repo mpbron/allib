@@ -1,66 +1,39 @@
-from dataclasses import dataclass, field
 import itertools
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-)
+from dataclasses import dataclass, field
+from typing import (Any, Callable, Dict, Generic, Mapping, Optional, Sequence,
+                    Tuple, TypeVar)
 
 import numpy as np
+import numpy.typing as npt
+from instancelib.utils.func import flatten_dicts, list_unzip, value_map
 
-from instancelib.utils.func import value_map, list_unzip, flatten_dicts
+from allib.analysis.initialization import Initializer, RandomInitializer, SeparateInitializer
 
-from allib.stopcriterion.heuristic import AprioriRecallTarget
-from allib.stopcriterion.others import (
-    BudgetStoppingRule,
-    KneeStoppingRule,
-    ReviewHalfStoppingRule,
-    Rule2399StoppingRule,
-    StopAfterKNegative,
-)
 from ..estimation.base import AbstractEstimator
+from ..estimation.mhmodel import AbundanceEstimator
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
 from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
 from ..estimation.rasch_parametric import ParametricRaschPython
 from ..estimation.rasch_python import EMRaschRidgePython
-from ..estimation.mhmodel import AbundanceEstimator
 from ..stopcriterion.base import AbstractStopCriterion
 from ..stopcriterion.catalog import StopCriterionCatalog
-from ..stopcriterion.estimation import (
-    CombinedStopCriterion,
-    Conservative,
-    Optimistic,
-    UpperboundCombinedCritertion,
-)
-
+from ..stopcriterion.estimation import (CombinedStopCriterion, Conservative,
+                                        Optimistic,
+                                        UpperboundCombinedCritertion)
+from ..stopcriterion.heuristic import AprioriRecallTarget
+from ..stopcriterion.others import (BudgetStoppingRule, KneeStoppingRule,
+                                    ReviewHalfStoppingRule,
+                                    Rule2399StoppingRule, StopAfterKNegative)
 from ..typehints import LT
-from .catalog import (
-    ALConfiguration,
-    EstimationConfiguration,
-    ExperimentCombination,
-    FEConfiguration,
-    StopBuilderConfiguration,
-)
-from .ensemble import (
-    al_config_ensemble_prob,
-    al_config_entropy,
-    naive_bayes_estimator,
-    rasch_estimator,
-    rasch_lr,
-    rasch_nblrrflgbm,
-    rasch_rf,
-    rasch_nblrrf,
-    rasch_nblrrflgbmrand,
-    svm_estimator,
-    tf_idf5000,
-    rasch_nblrrfsvm,
-)
+from .catalog import (ALConfiguration, EstimationConfiguration,
+                      ExperimentCombination, FEConfiguration,
+                      StopBuilderConfiguration)
+from .ensemble import (al_config_ensemble_prob, al_config_entropy,
+                       naive_bayes_estimator, rasch_estimator, rasch_lr,
+                       rasch_nblrrf, rasch_nblrrflgbm, rasch_nblrrflgbmrand,
+                       rasch_nblrrfsvm, rasch_rf, svm_estimator, tf_idf5000)
+
+from .tarbaselines import autotar, autostop
 
 _K = TypeVar("_K")
 _T = TypeVar("_T")
@@ -78,22 +51,24 @@ AL_REPOSITORY = {
     ALConfiguration.RaschRF: rasch_rf,
     ALConfiguration.RaschNBLRRFLGBM: rasch_nblrrflgbm,
     ALConfiguration.RaschNBLRRFLGBMRAND: rasch_nblrrflgbmrand,
+    ALConfiguration.AUTOTAR: autotar,
+    ALConfiguration.AUTOSTOP: autostop,
 }
 
 FE_REPOSITORY = {FEConfiguration.TFIDF5000: tf_idf5000}
 
 ESTIMATION_REPOSITORY = {
     EstimationConfiguration.RaschRidge: EMRaschRidgePython[
-        int, str, np.ndarray, str, str
+        int, str, npt.NDArray[Any], str, str
     ](),
     EstimationConfiguration.RaschParametric: ParametricRaschPython[
-        int, str, np.ndarray, str, str
+        int, str, npt.NDArray[Any], str, str
     ](),
     EstimationConfiguration.RaschApproxParametric: EMRaschRidgeParametricPython[
-        int, str, np.ndarray, str, str
+        int, str, npt.NDArray[Any], str, str
     ](),
     EstimationConfiguration.RaschApproxConvParametric: EMRaschRidgeParametricConvPython[
-        int, str, np.ndarray, str, str
+        int, str, npt.NDArray[Any], str, str
     ](),
     EstimationConfiguration.CHAO: AbundanceEstimator[Any, Any, Any, Any, Any, str](),
 }
@@ -130,6 +105,7 @@ def mapping_unzip(
 class TarExperimentParameters(Generic[LT]):
     al_configuration: ALConfiguration
     fe_configuration: FEConfiguration
+    init_configuration: Initializer
     stop_builder_configuration: Sequence[StopBuilderConfiguration]
     batch_size: int
     stop_interval: int
@@ -198,6 +174,7 @@ EXPERIMENT_REPOSITORY = {
     ExperimentCombination.CHAO4: TarExperimentParameters(
         ALConfiguration.RaschNBLRRFLGBMRAND,
         FEConfiguration.TFIDF5000,
+        SeparateInitializer(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT,),
         10,
         10,
@@ -206,6 +183,16 @@ EXPERIMENT_REPOSITORY = {
     ExperimentCombination.AUTOTAR: TarExperimentParameters(
         ALConfiguration.AUTOTAR,
         FEConfiguration.TFIDF5000,
+        RandomInitializer(5),
+        (StopBuilderConfiguration.AUTOTAR,),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.AUTOSTOP: TarExperimentParameters(
+        ALConfiguration.AUTOSTOP,
+        FEConfiguration.TFIDF5000,
+        RandomInitializer(5),
         (StopBuilderConfiguration.AUTOTAR,),
         10,
         10,
