@@ -15,6 +15,15 @@ from typing import (
 import numpy as np
 
 from instancelib.utils.func import value_map, list_unzip, flatten_dicts
+
+from allib.stopcriterion.heuristic import AprioriRecallTarget
+from allib.stopcriterion.others import (
+    BudgetStoppingRule,
+    KneeStoppingRule,
+    ReviewHalfStoppingRule,
+    Rule2399StoppingRule,
+    StopAfterKNegative,
+)
 from ..estimation.base import AbstractEstimator
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
 from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
@@ -153,10 +162,35 @@ def conservative_optimistic_builder(
     return builder
 
 
+def standoff_builder(
+    pos_label: LT, neg_label: LT
+) -> Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]]:
+    recall95 = AprioriRecallTarget(pos_label, 0.95)
+    recall100 = AprioriRecallTarget(pos_label, 1.0)
+    knee = KneeStoppingRule(pos_label)
+    half = ReviewHalfStoppingRule(pos_label)
+    budget = BudgetStoppingRule(pos_label)
+    rule2399 = Rule2399StoppingRule(pos_label)
+    stop200 = StopAfterKNegative(pos_label, 200)
+    stop400 = StopAfterKNegative(pos_label, 400)
+    criteria = {
+        "Perfect95": recall95,
+        "Perfect100": recall100,
+        "Half": half,
+        "Knee": knee,
+        "Budget": budget,
+        "Rule2399": rule2399,
+        "Stop200": stop200,
+        "Stop400": stop400,
+    }
+    return dict(), criteria
+
+
 STOP_BUILDER_REPOSITORY = {
     StopBuilderConfiguration.CHAO_CONS_OPT: conservative_optimistic_builder(
         {"Chao": AbundanceEstimator()}, 0.95
-    )
+    ),
+    StopBuilderConfiguration.AUTOTAR: standoff_builder,
 }
 
 
@@ -164,6 +198,17 @@ EXPERIMENT_REPOSITORY = {
     ExperimentCombination.CHAO4: TarExperimentParameters(
         ALConfiguration.RaschNBLRRFLGBMRAND,
         FEConfiguration.TFIDF5000,
-        (StopBuilderConfiguration.CHAO_CONS_OPT,), 10, 10, 10
-    )
+        (StopBuilderConfiguration.CHAO_CONS_OPT,),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.AUTOTAR: TarExperimentParameters(
+        ALConfiguration.AUTOTAR,
+        FEConfiguration.TFIDF5000,
+        (StopBuilderConfiguration.AUTOTAR,),
+        10,
+        10,
+        10,
+    ),
 }

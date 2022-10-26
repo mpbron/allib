@@ -7,8 +7,22 @@ import functools
 import itertools
 import logging
 from abc import ABC, abstractmethod
-from typing import (Any, Callable, Deque, Dict, FrozenSet, Generic, Iterator,
-                    List, Optional, Sequence, Tuple, TypeVar, Union, Set)
+from typing import (
+    Any,
+    Callable,
+    Deque,
+    Dict,
+    FrozenSet,
+    Generic,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+    Set,
+)
 
 
 from ..exceptions import NotInitializedException
@@ -30,49 +44,42 @@ LabelPrediction = FrozenSet[LT]
 LOGGER = logging.getLogger(__name__)
 
 
-
 class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
-    """The **Abstract Base Class** `ActiveLearner` specifies the design for all 
-    Active Learning algorithms. 
+    """The **Abstract Base Class** `ActiveLearner` specifies the design for all
+    Active Learning algorithms.
 
     Examples
     --------
-    Assume that the variable `al` contains an object that implements this :class:`abc.ABC`.
-    You can initialize the learner (supply it with data by attaching 
-    an environment) as follows:
-    
-    >>> al = al(env)
-
     Instances can be sampled as follows
-    
+
     >>> instance = next(al)
 
     Or in batch mode by using :func:`itertools.islice`:
-    
+
     >>> instances = itertools.islice(al, 10) # Change the number to get more instances
 
     Mark a document as labeled
-    
+
     >>> al.set_as_labeled(instance)
 
     Mark a document as unlabeled
-    
+
     >>> al.set_as_unlabeled(instance)
 
     Update the ordering
-    
+
     >>> al.update_ordering()
 
     Check how many documents are labeled
-    
+
     >>> al.len_labeled
-    """    
-    
+    """
+
     _name = "ActiveLearner"
     """The internal name for this Active Learner"""
     ordering: Optional[Deque[KT]]
     """The ordering of the Active Learner"""
-    _env: Optional[AbstractEnvironment[IT, KT, DT, VT, RT, LT]]
+    env: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
     """The internal environment"""
     identifier: Optional[str]
     """The identifier of the Active Learning method"""
@@ -88,9 +95,9 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
             optimizes for a specific label
         """
         if self.identifier is not None:
-            return self.identifier, None          
+            return self.identifier, None
         return self._name, None
-   
+
     def __iter__(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         """The Active Learning class is an iterator, iterating
         over instances
@@ -99,29 +106,8 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         -------
         ActiveLearner[IT, KT, DT, VT, RT, LT]
             The same Active Learner is already an iterator, so ``iter(al) == al``
-        """        
-        return self
-
-    @property
-    def env(self) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
-        """Every ActiveLearner has an Environment that is based on the
-        `allib.environment.base.AbstractEnvironment`. The Environment 
-        contains the dataset, and the current label state (i.e., which 
-        documents are labeled, and which labels do they have)
-
-        Returns
-        -------
-        AbstractEnvironment[KT, DT, VT, RT, LT]
-            The environment that is attached to this Active Learner
-
-        Raises
-        ------
-        NotInitializedException
-            If there is no environment attached
         """
-        if self._env is None:
-            raise NotInitializedException
-        return self._env
+        return self
 
     @abstractmethod
     def update_ordering(self) -> bool:
@@ -131,7 +117,7 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         -------
         bool
             True if updating the ordering succeeded
-        """             
+        """
         raise NotImplementedError
 
     @property
@@ -142,11 +128,11 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         Returns
         -------
             bool: True if an ordering has been established
-        
+
         See Also
         --------
         update_ordering : The method to create or update the ordering
-        """        
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -166,7 +152,7 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         --------
         `ActiveLearner` objects can be used as follows for retrieving instances:
 
-        >>> # Initialize an ActiveLearner object 
+        >>> # Initialize an ActiveLearner object
         >>> al = ActiveLearner()
         >>> # Attach an environment
         >>> al = al(env)
@@ -174,9 +160,9 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         >>> ins = next(al)
         >>> # Request the 10 most informative instances
         >>> inss = itertools.islice(al, 10)
-        """        
+        """
         raise NotImplementedError
-       
+
     @staticmethod
     def iterator_log(func: F) -> F:
         """A decorator that logs iterator calls
@@ -190,19 +176,24 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         -------
         F
             The same function with a logger wrapped around it
-        """        
+        """
+
         @functools.wraps(func)
         def wrapper(
-                self: ActiveLearner[IT, KT, DT, VT, RT, LT], 
-                *args: Any, **kwargs: Dict[str, Any]) -> F:
+            self: ActiveLearner[IT, KT, DT, VT, RT, LT],
+            *args: Any,
+            **kwargs: Dict[str, Any],
+        ) -> F:
             result: Union[Any, IT] = func(self, *args, **kwargs)
             if isinstance(result, Instance):
-                LOGGER.info("Sampled document %i with method %s",
-                            result.identifier, self.name) # type: ignore
+                LOGGER.info(
+                    "Sampled document %i with method %s", result.identifier, self.name
+                )  # type: ignore
                 self.env.logger.log_sample(result, self.name)
-            return result # type: ignore
-        return wrapper # type: ignore
-    
+            return result  # type: ignore
+
+        return wrapper  # type: ignore
+
     @staticmethod
     def label_log(func: F) -> F:
         """A decorator that logs label calls
@@ -216,15 +207,20 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         -------
         F
             The same function with a logger wrapped around it
-        """        
+        """
+
         @functools.wraps(func)
-        def wrapper(self: ActiveLearner[IT, KT, DT, VT, RT, LT], 
-                    instance: Instance[KT, DT, VT, RT], 
-                    *args: Any, **kwargs: Any):
+        def wrapper(
+            self: ActiveLearner[IT, KT, DT, VT, RT, LT],
+            instance: Instance[KT, DT, VT, RT],
+            *args: Any,
+            **kwargs: Any,
+        ):
             labels = self.env.labels.get_labels(instance)
-            self.env.logger.log_label(instance, self.name,  *labels)
+            self.env.logger.log_label(instance, self.name, *labels)
             return func(self, instance, *args, **kwargs)
-        return wrapper # type: ignore
+
+        return wrapper  # type: ignore
 
     @staticmethod
     def ordering_log(func: F) -> F:
@@ -239,40 +235,17 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         -------
         F
             The same function with a logger wrapped around it
-        """        
+        """
+
         @functools.wraps(func)
         def wrapper(self: ActiveLearner, *args: Any, **kwargs: Dict[str, Any]) -> F:
             ordering, ordering_metric = func(self, *args, **kwargs)
-            self.env.logger.log_ordering(ordering, ordering_metric, 
-                                         self.env.labeled.key_list,
-                                         self.env.labels)
-            return ordering, ordering_metric # type: ignore
-        return wrapper # type: ignore
+            self.env.logger.log_ordering(
+                ordering, ordering_metric, self.env.labeled.key_list, self.env.labels
+            )
+            return ordering, ordering_metric  # type: ignore
 
-    @abstractmethod
-    def __call__(self, 
-                 environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
-                ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
-        """Attach an environment to the Active Learner, so it can sample instances
-        for labeling
-
-        Parameters
-        ----------
-        environment : AbstractEnvironment[KT, DT, VT, RT, LT]
-            The environment that should be attached to the learner
-
-        Returns
-        -------
-        ActiveLearner[IT, KT, DT, VT, RT, LT]
-            The learner with an attached environment
-
-        Examples
-        --------
-        Usage:
-
-        >>> al = al(env)
-        """        
-        raise NotImplementedError
+        return wrapper  # type: ignore
 
     def query(self) -> Optional[IT]:
         """Query the most informative instance
@@ -280,12 +253,11 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         Returns
         -------
         Optional[Instance[KT, DT, VT, RT]]
-            The most informative `Instance`. 
+            The most informative `Instance`.
             It will return ``None`` if there are no more documents
-        """        
+        """
         return next(self, None)
 
-   
     def query_batch(self, batch_size: int) -> Sequence[IT]:
         """Query the `batch_size` most informative instances
 
@@ -297,8 +269,8 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         Returns
         -------
         Sequence[Instance[KT, DT, VT, RT]]
-            A batch with ``len(batch) <= batch_size`` 
-        """        
+            A batch with ``len(batch) <= batch_size``
+        """
         return list(itertools.islice(self, batch_size))
 
     @abstractmethod
@@ -321,7 +293,7 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         instance : Instance[KT, DT, VT, RT]
             The now labeled instance
         """
-        raise NotImplementedError    
+        raise NotImplementedError
 
     @property
     def len_unlabeled(self) -> int:
@@ -333,7 +305,7 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
             The number of labeled documents
         """
         return len(self.env.unlabeled)
-    
+
     @property
     def len_labeled(self) -> int:
         """Return the number of labeled documents
@@ -356,7 +328,6 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         """
         return self.len_labeled + self.len_unlabeled
 
-
     @property
     def ratio_learned(self) -> float:
         """The labeling progress sofar
@@ -364,6 +335,16 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
         Returns
         -------
         float
-            The ratio of labeled documents; compared to the 
+            The ratio of labeled documents; compared to the
         """
         return self.len_labeled / self.size
+
+    @classmethod
+    @abstractmethod
+    def builder(
+        cls, *args: Any, **kwargs: Any
+    ) -> Callable[
+        ...,
+        ActiveLearner[IT, KT, DT, VT, RT, LT],
+    ]:
+        raise NotImplementedError

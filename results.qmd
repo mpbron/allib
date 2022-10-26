@@ -1,0 +1,71 @@
+---
+title: "Multiple Systems Estimation"
+author: "Michiel Bron"
+format:
+  html:
+    default-image-extension: svg
+    df-print: paged
+    self-contained: true
+  pdf:
+    default-image-extension: tex
+    includes:
+      in-header: "preamble.tex"
+editor: visual
+reference-location: margin
+citation-location: margin
+---
+
+## Multiple Systems Estimation.
+
+First, we load the libraries we want to use:
+```{r}
+#| echo: false
+#| include: false
+library(reticulate)
+library(tidyverse)
+library(Rcapture)
+library(stringr)
+```
+```{python}
+#| echo: false
+#| include: false
+from pathlib import Path
+from allib.analysis.summarize import read_datasets, extract_results, extract_information, results_to_pandas
+dss = results_to_pandas(extract_information(read_datasets(Path("results/tar/"))))
+```
+
+```{r}
+#| echo: false
+df <- py$dss
+df <- df %>% filter(pos_count >= 30, size >= 1000, dataset!="ACEInhibitors")
+df$dataset <- strtrim(df$dataset, 5) 
+df <- df %>% mutate(dataset=ifelse(dataset=="van_D", "vanDi", dataset))
+df <- df %>% mutate(dataset=ifelse(dataset=="Kwok_", "Kwok", dataset))
+df <- df %>% mutate(dataset=ifelse(dataset=="PTSD_", "PTSD", dataset))
+df <- df %>% mutate(method=ifelse(method=="Chao_optimistic", "Optimistic", "Conservative"))
+df <- df %>% mutate(stop_recall = stop_recall * 100)
+df <- df %>% mutate(stop_wss = stop_wss * 100)
+```
+# WSS
+```{r}
+wss_plot <- df %>% ggplot(aes(x=dataset,y=stop_wss, fill=method)) + geom_boxplot() + theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) + xlab("Dataset") + ylab("Work saved over Sampling (%)") + labs(fill="Stop Criterion")
+wss_plot
+
+```
+# Recall
+```{r}
+recall_plot <- df %>% ggplot(aes(x=dataset,y=stop_recall, fill=method)) + geom_boxplot() + theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) + xlab("Dataset") + ylab("Recall (%)") + labs(fill="Stop Criterion")
+recall_plot
+```
+```{r}
+er_plot <- df %>% ggplot(aes(x=dataset,y=stop_loss_er, fill=method)) + geom_boxplot() + theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))
+er_plot
+```
+```{r}
+mse_plot <- df %>% ggplot(aes(x=pos_count,y=stop_loss_er, color=method)) + geom_point() + theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))
+mse_plot
+```
+
+```{r}
+df %>% group_by(method) %>% summarize(wss = mean(stop_wss), recall=mean(stop_recall))
+```

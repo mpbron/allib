@@ -1,16 +1,26 @@
 from typing import Dict, Generic, Optional, Sequence, Tuple
+
+from allib.environment.base import AbstractEnvironment
+
+from ..typehints import DT, IT, KT, LT, RT, VT
 from .random import PoolBasedAL
 
-from ..typehints import KT, DT, VT, RT, LT, IT
 
-class FixedOrdering(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
+class FixedOrdering(
+    PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
 
     _name = "FixedOrdering"
 
-    
-    def __init__(self, *_, identifier: Optional[str] = None, 
-                           label: Optional[LT] = None, **__) -> None:
-        super().__init__(identifier=identifier)
+    def __init__(
+        self,
+        env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+        *_,
+        identifier: Optional[str] = None,
+        label: Optional[LT] = None,
+        **__,
+    ) -> None:
+        super().__init__(env, identifier=identifier)
         self.metrics: Dict[KT, float] = dict()
         self.label = label
 
@@ -20,8 +30,9 @@ class FixedOrdering(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT,
             return f"{self.identifier}", self.label
         return f"{self._name}", self.label
 
-
-    def enter_ordering(self, ordering: Sequence[KT], metrics: Optional[Sequence[float]] = None):
+    def enter_ordering(
+        self, ordering: Sequence[KT], metrics: Optional[Sequence[float]] = None
+    ):
         self._set_ordering(ordering)
         if metrics is not None:
-            self.metrics = {o: m for (o,m) in zip(ordering, metrics)}
+            self.metrics = {o: m for (o, m) in zip(ordering, metrics)}

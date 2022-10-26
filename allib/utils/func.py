@@ -7,6 +7,11 @@ _T = TypeVar("_T")
 _U = TypeVar("_U")
 _V = TypeVar("_V")
 
+def hn(val: Optional[_T], default: _T) -> _T:
+    if val is not None:
+        return val
+    return default
+
 def prepend_keys(mapping: Mapping[str, _T], prefix: str) -> Mapping[str, _T]:
     return {f"{prefix}{key}": value for key, value in mapping.items()}
 

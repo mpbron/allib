@@ -5,23 +5,21 @@ from typing import (
     Generic,
     Mapping,
     MutableMapping,
-    Optional,
     Sequence,
     Union,
 )
 
 import instancelib as il
-from instancelib.utils.func import value_map
 from instancelib import InstanceProvider, LabelProvider
 from instancelib.analysis.base import MulticlassModelMetrics
+from instancelib.utils.func import value_map
 
-from ..activelearning.insclass import ILMLBased
 from ..activelearning.base import ActiveLearner
+from ..activelearning.insclass import ILMLBased
 from ..estimation.base import AbstractEstimator, Estimate
 from ..stopcriterion.base import AbstractStopCriterion
 from ..typehints import DT, IT, KT, LT, RT, VT
-
-from .statistics import LabelALStatistics, ALStats
+from .statistics import ALStats, LabelALStatistics
 
 
 class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):

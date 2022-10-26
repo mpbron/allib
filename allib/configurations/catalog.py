@@ -14,6 +14,7 @@ class ALConfiguration(Enum):
     RaschNBLRRFSVM = "RaschNBLRRFSVM"
     RaschNBLRRFLGBM = "RaschNBLRRFLBGM"
     RaschNBLRRFLGBMRAND = "RaschNBLRRFLGBMRAND"
+    AUTOTAR = "AUTOTAR"
 
 
 class FEConfiguration(Enum):
@@ -30,7 +31,9 @@ class EstimationConfiguration(str, Enum):
 
 class StopBuilderConfiguration(str, Enum):
     CHAO_CONS_OPT = "Chao_CONS_OPT"
+    AUTOTAR = "AUTOTAR"
 
 
 class ExperimentCombination(str, Enum):
     CHAO4 = "CHAO4"
+    AUTOTAR = "AUTOTAR"

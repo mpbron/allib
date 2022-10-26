@@ -2,17 +2,26 @@ from __future__ import annotations
 
 import collections
 from math import ceil
-from typing import (Deque, Dict, FrozenSet, Generic, Mapping, Optional,
-                    Sequence, Tuple)
+from typing import (
+    Any,
+    Callable,
+    Deque,
+    Dict,
+    Generic,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 from uuid import uuid4
 
 import instancelib as il
 import numpy as np
+import numpy.typing as npt
 from instancelib.ingest.qrel import TrecDataset
 from instancelib.typehints import DT, KT, LT, RT, VT
 
-from ..analysis.base import (AbstractStatistics, AnnotationStatistics,
-                             StatsMixin)
+from ..analysis.base import AbstractStatistics, AnnotationStatistics, StatsMixin
 from ..analysis.initialization import Initializer
 from ..environment.base import AbstractEnvironment
 from ..typehints import IT
@@ -23,52 +32,63 @@ from .poolbased import PoolBasedAL
 
 PSEUDO_INS_PROVIDER = "PSEUDO_INSTANCES"
 
-class PseudoInstanceInitializer(Initializer[IT, KT, LT], 
-                                Generic[IT, KT, DT, LT]):
+
+class PseudoInstanceInitializer(Initializer[IT, KT, LT], Generic[IT, KT, DT, LT]):
     def __init__(self, pseudo_data: DT, pseudo_label: LT):
         self.pseudo_data = pseudo_data
         self.pseudo_label = pseudo_label
         self.pseudo_id = uuid4()
 
-    def __call__(self, 
-                 learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
-                 ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
+    def __call__(
+        self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
+    ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         ins = learner.env.create(data=self.pseudo_data, vector=None)
         learner.env.create_named_provider(PSEUDO_INS_PROVIDER, [ins.identifier])
-        return learner 
-    
+        return learner
+
     @classmethod
-    def from_trec(cls, trec: TrecDataset, topic_id: str) -> PseudoInstanceInitializer[IT, str, str, str]:
+    def from_trec(
+        cls, trec: TrecDataset, topic_id: str
+    ) -> PseudoInstanceInitializer[IT, str, str, str]:
         topic_df = trec.topics.set_index("id")
         topic_row = topic_df.xs(topic_id)
-        pseudo_data: str = topic_row.title + " " + topic_row.query
-        return cls(pseudo_data, trec.pos_label) # type: ignore
+        pseudo_data: str = topic_row.title + " " + topic_row.query  # type: ignore
+        return cls(pseudo_data, trec.pos_label)  # type: ignore
 
 
-
-class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT], 
-                     StatsMixin[KT, LT],
-                     Generic[IT, KT, DT, VT, RT, LT]):
+class AutoTarLearner(
+    PoolBasedAL[IT, KT, DT, VT, RT, LT],
+    StatsMixin[KT, LT],
+    Generic[IT, KT, DT, VT, RT, LT],
+):
     rank_history: Dict[int, Mapping[KT, int]]
     sampled_sets: Dict[int, Sequence[KT]]
-    batch_sizes:  Dict[int, int]
+    batch_sizes: Dict[int, int]
     current_sample: Deque[KT]
     rng: np.random.Generator
     _stats: AbstractStatistics[KT, LT]
 
-    def __init__(self, 
-                 classifier: il.AbstractClassifier[IT, KT, DT, VT, RT, LT, np.ndarray, np.ndarray],
-                 pos_label: LT, 
-                 neg_label: LT, 
-                 k_sample: int,
-                 batch_size: int,
-                 *_, 
-                 seed: int = 0,  
-                 identifier: Optional[str] = None, 
-                 **__) -> None:
-        super().__init__(*_, identifier=identifier, **__)
+    def __init__(
+        self,
+        env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+        classifier: Callable[
+            [AbstractEnvironment[IT, KT, DT, VT, RT, LT]],
+            il.AbstractClassifier[
+                IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]
+            ],
+        ],
+        pos_label: LT,
+        neg_label: LT,
+        k_sample: int,
+        batch_size: int,
+        *_,
+        seed: int = 0,
+        identifier: Optional[str] = None,
+        **__,
+    ) -> None:
+        super().__init__(env, *_, identifier=identifier, **__)
         # Problem definition
-        self.classifier = classifier
+        self.classifier = classifier(env)
         self.pos_label = pos_label
         self.neg_label = neg_label
 
@@ -76,7 +96,7 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
         self.k_sample = k_sample
         self.batch_sizes = dict()
         self.batch_size = batch_size
-        
+
         # Record keeping for the current sample
         self.it = 0
         self.current_sample = collections.deque()
@@ -91,29 +111,26 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
 
         # Statistics Logger for Stopping
         self._stats = AnnotationStatistics()
-        
+
     @property
     def stats(self) -> AbstractStatistics[KT, LT]:
-        return self._stats 
-
-    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> PoolBasedAL[IT, KT, DT, VT, RT, LT]:
-        super().__call__(environment)
-        self.classifier.set_target_labels(self.env.labels.labelset)
-        return self
+        return self._stats
 
     def update_ordering(self) -> bool:
         return True
 
-    def _provider_sample(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> il.InstanceProvider[IT, KT, DT, VT, RT]:
+    def _provider_sample(
+        self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]
+    ) -> il.InstanceProvider[IT, KT, DT, VT, RT]:
         k_sample = min(self.k_sample, len(provider))
         sampled_keys: Sequence[KT] = self.rng.choice(
-            provider.key_list, 
-            size=k_sample, replace=False).tolist()
+            provider.key_list, size=k_sample, replace=False  # type: ignore
+        ).tolist()
         sampled_provider = self.env.create_bucket(sampled_keys)
         return sampled_provider
 
     def _temp_augment_and_train(self):
-        temp_labels = il.MemoryLabelProvider.from_provider(self.env.labels)
+        temp_labels = il.MemoryLabelProvider[KT, LT].from_provider(self.env.labels)
         sampled_non_relevant = self._provider_sample(self.env.unlabeled)
         if PSEUDO_INS_PROVIDER in self.env:
             pseudo_docs = self.env[PSEUDO_INS_PROVIDER]
@@ -123,18 +140,24 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
             pseudo_docs = self.env.create_bucket([])
         for ins_key in sampled_non_relevant:
             temp_labels.set_labels(ins_key, self.neg_label)
-        train_set = self.env.combine(sampled_non_relevant, self.env.labeled, pseudo_docs)
+        train_set = self.env.combine(
+            sampled_non_relevant, self.env.labeled, pseudo_docs
+        )
         self.classifier.fit_provider(train_set, temp_labels)
 
-    def _predict(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> Tuple[Sequence[KT], np.ndarray]:
+    def _predict(
+        self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]
+    ) -> Tuple[Sequence[KT], npt.NDArray[Any]]:
         raw_probas = self.classifier.predict_proba_provider_raw(provider)
         keys, matrix = raw_proba_chainer(raw_probas)
         return keys, matrix
 
-    def _rank(self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]) -> Sequence[Tuple[KT, float]]:
+    def _rank(
+        self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]
+    ) -> Sequence[Tuple[KT, float]]:
         keys, matrix = self._predict(provider)
         pos_column = self.classifier.get_label_column_index(self.pos_label)
-        prob_vector = matrix[:,pos_column]
+        prob_vector = matrix[:, pos_column]
         floats: Sequence[float] = prob_vector.tolist()
         zipped = list(zip(keys, floats))
         ranking = sort_on(1, zipped)
@@ -142,7 +165,7 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
 
     def _sample(self, distribution: Sequence[Tuple[KT, float]]) -> Sequence[KT]:
         keys, _ = list_unzip(distribution)
-        sample = keys[0:self.batch_size]
+        sample = keys[0 : self.batch_size]
         return sample
 
     @classmethod
@@ -157,10 +180,10 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
             self._temp_augment_and_train()
             ranking = self._rank(self.env.unlabeled)
             sample = self._sample(ranking)
-            
+
             # Store current sample
             self.current_sample = collections.deque(sample)
-            
+
             # Record keeping
             self.rank_history[self.it] = self._to_history(ranking)
             self.sampled_sets[self.it] = tuple(sample)
@@ -168,9 +191,9 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
 
             # Increment batch_size for next for train iteration
             self.batch_size += ceil(self.batch_size / 10)
-            self.it+= 1
+            self.it += 1
         return self.current_sample
-        
+
     def __next__(self) -> IT:
         if self.env.unlabeled.empty:
             raise StopIteration
@@ -182,11 +205,29 @@ class AutoTarLearner(PoolBasedAL[IT, KT, DT, VT, RT, LT],
         if not self.env.unlabeled.empty:
             return self.__next__()
         raise StopIteration()
-            
-            
-            
 
-            
-
-                
-        
+    @classmethod
+    def builder(
+        cls,
+        classifier: Callable[
+            [AbstractEnvironment[IT, KT, DT, VT, RT, LT]],
+            il.AbstractClassifier[
+                IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]
+            ],
+        ],
+        k_sample: int,
+        batch_size: int,
+    ) -> Callable[
+        [AbstractEnvironment[IT, KT, DT, VT, RT, LT], LT, LT],
+        ActiveLearner[IT, KT, DT, VT, RT, LT],
+    ]:
+        def builder_func(
+            env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+            pos_label: LT,
+            neg_label: LT,
+            *_,
+            **__,
+        ):
+            classifier(env)
+            return cls(env, classifier, pos_label, neg_label, k_sample, batch_size)
+        return builder_func

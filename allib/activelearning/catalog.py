@@ -1,18 +1,19 @@
 from enum import Enum
 
+
 class ALCatalog:
     class Paradigm(Enum):
         POOLBASED = "Poolbased"
         ESTIMATOR = "Estimator"
         CYCLE_ESTIMATOR = "CycleEstimator"
-        ENSEMBLE  = "Ensemble"
+        ENSEMBLE = "Ensemble"
         RETRY_ESTIMATOR = "NewEstimator"
         PROBABILITY_BASED = "ProbabilityBased"
         LABEL_PROBABILITY_BASED = "LabelProbabilityBased"
         PROBABILITY_BASED_ENSEMBLE = "ProbabilityBasedEnsemble"
         LABEL_PROBABILITY_BASED_ENSEMBLE = "LabelProbabilityBasedEnsemble"
         LABEL_MIN_PROB_ENSEMBLE = "LabelMinCountProbEnsemble"
-        
+        CUSTOM = "CUSTOM"
 
     class QueryType(str, Enum):
         RANDOM_SAMPLING = "RandomSampling"
@@ -30,3 +31,7 @@ class ALCatalog:
         LABELMAXIMIZER_NEW = "LabelMaximizerNew"
         LABELUNCERTAINTY_NEW = "LabelUncertaintyNew"
         RANDOM_ML = "RandomML"
+
+    class CustomMethods(Enum):
+        AUTOTAR = "AUTOTAR"
+        AUTOSTOP = "AUTOSTOP"

@@ -59,7 +59,7 @@ class ProbabilityBasedEnsemble(AbstractEnsemble[IT, KT, DT, np.ndarray, RT, LT],
                  probabilities: Optional[Sequence[float]] = None, rng: Any = None,
                  batch_size = 200,
                  identifier: Optional[str] = None, 
-                 fallback = RandomSampling[IT, KT, DT, np.ndarray, RT, LT](), *_, **__) -> None:
+                 fallback = RandomSampling[IT, KT, DT, np.ndarray, RT, LT].builder(), *_, **__) -> None:
         self.classifier = classifier
         self.strategies = strategies
         self.learners = [FixedOrdering(identifier=strategy.name) for strategy in self.strategies]
@@ -215,7 +215,7 @@ class LabelProbEnsemble(ProbabilityBasedEnsemble[IT, KT, DT, RT, LT],
                  batch_size = 200,
                  rng: Any = None,
                  identifier: Optional[str] = None, 
-                 fallback = RandomSampling[IT, KT, DT, np.ndarray, RT, LT](), *_, **__) -> None:
+                 fallback = RandomSampling[IT, KT, DT, np.ndarray, RT, LT].builder(), *_, **__) -> None:
         super().__init__(classifier, [], [], 
                          batch_size=batch_size, 
                          identifier=identifier,
@@ -232,8 +232,7 @@ class LabelProbEnsemble(ProbabilityBasedEnsemble[IT, KT, DT, RT, LT],
         self.probabilities = get_probabilities(None, self.strategies)
         zipped = zip(labelset, self.strategies)
         self.learners = [
-            FixedOrdering[IT, KT,DT, np.ndarray, RT, LT](
-                identifier=strategy.name, label=label)(self.env) 
+            FixedOrdering[IT, KT,DT, np.ndarray, RT, LT](env, identifier=strategy.name, label=label) 
             for label, strategy in zipped
         ]
         return self

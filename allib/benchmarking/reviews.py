@@ -1,12 +1,6 @@
-from dataclasses import dataclass
+import logging
 from pathlib import Path
-from typing import (
-    Any,
-    Mapping,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Any, Mapping, TypeVar, Union
 from uuid import UUID
 
 import numpy as np
@@ -14,28 +8,21 @@ import pandas as pd
 from instancelib import TextInstance
 from instancelib.ingest.spreadsheet import read_csv_dataset
 
-from allib.analysis.experiments import ExperimentIterator
-from allib.analysis.tarplotter import ModelStatsTar, TarExperimentPlotter
-from allib.configurations.base import STOP_REPOSITORY
-from allib.stopcriterion.catalog import StopCriterionCatalog
-
-from ..analysis.analysis import process_performance
+from ..analysis.experiments import ExperimentIterator
 from ..analysis.initialization import SeparateInitializer
-from ..analysis.plotter import AbstractPlotter, BinaryPlotter
-from ..analysis.simulation import TarSimulator, initialize, simulate
-from ..stopcriterion.base import AbstractStopCriterion
+from ..analysis.simulation import TarSimulator, initialize
+from ..analysis.tarplotter import ModelStatsTar, TarExperimentPlotter
 from ..environment import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
 from ..estimation.base import AbstractEstimator
-from ..estimation.rasch import ParametricRasch
-from ..estimation.rasch_python import EMRaschRidgePython
 from ..module.factory import MainFactory
+from ..stopcriterion.base import AbstractStopCriterion
 from ..utils.func import list_unzip3
-import logging
 
 POS = "Relevant"
 NEG = "Irrelevant"
 LOGGER = logging.getLogger(__name__)
+
 
 def binary_mapper(value: Any) -> str:
     return POS if value == 1 else NEG
@@ -86,8 +73,6 @@ def read_review_dataset(
     return al_env
 
 
-
-
 def benchmark(
     path: Path,
     output_path: Path,
@@ -117,11 +102,12 @@ def benchmark(
         estimation_interval,
     )
     plotter = ModelStatsTar(POS, NEG)
-    simulator = TarSimulator(exp, plotter, output_path=output_path, output_pdf_path=output_pdf_path)
+    simulator = TarSimulator(
+        exp, plotter, output_path=output_path, output_pdf_path=output_pdf_path
+    )
     try:
         simulator.simulate()
     except Exception as e:
         LOGGER.error("Exited with %s", e)
         pass
     return plotter
-

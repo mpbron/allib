@@ -1,10 +1,13 @@
 import random
-from typing import Generic, Sequence, Tuple, TypeVar
+from typing import Generic
 
+from ..typehints import DT, IT, KT, LT, RT, VT
 from .poolbased import PoolBasedAL
 
-from ..typehints import KT, DT, VT, RT, LT, IT
-class RandomSampling(PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
+
+class RandomSampling(
+    PoolBasedAL[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
     _name = "Random"
 
     def update_ordering(self) -> bool:

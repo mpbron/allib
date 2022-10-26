@@ -1,7 +1,6 @@
 import collections
 from abc import ABC, abstractmethod
-from typing import (Any, Deque, FrozenSet, Generic, Mapping, Optional,
-                    Sequence, Tuple)
+from typing import Any, Deque, FrozenSet, Generic, Mapping, Optional, Sequence, Tuple
 
 from instancelib import Instance
 
@@ -51,7 +50,9 @@ class AbstractStatistics(ABC, Generic[KT, LT]):
         raise NotImplementedError
 
     def annotations_since_last(self, label: LT) -> int:
-        last_pos_it = max([it for it, count in enumerate(self.label_per_round(label)) if count > 0])
+        last_pos_it = max(
+            [it for it, count in enumerate(self.label_per_round(label)) if count > 0]
+        )
         annotated_at = np.array(self.annotations_per_round).cumsum()[last_pos_it]
         return self.current_annotated - annotated_at
 
@@ -66,10 +67,12 @@ class StatsMixin(ABC, Generic[KT, LT]):
 class StatsWrapper(StatsMixin[KT, LT], ActiveLearner[IT, KT, DT, VT, RT, LT]):
     learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
 
-    def __init__(self, 
-                 learner: ActiveLearner[IT, KT, DT, VT, RT, LT], 
-                 stats: AbstractStatistics[KT, LT],
-                 batch_size: int = 20):
+    def __init__(
+        self,
+        learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
+        stats: AbstractStatistics[KT, LT],
+        batch_size: int = 20,
+    ):
         self.learner = learner
         self._stats = stats
         self.batch_it = batch_size
@@ -99,11 +102,6 @@ class StatsWrapper(StatsMixin[KT, LT], ActiveLearner[IT, KT, DT, VT, RT, LT]):
     def has_ordering(self) -> bool:
         return self.learner.has_ordering
 
-    def __call__(self, 
-                 environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
-                ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
-        return self.learner(environment)
-
     def set_as_labeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         self.learner.set_as_labeled(instance)
 
@@ -132,15 +130,17 @@ class AnnotationStatistics(AbstractStatistics[KT, LT]):
         self.dataset = collections.deque()
 
     def update(self, learner: ActiveLearner[Any, KT, Any, Any, Any, LT]):
-        previous_round = frozenset() if not self.annotated else self.annotated[-1] 
+        previous_round = frozenset() if not self.annotated else self.annotated[-1]
         annotated = frozenset(learner.env.labeled)
         unlabeled = frozenset(learner.env.unlabeled)
         current_round = {
-            label: (frozenset(
-                learner.env.get_subset_by_labels(
-                    learner.env.labeled, label, 
-                    labelprovider=learner.env.labels)
-                    ))
+            label: (
+                frozenset(
+                    learner.env.get_subset_by_labels(
+                        learner.env.labeled, label, labelprovider=learner.env.labels
+                    )
+                )
+            )
             for label in learner.env.labels.labelset
         }
         current_round_new = {
@@ -168,7 +168,7 @@ class AnnotationStatistics(AbstractStatistics[KT, LT]):
 
     @property
     def current_annotated(self) -> int:
-        return 0 if not self.annotated else len(self.annotated[-1]) 
+        return 0 if not self.annotated else len(self.annotated[-1])
 
     def label_annotated(self, label: LT, it: int) -> int:
         return 0 if not self.per_round else len(self.per_round[it][label])

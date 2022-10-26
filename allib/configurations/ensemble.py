@@ -1,10 +1,12 @@
 from typing import Any, Dict
 from ..module import ModuleCatalog as Cat
 
+
 def add_identifier(config: Dict[str, Any], identifier: str) -> Dict[str, Any]:
     id_dict = {"identifier": identifier}
     new_dict = {**config, **id_dict}
     return new_dict
+
 
 al_config_svm = {
     "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,
@@ -13,16 +15,13 @@ al_config_svm = {
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.SVC,
         "model_configuration": {
-            "kernel": "linear", 
-            "probability": True, 
-            "class_weight": "balanced"
+            "kernel": "linear",
+            "probability": True,
+            "class_weight": "balanced",
         },
         "task": Cat.ML.Task.BINARY,
-        "balancer": {
-            "type": Cat.BL.Type.DOUBLE,
-            "config": {}
-        }
-    }
+        "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
+    },
 }
 
 al_config_lr = {
@@ -32,16 +31,13 @@ al_config_lr = {
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.LOGISTIC,
         "model_configuration": {
-            "solver":"lbfgs",
+            "solver": "lbfgs",
             "C": 1.0,
             "max_iter": 10000,
         },
         "task": Cat.ML.Task.BINARY,
-        "balancer": {
-            "type": Cat.BL.Type.DOUBLE,
-            "config": {}
-        }
-    }
+        "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
+    },
 }
 
 al_config_nb = {
@@ -54,11 +50,8 @@ al_config_nb = {
             "alpha": 3.822,
         },
         "task": Cat.ML.Task.BINARY,
-        "balancer": {
-            "type": Cat.BL.Type.DOUBLE,
-            "config": {}
-        }
-    }
+        "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
+    },
 }
 al_config_lgbm = {
     "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,
@@ -68,53 +61,44 @@ al_config_lgbm = {
         "sklearn_model": Cat.ML.SklearnModel.LGBM,
         "model_configuration": {},
         "task": Cat.ML.Task.BINARY,
-        "balancer": {
-            "type": Cat.BL.Type.DOUBLE,
-            "config": {}
-        }
-    }
+        "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
+    },
 }
 al_config_svm_random = {
     "paradigm": Cat.AL.Paradigm.PROBABILITY_BASED_ENSEMBLE,
     "strategies": [
-        { "query_type": Cat.AL.QueryType.MAX_ENTROPY},
-        { "query_type": Cat.AL.QueryType.MOST_CONFIDENCE},
+        {"query_type": Cat.AL.QueryType.MAX_ENTROPY},
+        {"query_type": Cat.AL.QueryType.MOST_CONFIDENCE},
     ],
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.SVC,
         "model_configuration": {
-            "kernel": "linear", 
-            "probability": True, 
-            "class_weight": "balanced"
+            "kernel": "linear",
+            "probability": True,
+            "class_weight": "balanced",
         },
         "task": Cat.ML.Task.MULTILABEL,
-        "balancer": {
-            "type": Cat.BL.Type.IDENTITY,
-            "config": {}
-        },
-        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
+        "balancer": {"type": Cat.BL.Type.IDENTITY, "config": {}},
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
     },
 }
 
 al_config_ensemble_prob = {
     "paradigm": Cat.AL.Paradigm.PROBABILITY_BASED_ENSEMBLE,
     "strategies": [
-        { "query_type": Cat.AL.QueryType.MAX_ENTROPY},
-        { "query_type": Cat.AL.QueryType.MOST_CONFIDENCE},
+        {"query_type": Cat.AL.QueryType.MAX_ENTROPY},
+        {"query_type": Cat.AL.QueryType.MOST_CONFIDENCE},
     ],
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.SVC,
         "model_configuration": {
-            "kernel": "linear", 
-            "probability": True, 
-            "class_weight": "balanced"
+            "kernel": "linear",
+            "probability": True,
+            "class_weight": "balanced",
         },
         "task": Cat.ML.Task.MULTILABEL,
-        "balancer": {
-            "type": Cat.BL.Type.IDENTITY,
-            "config": {}
-        },
-        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
+        "balancer": {"type": Cat.BL.Type.IDENTITY, "config": {}},
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
     },
 }
 
@@ -124,16 +108,13 @@ al_config_ensemble_labelprob = {
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.SVC,
         "model_configuration": {
-            "kernel": "linear", 
-            "probability": True, 
-            "class_weight": "balanced"
+            "kernel": "linear",
+            "probability": True,
+            "class_weight": "balanced",
         },
         "task": Cat.ML.Task.MULTILABEL,
-        "balancer": {
-            "type": Cat.BL.Type.IDENTITY,
-            "config": {}
-        },
-        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
+        "balancer": {"type": Cat.BL.Type.IDENTITY, "config": {}},
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
     },
 }
 al_config_ensemble_random = {
@@ -142,20 +123,17 @@ al_config_ensemble_random = {
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.SVC,
         "model_configuration": {
-            "kernel": "linear", 
-            "probability": True, 
-            "class_weight": "balanced"
+            "kernel": "linear",
+            "probability": True,
+            "class_weight": "balanced",
         },
         "task": Cat.ML.Task.MULTILABEL,
-        "balancer": {
-            "type": Cat.BL.Type.IDENTITY,
-            "config": {}
-        },
-        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
+        "balancer": {"type": Cat.BL.Type.IDENTITY, "config": {}},
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
     },
 }
 
-    
+
 al_config_rf = {
     "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,
     "query_type": Cat.AL.QueryType.LABELMAXIMIZER,
@@ -164,14 +142,11 @@ al_config_rf = {
         "sklearn_model": Cat.ML.SklearnModel.RANDOM_FOREST,
         "model_configuration": {
             "n_estimators": 100,
-            "max_features":10,
+            "max_features": 10,
         },
         "task": Cat.ML.Task.BINARY,
-        "balancer": {
-            "type": Cat.BL.Type.DOUBLE,
-            "config": {}
-        }
-    }
+        "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
+    },
 }
 al_config_unc = {
     "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,
@@ -182,11 +157,8 @@ al_config_unc = {
             "alpha": 3.822,
         },
         "task": Cat.ML.Task.BINARY,
-        "balancer": {
-            "type": Cat.BL.Type.DOUBLE,
-            "config": {}
-        }
-    }
+        "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
+    },
 }
 al_config_svm_multilabel = {
     "paradigm": Cat.AL.Paradigm.PROBABILITY_BASED,
@@ -194,16 +166,13 @@ al_config_svm_multilabel = {
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.SVC,
         "model_configuration": {
-            "kernel": "linear", 
-            "probability": True, 
-            "class_weight": "balanced"
+            "kernel": "linear",
+            "probability": True,
+            "class_weight": "balanced",
         },
         "task": Cat.ML.Task.MULTILABEL,
-        "balancer": {
-            "type": Cat.BL.Type.IDENTITY,
-            "config": {}
-        },
-        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST
+        "balancer": {"type": Cat.BL.Type.IDENTITY, "config": {}},
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
     },
 }
 
@@ -218,7 +187,7 @@ mixed_estimator = {
         al_config_svm,
         al_config_rf,
         al_config_lgbm,
-    ]
+    ],
 }
 
 naive_bayes_estimator = {
@@ -228,7 +197,7 @@ naive_bayes_estimator = {
         add_identifier(al_config_nb, "NaiveBayes2"),
         add_identifier(al_config_nb, "NaiveBayes3"),
         add_identifier(al_config_nb, "NaiveBayes4"),
-    ]
+    ],
 }
 svm_estimator = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
@@ -237,7 +206,7 @@ svm_estimator = {
         add_identifier(al_config_svm, "SVM2"),
         add_identifier(al_config_svm, "SVM3"),
         add_identifier(al_config_svm, "SVM4"),
-    ]
+    ],
 }
 
 rasch_estimator = {
@@ -246,44 +215,44 @@ rasch_estimator = {
         add_identifier(al_config_nb, "NaiveBayes"),
         add_identifier(al_config_svm, "SVM"),
         add_identifier(al_config_rf, "RandomForest"),
-    ]
+    ],
 }
 
-rasch_nblrrf =  {
+rasch_nblrrf = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
     "learners": [
         add_identifier(al_config_nb, "NaiveBayes"),
         add_identifier(al_config_rf, "RandomForest"),
         add_identifier(al_config_lr, "LogisticRegression"),
-    ]
+    ],
 }
-rasch_nblrrfsvm =  {
+rasch_nblrrfsvm = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
     "learners": [
         add_identifier(al_config_nb, "NaiveBayes"),
         add_identifier(al_config_rf, "RandomForest"),
         add_identifier(al_config_lr, "LogisticRegression"),
-        add_identifier(al_config_svm,"SVM")
-    ]
+        add_identifier(al_config_svm, "SVM"),
+    ],
 }
-rasch_nblrrflgbm =  {
+rasch_nblrrflgbm = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
     "learners": [
         add_identifier(al_config_nb, "NaiveBayes"),
         add_identifier(al_config_rf, "RandomForest"),
         add_identifier(al_config_lr, "LogisticRegression"),
-        add_identifier(al_config_lgbm,"LGBM")
-    ]
+        add_identifier(al_config_lgbm, "LGBM"),
+    ],
 }
-rasch_nblrrflgbmrand =  {
+rasch_nblrrflgbmrand = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
     "learners": [
         add_identifier(al_config_nb, "NaiveBayes"),
         add_identifier(al_config_rf, "RandomForest"),
         add_identifier(al_config_lr, "LogisticRegression"),
-        add_identifier(al_config_lgbm,"LGBM"),
-        add_identifier(al_config_random, "Random")
-    ]
+        add_identifier(al_config_lgbm, "LGBM"),
+        add_identifier(al_config_random, "Random"),
+    ],
 }
 
 rasch_lr = {
@@ -292,7 +261,7 @@ rasch_lr = {
         add_identifier(al_config_nb, "NaiveBayes"),
         add_identifier(al_config_svm, "SVM"),
         add_identifier(al_config_lr, "LogisticRegression"),
-    ]
+    ],
 }
 rasch_rf = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
@@ -300,7 +269,7 @@ rasch_rf = {
         add_identifier(al_config_rf, "RandomForest1"),
         add_identifier(al_config_rf, "RandomForest2"),
         add_identifier(al_config_rf, "RandomForest3"),
-    ]
+    ],
 }
 
 rasch_random_estimator = {
@@ -310,7 +279,7 @@ rasch_random_estimator = {
         add_identifier(al_config_svm, "SVM"),
         add_identifier(al_config_rf, "RandomForest"),
         add_identifier(al_config_random, "Random3"),
-    ]
+    ],
 }
 
 # rasch_random_estimator = {
@@ -323,7 +292,6 @@ rasch_random_estimator = {
 # }
 
 
-
 al_config_est3 = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
     "learners": [
@@ -331,7 +299,7 @@ al_config_est3 = {
         add_identifier(al_config_svm, "SVM"),
         add_identifier(al_config_rf, "RandomForest"),
         add_identifier(al_config_nb, "NaiveBayes4"),
-    ]
+    ],
 }
 al_config_est4 = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
@@ -340,7 +308,7 @@ al_config_est4 = {
         add_identifier(al_config_svm, "SVM"),
         add_identifier(al_config_rf, "RandomForest"),
         add_identifier(al_config_lr, "LogisticRegression"),
-    ]
+    ],
 }
 al_config_est5 = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
@@ -350,7 +318,7 @@ al_config_est5 = {
         add_identifier(al_config_rf, "RandomForest"),
         add_identifier(al_config_svm, "SVM2"),
         add_identifier(al_config_svm, "SVM3"),
-    ]
+    ],
 }
 
 al_config_ens = {
@@ -364,15 +332,10 @@ al_config_ens = {
     "probabilities": [0.35, 0.35, 0.2, 0.1],
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.NAIVE_BAYES,
-        "model_configuration": {
-            
-        },
+        "model_configuration": {},
         "task": Cat.ML.Task.BINARY,
-        "balancer": {
-            "type": Cat.BL.Type.DOUBLE,
-            "config": {}
-        }
-    }
+        "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
+    },
 }
 
 al_config_entropy = {
@@ -381,24 +344,32 @@ al_config_entropy = {
     "machinelearning": {
         "sklearn_model": Cat.ML.SklearnModel.SVC,
         "model_configuration": {
-            "kernel": "linear", 
-            "probability": True, 
-            "class_weight": "balanced"
+            "kernel": "linear",
+            "probability": True,
+            "class_weight": "balanced",
         },
         "task": Cat.ML.Task.MULTILABEL,
-        "balancer": {
-            "type": Cat.BL.Type.DOUBLE,
-            "config": {}
-        },
+        "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
         "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
-    }
+    },
 }
 
 
+env_config = {"environment_type": Cat.ENV.Type.MEMORY}
 
-env_config = { "environment_type": Cat.ENV.Type.MEMORY }
+tf_idf5000 = {
+    "datatype": Cat.FE.DataType.TEXTINSTANCE,
+    "vec_type": Cat.FE.VectorizerType.STACK,
+    "vectorizers": [
+        {
+            "vec_type": Cat.FE.VectorizerType.SKLEARN,
+            "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
+            "sklearn_config": {"max_features": 5000},
+        }
+    ],
+}
 
-tf_idf5000 ={
+tf_idf_autotar = {
     "datatype": Cat.FE.DataType.TEXTINSTANCE,
     "vec_type": Cat.FE.VectorizerType.STACK,
     "vectorizers": [
@@ -406,8 +377,26 @@ tf_idf5000 ={
             "vec_type": Cat.FE.VectorizerType.SKLEARN,
             "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
             "sklearn_config": {
-                "max_features": 5000
-            }
+                "stop_words": "english",
+                "min_df": 2,
+                "max_features": 3000,
+            },
         }
-    ]
+    ],
+}
+
+autotar = {
+    "paradigm": Cat.AL.Paradigm.CUSTOM,
+    "query_type": Cat.AL.QueryType.MOST_CONFIDENCE,
+    "machinelearning": {
+        "sklearn_model": Cat.ML.SklearnModel.SVC,
+        "model_configuration": {
+            "kernel": "linear",
+            "probability": True,
+            "class_weight": "balanced",
+        },
+        "task": Cat.ML.Task.MULTILABEL,
+        "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
+        "mc_method": Cat.ML.MulticlassMethod.ONE_VS_REST,
+    },
 }

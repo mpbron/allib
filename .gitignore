@@ -1,4 +1,9 @@
+results_cache/
+results_files/
 results/
+results.html
+results.pdf
+results_analysis.ipynb
 mse_files/
 mse_tar_files/
 multilabel_notebook.py

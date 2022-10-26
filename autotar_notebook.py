@@ -1,5 +1,6 @@
 #%%
 from pathlib import Path
+from allib.activelearning.factory import classifier_builder
 
 from allib.environment.memory import MemoryEnvironment
 from sklearn.linear_model import LogisticRegression
@@ -48,7 +49,7 @@ wilson = Path("../datasets/Appenzeller-Herzog_2020.csv")
 bb = Path("../datasets/Bannach-Brown_2019.csv")
 wolters = Path("../datasets/Wolters_2018.csv")
 virus = Path("../datasets/Kwok_2020.csv")
-env = read_review_dataset(hall)
+env = read_review_dataset(bos)
 
 #%%
 POS = "Relevant"
@@ -76,18 +77,17 @@ criteria = {
     "Stop400": stop400
 }
 estimators = dict()
-classifier = il.SkLearnVectorClassifier.build(
-    LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000), 
-    env)
-at = AutoTarLearner(classifier, POS, NEG, 100, 20)(env)
-#%%
+logreg = LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000)
+classifier = classifier_builder(logreg, il.SkLearnVectorClassifier.build)
+at = AutoTarLearner.builder(classifier, 100, 20)(env, POS, NEG)
+# %%
 init(at)
 il.vectorize(vect, at.env)
-#%%
+# %%
 
 exp = ExperimentIterator(at, POS, NEG, criteria, estimators)
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, max_it=200)
+simulator = TarSimulator(exp, plotter)
 # %%
 simulator.simulate()
 #%%

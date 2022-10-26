@@ -3,8 +3,21 @@ from __future__ import annotations
 import logging
 import random
 from abc import ABC, abstractmethod
-from typing import (Any, Callable, Dict, Generic, Iterable, List, Optional,
-                    Sequence, Set, Tuple, TypeVar, Union)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import instancelib as il
 import numpy as np  # type: ignore
@@ -30,19 +43,20 @@ PVT = TypeVar("PVT")
 
 LOGGER = logging.getLogger(__name__)
 
+
 class AbstractEnsemble(ABC, Generic[IT, KT, DT, VT, RT, LT]):
     _name = "AbstractEnsemble"
-    learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]]
+    learners: Sequence[ActiveLearner[IT, KT, DT, VT, RT, LT]]
     env: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
     _has_ordering: bool
-    
+
     @abstractmethod
     def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         """Internal functions that selects the next active learner for the next query
 
         Returns:
             ActiveLearner[IT, KT, DT, VT, RT, LT]: One of the learners from the ensemble
-        """        
+        """
         raise NotImplementedError
 
     @property
@@ -50,8 +64,7 @@ class AbstractEnsemble(ABC, Generic[IT, KT, DT, VT, RT, LT]):
         return self._has_ordering
 
     def update_ordering(self):
-        """Updates the ordering for all learners of the ensemble
-        """             
+        """Updates the ordering for all learners of the ensemble"""
         for learner in self.learners:
             learner.update_ordering()
         self._has_ordering = True
@@ -68,7 +81,7 @@ class AbstractEnsemble(ABC, Generic[IT, KT, DT, VT, RT, LT]):
 
     def set_as_unlabeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         """Mark the instance as unlabeled
-        
+
         Parameters
         ----------
         instance : Instance
@@ -78,28 +91,31 @@ class AbstractEnsemble(ABC, Generic[IT, KT, DT, VT, RT, LT]):
         self.env.unlabeled.add(instance)
 
 
-
-class ManualEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT], PoolBasedAL[IT, KT, DT, VT, RT, LT],  Generic[IT, KT, DT, VT, RT, LT]):
+class ManualEnsemble(
+    AbstractEnsemble[IT, KT, DT, VT, RT, LT],
+    PoolBasedAL[IT, KT, DT, VT, RT, LT],
+    Generic[IT, KT, DT, VT, RT, LT],
+):
     _name = "Ensemble"
 
-    def __init__(self,
-                 learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]],
-                 probabilities: List[float], 
-                 rng: Any = None, *_, identifier: Optional[str] = None, **__) -> None:
-        super().__init__(identifier=identifier)
-        self.learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]] = learners
+    def __init__(
+        self,
+        env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+        learners: Sequence[
+            ActiveLearner[IT, KT, DT, VT, RT, LT],
+        ],
+        probabilities: Sequence[float],
+        rng: Any = None,
+        *_,
+        identifier: Optional[str] = None,
+        **__,
+    ) -> None:
+        super().__init__(env, identifier=identifier)
+        self.learners = learners
         self.probabilities = probabilities
         self._sample_dict: Dict[KT, int] = {}
         self._rng: Any = get_random_generator(rng)
 
-    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> ManualEnsemble[IT, KT, DT, VT, RT, LT]:
-        super().__call__(environment)
-        for i, learner in enumerate(self.learners):
-            env_copy = environment.from_environment(environment)
-            self.learners[i] = learner(env_copy)
-        self.initialized = True
-        return self
-    
     def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         """Internal functions that selects the next active learner for the next query
 
@@ -116,17 +132,18 @@ class ManualEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT], PoolBasedAL[IT, K
     def __next__(self) -> IT:
         # Select the learner
         learner = self._choose_learner()
-        
+
         # Select the next instance from the learner
         ins = next(learner)
-        
+
         # Check if the instance identifier has not been labeled already
         while ins.identifier in self.env.labeled:
             # This instance has already been labeled my another learner.
             # Skip it and mark as labeled
             learner.set_as_labeled(ins)
             LOGGER.info(
-                "The document with key %s was already labeled. Skipping", ins.identifier)
+                "The document with key %s was already labeled. Skipping", ins.identifier
+            )
             learner = self._choose_learner()
             ins = next(learner)
 
@@ -149,41 +166,56 @@ class ManualEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT], PoolBasedAL[IT, K
             learner.set_as_unlabeled(instance)
             del self._sample_dict[instance.identifier]
 
-class StrategyEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT], 
-                       MLBased[IT, KT, DT, VT, RT, LT, LVT, PVT], 
-                       Generic[IT, KT, DT, VT, RT, LT, LVT, PVT]):
+    @classmethod
+    def builder(
+        cls,
+        learner_builders: Sequence[
+            Callable[..., ActiveLearner[IT, KT, DT, VT, RT, LT]]
+        ],
+        probabilities: Sequence[float],
+        *_: Any,
+        **__: Any,
+    ) -> Callable[..., ManualEnsemble[IT, KT, DT, VT, RT, LT]]:
+        def wrap_func(
+            env: AbstractEnvironment[IT, KT, DT, VT, RT, LT], *args, **kwargs
+        ):
+
+            learners = [
+                builder(env.from_environment(env), *args, **kwargs)
+                for builder in learner_builders
+            ]
+            return cls(env, learners, probabilities)
+
+        return wrap_func
+
+
+class StrategyEnsemble(
+    AbstractEnsemble[IT, KT, DT, VT, RT, LT],
+    MLBased[IT, KT, DT, VT, RT, LT, LVT, PVT],
+    Generic[IT, KT, DT, VT, RT, LT, LVT, PVT],
+):
     _name = "StrategyEnsemble"
 
-    def __init__(self,
-                 classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
-                 learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]],
-                 probabilities: List[float], rng: Any = None, *_, 
-                 identifier: Optional[str] = None, **__) -> None:
-        super().__init__(classifier, RandomSampling())
-        self.learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]] = learners
+    def __init__(
+        self,
+        env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+        classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
+        learners: Sequence[
+            ActiveLearner[IT, KT, DT, VT, RT, LT],
+        ],
+        fallback: ActiveLearner[IT, KT, DT, VT, RT, LT],
+        probabilities: Sequence[float],
+        rng: Any = None,
+        *_,
+        identifier: Optional[str] = None,
+        **__,
+    ) -> None:
+        super().__init__(env, classifier, fallback)
+        self.learners = learners
         self.probabilities = probabilities
         self._rng: Any = get_random_generator(rng)
         self.sampled: Set[KT] = set()
-        self._has_ordering: bool = False 
-    
-    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> StrategyEnsemble[IT, KT, DT, VT, RT, LT, LVT, PVT]:
-        """Initialize the learner with an environment
-
-        Parameters
-        ----------
-        environment : AbstractEnvironment[IT, KT, DT, VT, RT, LT]
-            The chozen environment
-
-        Returns
-        -------
-        StrategyEnsemble[IT, KT, DT, VT, RT, LT, LVT, PVT]
-            The Initizialized learner
-        """        
-        super().__call__(environment)
-        for learner in self.learners:
-            learner(self.env)
-        self.initialized = True
-        return self
+        self._has_ordering: bool = False
 
     def update_ordering(self) -> bool:
         successful = super().update_ordering()
@@ -196,12 +228,12 @@ class StrategyEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT],
 
         Returns:
             ActiveLearner[IT, KT, DT, VT, RT, LT]: One of the learners from the ensemble
-        """        
+        """
         idxs = np.arange(len(self.learners))
         al_idx: int = self._rng.choice(idxs, size=1, p=self.probabilities)[0]
         learner = self.learners[al_idx]
         return learner
-    
+
     def __next__(self) -> IT:
         result = super().__next__()
         while result.identifier in self.sampled:
@@ -210,36 +242,31 @@ class StrategyEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT],
         return result
 
 
-class ILStrategyEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT], 
-                         ILMLBased[IT, KT, DT, VT, RT, LT, LMT, PMT],
-                         Generic[IT, KT, DT, VT, RT, LT,  LMT, PMT]):
-    def __init__(self,
-                 classifier: il.AbstractClassifier[IT, KT, DT, VT, RT, LT, LMT, PMT],
-                 learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]],
-                 probabilities: List[float], 
-                 rng: Any = None, *_, identifier: Optional[str] = None, **__) -> None:
-        super().__init__(classifier, identifier=identifier)
-        self.learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]] = learners
+class ILStrategyEnsemble(
+    AbstractEnsemble[IT, KT, DT, VT, RT, LT],
+    ILMLBased[IT, KT, DT, VT, RT, LT, LMT, PMT],
+    Generic[IT, KT, DT, VT, RT, LT, LMT, PMT],
+):
+    def __init__(
+        self,
+        env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+        classifier: il.AbstractClassifier[IT, KT, DT, VT, RT, LT, LMT, PMT],
+        learners: Sequence[
+            ActiveLearner[IT, KT, DT, VT, RT, LT],
+        ],
+        fallback: ActiveLearner[IT, KT, DT, VT, RT, LT],
+        probabilities: Sequence[float],
+        rng: Any = None,
+        *_,
+        identifier: Optional[str] = None,
+        **__,
+    ) -> None:
+        super().__init__(env, classifier, fallback, identifier=identifier)
+        self.learners = learners
         self.probabilities = probabilities
         self._rng = get_random_generator(rng)
         self.sampled: Set[KT] = set()
-        self._has_ordering: bool = False 
-
-
-    def __call__(self, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]) -> StrategyEnsemble:
-        """Initialize the learner with an environment
-
-        Args:
-            environment (AbstractEnvironment[KT, DT, VT, RT, LT]): the chosen environment
-
-        Returns:
-            StrategyEnsemble: The initialized environment
-        """        
-        super().__call__(environment)
-        for learner in self.learners:
-            learner(self.env)
-        self.initialized = True
-        return self
+        self._has_ordering: bool = False
 
     def update_ordering(self) -> bool:
         successful = super().update_ordering()
@@ -248,19 +275,19 @@ class ILStrategyEnsemble(AbstractEnsemble[IT, KT, DT, VT, RT, LT],
         return successful
 
     def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
-        """Choose an Active Learning from the options according to 
+        """Choose an Active Learning from the options according to
         the given probabilities
 
         Returns
         -------
         ActiveLearner[IT, KT, DT, VT, RT, LT]
             The chosen ActiveLearner
-        """        
+        """
         idxs = np.arange(len(self.learners))
         al_idx: int = self._rng.choice(idxs, size=1, p=self.probabilities)[0]
         learner = self.learners[al_idx]
         return learner
-    
+
     def __next__(self) -> IT:
         result = super().__next__()
         while result.identifier in self.sampled:

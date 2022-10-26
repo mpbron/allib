@@ -2,26 +2,14 @@ import typing as ty
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from os import PathLike
-from typing import (
-    Any,
-    Dict,
-    FrozenSet,
-    Generic,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import (Any, Dict, FrozenSet, Generic, Iterable, List, Mapping,
+                    Optional, Sequence, Tuple, TypeVar, Union)
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..estimation.base import AbstractEstimator, Estimate
 from ..analysis.statistics import EstimationModelStatistics
+from ..estimation.base import AbstractEstimator, Estimate
 from ..typehints import LT
 from .experiments import ExperimentIterator
 from .plotter import ExperimentPlotter
