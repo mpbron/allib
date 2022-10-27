@@ -217,10 +217,7 @@ class AutoTarLearner(
         ],
         k_sample: int,
         batch_size: int,
-    ) -> Callable[
-        [AbstractEnvironment[IT, KT, DT, VT, RT, LT], LT, LT],
-        ActiveLearner[IT, KT, DT, VT, RT, LT],
-    ]:
+    ) -> Callable[..., ActiveLearner[IT, KT, DT, VT, RT, LT],]:
         def builder_func(
             env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
             pos_label: LT,
@@ -230,4 +227,5 @@ class AutoTarLearner(
         ):
             classifier(env)
             return cls(env, classifier, pos_label, neg_label, k_sample, batch_size)
+
         return builder_func

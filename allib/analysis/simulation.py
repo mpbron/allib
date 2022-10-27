@@ -12,6 +12,7 @@ from os import PathLike
 from pathlib import Path
 from typing import (
     Any,
+    Callable,
     Dict,
     FrozenSet,
     Generic,
@@ -56,15 +57,17 @@ def reset_environment(
     return env
 
 
-def initialize(
+def initialize_tar_simulation(
     factory: ObjectFactory,
     al_config: Mapping[str, Any],
     fe_config: Mapping[str, Any],
     initializer: Initializer[IT, KT, LT],
-    env: AbstractEnvironment[IT, KT, DT, npt.NDArray[Any], DT, LT],
+    env: AbstractEnvironment[IT, KT, DT, npt.NDArray[Any], RT, LT],
+    pos_label: LT,
+    neg_label: LT,
 ) -> Tuple[
-    ActiveLearner[IT, KT, DT, npt.NDArray[Any], DT, LT],
-    BaseVectorizer[Instance[KT, DT, npt.NDArray[Any], DT]],
+    ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT],
+    BaseVectorizer[Instance[KT, DT, npt.NDArray[Any], RT]],
 ]:
     """Build and initialize an Active Learning method.
 
@@ -81,6 +84,9 @@ def initialize(
         the Active Learner
     env : AbstractEnvironment[KT, DT, npt.NDArray[Any], DT, LT]
         The environment on which we should simulate
+    pos_label : LT
+        The label of the positive class
+    neg_label : LT
 
     Returns
     -------
@@ -93,10 +99,10 @@ def initialize(
             to the configuration in `fe_config`
     """
     # Build the active learners and feature extraction models
-    learner: ActiveLearner[IT, KT, DT, npt.NDArray[Any], DT, LT] = factory.create(
-        Component.ACTIVELEARNER, **al_config
-    )
-    vectorizer: BaseVectorizer[IT] = factory.create(
+    learner_builder: Callable[
+        ..., ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT]
+    ] = factory.create(Component.ACTIVELEARNER, **al_config)
+    vectorizer: BaseVectorizer[Instance[KT, DT, npt.NDArray[Any], RT]] = factory.create(
         Component.FEATURE_EXTRACTION, **fe_config
     )
 
@@ -104,7 +110,7 @@ def initialize(
     start_env = reset_environment(vectorizer, env)
 
     # Attach the environment to the active learner
-    learner = learner(start_env, pos_label="Relevant", neg_label="Irrelevant")
+    learner = learner_builder(start_env, pos_label=pos_label, neg_label=neg_label)
 
     # Initialize the learner with initial knowledge
     learner = initializer(learner)

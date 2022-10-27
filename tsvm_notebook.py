@@ -5,14 +5,20 @@ from allib.activelearning.autotar import AutoTarLearner
 from allib.activelearning.tsvm import TSVMLearner
 from allib.analysis.experiments import ExperimentIterator
 from allib.analysis.initialization import RandomInitializer, SeparateInitializer
-from allib.analysis.simulation import TarSimulator, initialize
+from allib.analysis.simulation import TarSimulator, initialize_tar_simulation
 from allib.analysis.tarplotter import TarExperimentPlotter
 from allib.benchmarking.reviews import read_review_dataset
-from allib.configurations.base import (AL_REPOSITORY, ESTIMATION_REPOSITORY,
-                                       FE_REPOSITORY, STOP_REPOSITORY)
-from allib.configurations.catalog import (ALConfiguration,
-                                          EstimationConfiguration,
-                                          FEConfiguration)
+from allib.configurations.base import (
+    AL_REPOSITORY,
+    ESTIMATION_REPOSITORY,
+    FE_REPOSITORY,
+    STOP_REPOSITORY,
+)
+from allib.configurations.catalog import (
+    ALConfiguration,
+    EstimationConfiguration,
+    FEConfiguration,
+)
 from allib.module.factory import MainFactory
 from allib.stopcriterion.catalog import StopCriterionCatalog
 import instancelib as il
@@ -29,12 +35,13 @@ env = read_review_dataset(path)
 POS = "Relevant"
 NEG = "Irrelevant"
 vect = il.TextInstanceVectorizer(
-    il.SklearnVectorizer(TfidfVectorizer(max_features=5000)))
+    il.SklearnVectorizer(TfidfVectorizer(max_features=5000))
+)
 il.vectorize(vect, env)
 # %%
 recall95 = AprioriRecallTarget(POS, 0.95)
 criteria = {"Recall95": recall95}
-#estimators = {"RaschRidge": estimator}
+# estimators = {"RaschRidge": estimator}
 # %%
 at = TSVMLearner(POS, NEG, 200, 200)(env)
 random_init = RandomInitializer(env, 100)
@@ -49,5 +56,7 @@ simulator = TarSimulator(exp, plotter, 300)
 #%%
 simulator.simulate()
 # %%
-not_found_yet = at.env.get_subset_by_labels(at.env.unlabeled, "Relevant", labelprovider=at.env.truth)
+not_found_yet = at.env.get_subset_by_labels(
+    at.env.unlabeled, "Relevant", labelprovider=at.env.truth
+)
 # %%

@@ -18,6 +18,7 @@ citation-location: margin
 ## Multiple Systems Estimation.
 
 First, we load the libraries we want to use:
+
 ```{r}
 #| echo: false
 #| include: false
@@ -26,6 +27,7 @@ library(tidyverse)
 library(Rcapture)
 library(stringr)
 ```
+
 ```{python}
 #| echo: false
 #| include: false
@@ -46,21 +48,27 @@ df <- df %>% mutate(method=ifelse(method=="Chao_optimistic", "Optimistic", "Cons
 df <- df %>% mutate(stop_recall = stop_recall * 100)
 df <- df %>% mutate(stop_wss = stop_wss * 100)
 ```
+
 # WSS
+
 ```{r}
 wss_plot <- df %>% ggplot(aes(x=dataset,y=stop_wss, fill=method)) + geom_boxplot() + theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) + xlab("Dataset") + ylab("Work saved over Sampling (%)") + labs(fill="Stop Criterion")
 wss_plot
 
 ```
+
 # Recall
+
 ```{r}
 recall_plot <- df %>% ggplot(aes(x=dataset,y=stop_recall, fill=method)) + geom_boxplot() + theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) + xlab("Dataset") + ylab("Recall (%)") + labs(fill="Stop Criterion")
 recall_plot
 ```
+
 ```{r}
 er_plot <- df %>% ggplot(aes(x=dataset,y=stop_loss_er, fill=method)) + geom_boxplot() + theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))
 er_plot
 ```
+
 ```{r}
 mse_plot <- df %>% ggplot(aes(x=pos_count,y=stop_loss_er, color=method)) + geom_point() + theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))
 mse_plot

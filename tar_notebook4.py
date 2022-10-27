@@ -7,17 +7,28 @@ from allib.activelearning.autostop import AutoStopLearner
 from allib.activelearning.base import ActiveLearner
 from allib.analysis.experiments import ExperimentIterator
 from allib.analysis.initialization import RandomInitializer, SeparateInitializer
-from allib.analysis.simulation import TarSimulator, initialize
+from allib.analysis.simulation import TarSimulator, initialize_tar_simulation
 from allib.analysis.tablecollector import TableCollector
 from allib.analysis.tarplotter import ModelStatsTar, TarExperimentPlotter
 from allib.benchmarking.reviews import read_review_dataset
-from allib.configurations.base import (AL_REPOSITORY, ESTIMATION_REPOSITORY,
-                                       FE_REPOSITORY, STOP_REPOSITORY)
-from allib.configurations.catalog import (ALConfiguration,
-                                          EstimationConfiguration,
-                                          FEConfiguration)
+from allib.configurations.base import (
+    AL_REPOSITORY,
+    ESTIMATION_REPOSITORY,
+    FE_REPOSITORY,
+    STOP_REPOSITORY,
+)
+from allib.configurations.catalog import (
+    ALConfiguration,
+    EstimationConfiguration,
+    FEConfiguration,
+)
 from allib.environment.memory import MemoryEnvironment
-from allib.estimation.rasch_multiple import FastEMRaschPosNeg, FastOnlyPos, FastPosAssisted, rasch_estimate_parametric
+from allib.estimation.rasch_multiple import (
+    FastEMRaschPosNeg,
+    FastOnlyPos,
+    FastPosAssisted,
+    rasch_estimate_parametric,
+)
 from allib.module.factory import MainFactory
 from allib.stopcriterion.catalog import StopCriterionCatalog
 import instancelib as il
@@ -49,14 +60,17 @@ factory = MainFactory()
 
 #%%
 # Build the experiment objects
-al, fe = initialize(factory, al_config, fe_config, initializer, env)
+al, fe = initialize_tar_simulation(factory, al_config, fe_config, initializer, env)
 only_pos_stop = stop_constructor(onlypos, POS)
 # %%
-criteria =  {"POS": only_pos_stop}# "POS": only_pos_stop}
-estimators = {"POS": onlypos} # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
+criteria = {"POS": only_pos_stop}  # "POS": only_pos_stop}
+estimators = {
+    "POS": onlypos
+}  # {"POS": onlypos} #{"POS and NEG": estimator,}# "POS": onlypos}
 table_hook = TableCollector(POS)
-exp = ExperimentIterator(al, POS, NEG,  criteria, estimators, 
-    10, 10, 10, iteration_hooks=[table_hook])
+exp = ExperimentIterator(
+    al, POS, NEG, criteria, estimators, 10, 10, 10, iteration_hooks=[table_hook]
+)
 plotter = ModelStatsTar(POS, NEG)
 simulator = TarSimulator(exp, plotter, 400, True)
 # %%
@@ -69,8 +83,8 @@ def save_to_folder(table_hook, path: "PathLike[str]") -> None:
     path = Path(path)
     if not path.exists():
         path.mkdir(parents=True)
-    #compact = self.compact
-    #compact.to_csv((path / "aggregated.csv"), index=False)
+    # compact = self.compact
+    # compact.to_csv((path / "aggregated.csv"), index=False)
     for i, df in enumerate(table_hook.dfs):
         df.to_csv((path / f"design_matrix_{i}.csv"), index=False)
 

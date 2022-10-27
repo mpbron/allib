@@ -8,15 +8,25 @@ from allib.activelearning.autostop import AutoStopLearner
 from allib.activelearning.autotar import AutoTarLearner, PseudoInstanceInitializer
 from allib.analysis.experiments import ExperimentIterator
 from allib.analysis.initialization import RandomInitializer, SeparateInitializer
-from allib.analysis.simulation import TarSimulator, initialize
+from allib.analysis.simulation import TarSimulator, initialize_tar_simulation
 from allib.analysis.tarplotter import TarExperimentPlotter
 from allib.benchmarking.reviews import read_review_dataset
-from allib.configurations.base import (AL_REPOSITORY, ESTIMATION_REPOSITORY,
-                                       FE_REPOSITORY, STOP_REPOSITORY)
-from allib.configurations.catalog import (ALConfiguration,
-                                          EstimationConfiguration,
-                                          FEConfiguration)
-from allib.estimation.autostop import HorvitzThompsonLoose, HorvitzThompsonVar1, HorvitzThompsonVar2
+from allib.configurations.base import (
+    AL_REPOSITORY,
+    ESTIMATION_REPOSITORY,
+    FE_REPOSITORY,
+    STOP_REPOSITORY,
+)
+from allib.configurations.catalog import (
+    ALConfiguration,
+    EstimationConfiguration,
+    FEConfiguration,
+)
+from allib.estimation.autostop import (
+    HorvitzThompsonLoose,
+    HorvitzThompsonVar1,
+    HorvitzThompsonVar2,
+)
 from allib.module.factory import MainFactory
 from allib.stopcriterion.catalog import StopCriterionCatalog
 import instancelib as il
@@ -25,7 +35,13 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from allib.stopcriterion.heuristic import AprioriRecallTarget
-from allib.stopcriterion.others import BudgetStoppingRule, KneeStoppingRule, ReviewHalfStoppingRule, Rule2399StoppingRule, StopAfterKNegative
+from allib.stopcriterion.others import (
+    BudgetStoppingRule,
+    KneeStoppingRule,
+    ReviewHalfStoppingRule,
+    Rule2399StoppingRule,
+    StopAfterKNegative,
+)
 
 
 #%%
@@ -54,9 +70,12 @@ env = read_review_dataset(bos)
 #%%
 POS = "Relevant"
 NEG = "Irrelevant"
-init = RandomInitializer(env,1) 
+init = RandomInitializer(env, 1)
 vect = il.TextInstanceVectorizer(
-    il.SklearnVectorizer(TfidfVectorizer(stop_words='english', min_df=2, max_features=3000)))
+    il.SklearnVectorizer(
+        TfidfVectorizer(stop_words="english", min_df=2, max_features=3000)
+    )
+)
 # %%
 recall95 = AprioriRecallTarget(POS, 0.95)
 recall100 = AprioriRecallTarget(POS, 1.0)
@@ -67,14 +86,14 @@ rule2399 = Rule2399StoppingRule(POS)
 stop200 = StopAfterKNegative(POS, 200)
 stop400 = StopAfterKNegative(POS, 400)
 criteria = {
-    "Perfect95": recall95, 
-    "Perfect100": recall100, 
+    "Perfect95": recall95,
+    "Perfect100": recall100,
     "Half": half,
-    "Knee": knee, 
+    "Knee": knee,
     "Budget": budget,
     "Rule2399": rule2399,
     "Stop200": stop200,
-    "Stop400": stop400
+    "Stop400": stop400,
 }
 estimators = dict()
 logreg = LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000)
@@ -95,7 +114,10 @@ plotter.show()
 #%%
 from explabox import Explabox
 from instancelib.machinelearning.autovectorizer import AutoVectorizerClassifier
-box = Explabox(data=at.env, model=AutoVectorizerClassifier.from_skvector(at.classifier, vect))
+
+box = Explabox(
+    data=at.env, model=AutoVectorizerClassifier.from_skvector(at.classifier, vect)
+)
 # %%
 doc = next(at)
 box.explain.explain_prediction(doc, methods=["LIME"], n_features=20)

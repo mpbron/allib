@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Mapping, TypeVar, Union
+from typing import Any, Callable, Mapping, TypeVar, Union
 from uuid import UUID
 
 import numpy as np
@@ -8,10 +8,12 @@ import numpy.typing as npt
 import pandas as pd
 from instancelib import TextInstance
 from instancelib.ingest.spreadsheet import read_csv_dataset
+from instancelib.typehints.typevars import KT, LT
+from ..typehints.typevars import IT
 
 from ..analysis.experiments import ExperimentIterator
-from ..analysis.initialization import SeparateInitializer
-from ..analysis.simulation import TarSimulator, initialize
+from ..analysis.initialization import Initializer, SeparateInitializer
+from ..analysis.simulation import TarSimulator, initialize_tar_simulation
 from ..analysis.tarplotter import ModelStatsTar, TarExperimentPlotter
 from ..environment import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
@@ -75,12 +77,13 @@ def read_review_dataset(
 
 
 def benchmark(
-    path: Path,
+    env: AbstractEnvironment[IT, KT, Any, Any, Any, str],
     output_path: Path,
     output_pdf_path: Path,
     al_config: Mapping[str, Any],
     fe_config: Mapping[str, Any],
-    estimators: Mapping[str, AbstractEstimator[Any, Any, Any, Any, Any, str]],
+    initializer_builder: Callable[..., Initializer[IT, KT, str]],
+    estimators: Mapping[str, AbstractEstimator[IT, KT, Any, Any, Any, str]],
     stopcriteria: Mapping[str, AbstractStopCriterion[str]],
     pos_label: str,
     neg_label: str,
@@ -88,10 +91,11 @@ def benchmark(
     stop_interval: Union[int, Mapping[str, int]] = 10,
     estimation_interval: Union[int, Mapping[str, int]] = 10,
 ) -> TarExperimentPlotter[str]:
-    env = read_review_dataset(path)
     factory = MainFactory()
-    initializer = SeparateInitializer(1)
-    al, _ = initialize(factory, al_config, fe_config, initializer, env)
+    initializer = initializer_builder(pos_label=pos_label, neg_label=neg_label)
+    al, _ = initialize_tar_simulation(
+        factory, al_config, fe_config, initializer, env, pos_label, neg_label
+    )
     exp = ExperimentIterator(
         al,
         pos_label,

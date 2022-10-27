@@ -17,13 +17,13 @@ class ALConfiguration(Enum):
     AUTOTAR = "AUTOTAR"
     AUTOSTOP = "AUTOSTOP"
 
+
 class INITConfiguration(Enum):
     IDENTITY = "IDENTITY"
     RANDOM = "RANDOM"
     UNIFORM = "UNIFORM"
     SEPARATE = "SEPARATE"
     POSITVEUNIFORM = "POSITIVEUNIFORM"
-
 
 
 class FEConfiguration(Enum):
@@ -37,11 +37,13 @@ class EstimationConfiguration(str, Enum):
     RaschApproxParametric = "RaschApproxParametric"
     RaschApproxConvParametric = "RaschApproxConvParametric"
     CHAO = "Chao"
+    AUTOSTOP = "AUTOSTOP"
 
 
 class StopBuilderConfiguration(str, Enum):
     CHAO_CONS_OPT = "Chao_CONS_OPT"
     AUTOTAR = "AUTOTAR"
+    AUTOSTOP = "AUTOSTOP"
 
 
 class ExperimentCombination(str, Enum):

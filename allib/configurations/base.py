@@ -1,13 +1,27 @@
 import itertools
 from dataclasses import dataclass, field
-from typing import (Any, Callable, Dict, Generic, Mapping, Optional, Sequence,
-                    Tuple, TypeVar)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+)
 
 import numpy as np
 import numpy.typing as npt
 from instancelib.utils.func import flatten_dicts, list_unzip, value_map
 
-from allib.analysis.initialization import Initializer, RandomInitializer, SeparateInitializer
+from allib.analysis.initialization import (
+    Initializer,
+    RandomInitializer,
+    SeparateInitializer,
+)
+from ..estimation.autostop import HorvitzThompsonVar2
 
 from ..estimation.base import AbstractEstimator
 from ..estimation.mhmodel import AbundanceEstimator
@@ -17,21 +31,42 @@ from ..estimation.rasch_parametric import ParametricRaschPython
 from ..estimation.rasch_python import EMRaschRidgePython
 from ..stopcriterion.base import AbstractStopCriterion
 from ..stopcriterion.catalog import StopCriterionCatalog
-from ..stopcriterion.estimation import (CombinedStopCriterion, Conservative,
-                                        Optimistic,
-                                        UpperboundCombinedCritertion)
+from ..stopcriterion.estimation import (
+    CombinedStopCriterion,
+    Conservative,
+    Optimistic,
+    UpperboundCombinedCritertion,
+)
 from ..stopcriterion.heuristic import AprioriRecallTarget
-from ..stopcriterion.others import (BudgetStoppingRule, KneeStoppingRule,
-                                    ReviewHalfStoppingRule,
-                                    Rule2399StoppingRule, StopAfterKNegative)
+from ..stopcriterion.others import (
+    BudgetStoppingRule,
+    KneeStoppingRule,
+    ReviewHalfStoppingRule,
+    Rule2399StoppingRule,
+    StopAfterKNegative,
+)
 from ..typehints import LT
-from .catalog import (ALConfiguration, EstimationConfiguration,
-                      ExperimentCombination, FEConfiguration,
-                      StopBuilderConfiguration)
-from .ensemble import (al_config_ensemble_prob, al_config_entropy,
-                       naive_bayes_estimator, rasch_estimator, rasch_lr,
-                       rasch_nblrrf, rasch_nblrrflgbm, rasch_nblrrflgbmrand,
-                       rasch_nblrrfsvm, rasch_rf, svm_estimator, tf_idf5000)
+from .catalog import (
+    ALConfiguration,
+    EstimationConfiguration,
+    ExperimentCombination,
+    FEConfiguration,
+    StopBuilderConfiguration,
+)
+from .ensemble import (
+    al_config_ensemble_prob,
+    al_config_entropy,
+    naive_bayes_estimator,
+    rasch_estimator,
+    rasch_lr,
+    rasch_nblrrf,
+    rasch_nblrrflgbm,
+    rasch_nblrrflgbmrand,
+    rasch_nblrrfsvm,
+    rasch_rf,
+    svm_estimator,
+    tf_idf5000,
+)
 
 from .tarbaselines import autotar, autostop
 
@@ -71,6 +106,7 @@ ESTIMATION_REPOSITORY = {
         int, str, npt.NDArray[Any], str, str
     ](),
     EstimationConfiguration.CHAO: AbundanceEstimator[Any, Any, Any, Any, Any, str](),
+    EstimationConfiguration.AUTOSTOP: HorvitzThompsonVar2(),
 }
 
 STOP_REPOSITORY: Dict[
@@ -105,7 +141,7 @@ def mapping_unzip(
 class TarExperimentParameters(Generic[LT]):
     al_configuration: ALConfiguration
     fe_configuration: FEConfiguration
-    init_configuration: Initializer
+    init_configuration: Callable[..., Initializer[Any, Any, LT]]
     stop_builder_configuration: Sequence[StopBuilderConfiguration]
     batch_size: int
     stop_interval: int
@@ -113,7 +149,7 @@ class TarExperimentParameters(Generic[LT]):
 
 
 def conservative_optimistic_builder(
-    estimators: Mapping[str, AbstractEstimator], target: float
+    estimators: Mapping[str, AbstractEstimator], targets: Sequence[float]
 ) -> Callable[
     [LT, LT],
     Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]],
@@ -124,14 +160,18 @@ def conservative_optimistic_builder(
         Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]
     ]:
         conservatives = {
-            f"{key}_conservative": Conservative.builder(est, target)(
+            f"{key}_conservative_{target}": Conservative.builder(est, target)(
                 pos_label, neg_label
             )
             for key, est in estimators.items()
+            for target in targets
         }
         optimistics = {
-            f"{key}_optimistic": Optimistic.builder(est, target)(pos_label, neg_label)
+            f"{key}_optimistic_{target}": Optimistic.builder(est, target)(
+                pos_label, neg_label
+            )
             for key, est in estimators.items()
+            for target in targets
         }
         return estimators, flatten_dicts(conservatives, optimistics)
 
@@ -162,11 +202,16 @@ def standoff_builder(
     return dict(), criteria
 
 
+TARGETS = [0.7, 0.8, 0.9, 0.95, 1.0]
+
 STOP_BUILDER_REPOSITORY = {
     StopBuilderConfiguration.CHAO_CONS_OPT: conservative_optimistic_builder(
-        {"Chao": AbundanceEstimator()}, 0.95
+        {"Chao": AbundanceEstimator()}, TARGETS
     ),
     StopBuilderConfiguration.AUTOTAR: standoff_builder,
+    StopBuilderConfiguration.AUTOSTOP: conservative_optimistic_builder(
+        {"AUTOSTOP": HorvitzThompsonVar2()}, TARGETS
+    ),
 }
 
 
@@ -174,7 +219,7 @@ EXPERIMENT_REPOSITORY = {
     ExperimentCombination.CHAO4: TarExperimentParameters(
         ALConfiguration.RaschNBLRRFLGBMRAND,
         FEConfiguration.TFIDF5000,
-        SeparateInitializer(1),
+        SeparateInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT,),
         10,
         10,
@@ -183,7 +228,7 @@ EXPERIMENT_REPOSITORY = {
     ExperimentCombination.AUTOTAR: TarExperimentParameters(
         ALConfiguration.AUTOTAR,
         FEConfiguration.TFIDF5000,
-        RandomInitializer(5),
+        RandomInitializer.builder(5),
         (StopBuilderConfiguration.AUTOTAR,),
         10,
         10,
@@ -192,8 +237,8 @@ EXPERIMENT_REPOSITORY = {
     ExperimentCombination.AUTOSTOP: TarExperimentParameters(
         ALConfiguration.AUTOSTOP,
         FEConfiguration.TFIDF5000,
-        RandomInitializer(5),
-        (StopBuilderConfiguration.AUTOTAR,),
+        RandomInitializer.builder(5),
+        (StopBuilderConfiguration.AUTOSTOP,),
         10,
         10,
         10,

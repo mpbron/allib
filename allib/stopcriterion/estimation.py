@@ -5,6 +5,7 @@ import math
 from typing import Any, Callable, Deque, Generic, Optional
 
 import numpy as np
+import math
 from instancelib.utils.func import all_equal, intersection
 
 from ..activelearning import ActiveLearner
@@ -294,7 +295,7 @@ class Conservative(AbstractStopCriterion[LT], Generic[LT]):
         if self.estimate is None:
             return False
         recall_estimate = self.count_found / self.estimate
-        return recall_estimate >= self.target
+        return round(recall_estimate, 2) >= self.target
 
 
 class Optimistic(Conservative[LT], Generic[LT]):
