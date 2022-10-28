@@ -1,5 +1,5 @@
 library(Rcapture)
-library(tidyverse)
+suppressPackageStartupMessages(library(tidyverse))
 
 get_abundance <- function(df){
     dat <- closedpCI.0(df, t = Inf, m = "Mh", h = "LB")
