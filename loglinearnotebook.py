@@ -65,7 +65,7 @@ ah = Path("../datasets/Appenzeller-Herzog_2020.csv")
 bb = Path("../datasets/Bannach-Brown_2019.csv")
 wolters = Path("../datasets/Wolters_2018.csv")
 kwok = Path("../datasets/Kwok_2020.csv")
-env = read_review_dataset(ace)
+env = read_review_dataset(kwok)
 POS = "Relevant"
 NEG = "Irrelevant"
 # %%
@@ -75,12 +75,12 @@ fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
 chao = AbundanceEstimator()
 logl = LogLinear(2000)
 rasch = FastOnlyPos(2000)
-initializer = SeparateInitializer(env, 1)
+initializer = SeparateInitializer(1)
 factory = MainFactory()
 
 #%%
 # Build the experiment objects
-al, fe = initialize_tar_simulation(factory, al_config, fe_config, initializer, env)
+al, fe = initialize_tar_simulation(factory, al_config, fe_config, initializer, env, POS, NEG)
 chao_stop = Conservative(chao, POS, 0.95)
 recall95 = AprioriRecallTarget(POS, 0.95)
 recall100 = AprioriRecallTarget(POS, 1.0)
@@ -112,7 +112,7 @@ exp = ExperimentIterator(
     al, POS, NEG, criteria, estimators, 10, 10, 10, iteration_hooks=[table_hook]
 )
 plotter = ModelStatsTar(POS, NEG)
-simulator = TarSimulator(exp, plotter, 1000)
+simulator = TarSimulator(exp, plotter)
 # %%
 # simulator.max_it += 1000
 simulator.simulate()

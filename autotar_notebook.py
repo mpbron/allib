@@ -70,7 +70,7 @@ env = read_review_dataset(bos)
 #%%
 POS = "Relevant"
 NEG = "Irrelevant"
-init = RandomInitializer(env, 1)
+init = RandomInitializer(1)
 vect = il.TextInstanceVectorizer(
     il.SklearnVectorizer(
         TfidfVectorizer(stop_words="english", min_df=2, max_features=3000)
@@ -102,6 +102,9 @@ at = AutoTarLearner.builder(classifier, 100, 20)(env, POS, NEG)
 # %%
 init(at)
 il.vectorize(vect, at.env)
+
+#%%
+not at.env.unlabeled
 # %%
 
 exp = ExperimentIterator(at, POS, NEG, criteria, estimators)

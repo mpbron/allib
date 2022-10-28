@@ -217,3 +217,9 @@ class AutoStopLearner(
             self.it += 1
 
         return self.current_sample
+
+    def __next__(self) -> IT:
+        if len(self.env.unlabeled) != 1:
+            return super().__next__()
+        return next(iter(self.env.unlabeled.values()))
+        

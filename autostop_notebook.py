@@ -64,7 +64,7 @@ env = read_review_dataset(ace)
 #%%
 POS = "Relevant"
 NEG = "Irrelevant"
-init = RandomInitializer(env, 1)
+init = RandomInitializer(1)
 vect = il.TextInstanceVectorizer(
     il.SklearnVectorizer(
         TfidfVectorizer(stop_words="english", min_df=2, max_features=3000)

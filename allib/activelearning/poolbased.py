@@ -121,8 +121,8 @@ class PoolBasedAL(
 
         Examples
         --------
-        :meth:`~.PoolBasedAL.__next__()` is a special method and
-        makes this object combined with the method :meth:`~.base.ActiveLearner.__iter__()`
+        :meth:`~allib.activelearning.PoolBasedAL.__next__()` is a special method and
+        makes this object combined with the method :meth:`~allib.base.ActiveLearner.__iter__()`
         an :term:`iterator`.
         As any iterator, this object can be used as follows:
 
