@@ -8,7 +8,7 @@
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import pathlib
-import setuptools # type: ignore
+import setuptools  # type: ignore
 
 # The directory containing this file
 HERE = pathlib.Path(__file__).parent
@@ -17,9 +17,9 @@ HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
 
 # This call to setup() does all the work
-setuptools.setup( # type: ignore
+setuptools.setup(  # type: ignore
     name="python-allib",
-    version="0.1.8.2",
+    version="0.1.8.2",  # NOSONAR
     description="A typed Active Learning Library",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -32,16 +32,16 @@ setuptools.setup( # type: ignore
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     package_data={"allib": ["py.typed", "estimation/mhmodel.R"]},
-    packages=setuptools.find_packages(), # type: ignore
+    packages=setuptools.find_packages(),  # type: ignore
     python_requires=">=3.8",
     install_requires=[
-        "numpy", 
-        "pandas", 
-        "h5py", 
-        "tables", 
+        "numpy",
+        "pandas",
+        "h5py",
+        "tables",
         "scikit-learn",
-        "scipy", 
-        "openpyxl", 
+        "scipy",
+        "openpyxl",
         "xlrd",
         "instancelib",
         "imblearn",
@@ -49,8 +49,7 @@ setuptools.setup( # type: ignore
         "gensim",
         "more-itertools",
         "matplotlib",
-        "numba"],
-    extras_require={
-        "doc2vec": ["gensim"] 
-    }
+        "typing_extensions>=4.4.0" "numba",
+    ],
+    extras_require={"doc2vec": ["gensim"]},
 )

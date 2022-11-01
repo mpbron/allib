@@ -69,12 +69,13 @@ def _check_R():
 class AbundanceEstimator(
     AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
+    r_loaded: bool
     name = "Mh Chao Estimator"
 
     def __init__(self):
         self.matrix_history: Deque[pd.DataFrame] = collections.deque()
         self.contingency_history: Deque[Dict[FrozenSet[int], int]] = collections.deque()
-        self._start_r()
+        self.r_loaded = False
 
     def _start_r(self) -> None:
         _check_R()
@@ -138,6 +139,9 @@ class AbundanceEstimator(
     def calculate_abundance_R(
         self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT
     ) -> pd.DataFrame:
+        if not self.r_loaded:
+            self._start_r()
+            self.r_loaded = True
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             df = self.get_label_matrix(estimator, label)
