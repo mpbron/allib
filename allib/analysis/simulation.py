@@ -75,11 +75,11 @@ def initialize_tar_simulation(
     ----------
     factory : ObjectFactory
         The factory method that builds the components
-    al_config : Dict[str, Any]
+    al_config : Mapping[str, Any]
         The dictionary that declares the configuration of the Active Learning component
-    fe_config : Dict[str, Any]
+    fe_config : Mapping[str, Any]
         The dictionary that declares the configuration of the Feature Extraction component
-    initializer : Initializer[KT, LT]
+    initializer : Initializer[IT, KT, LT]
         The function that determines how and which initial knowledge should be supplied to
         the Active Learner
     env : AbstractEnvironment[KT, DT, npt.NDArray[Any], DT, LT]
@@ -98,7 +98,7 @@ def initialize_tar_simulation(
         - An :class:`~allib.feature_extraction.base.BaseVectorizer` object according
             to the configuration in `fe_config`
     """
-    # Build the active learners and feature extraction models
+    # Get the active learner builder and feature extraction models
     learner_builder: Callable[
         ..., ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT]
     ] = factory.create(Component.ACTIVELEARNER, **al_config)
@@ -109,7 +109,7 @@ def initialize_tar_simulation(
     ## Copy the data to memory
     start_env = reset_environment(vectorizer, env)
 
-    # Attach the environment to the active learner
+    # Build the Active Learner object
     learner = learner_builder(start_env, pos_label=pos_label, neg_label=neg_label)
 
     # Initialize the learner with initial knowledge
@@ -201,96 +201,6 @@ class ClassificationSimulator(Generic[IT, KT, DT, VT, RT, LT]):
                 pbar.update(1)
 
 
-def simulate(
-    learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
-    stop_crit: AbstractStopCriterion[LT],
-    plotter: AbstractPlotter[LT],
-    batch_size: int,
-) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], AbstractPlotter[LT]]:
-    """Simulates the Active Learning
-
-    Parameters
-    ----------
-    learner : ActiveLearner[IT, KT, DT, VT, RT, LT]
-        [description]
-    stop_crit : AbstractStopCriterion[LT]
-        [description]
-    plotter : BinaryPlotter[LT]
-        [description]
-    batch_size : int
-        [description]
-
-    Returns
-    -------
-    Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], BinaryPlotter[LT]]
-        [description]
-    """
-    while not stop_crit.stop_criterion:
-        # Train the model
-        learner.update_ordering()
-        # Sample batch_size documents from the learner
-        sample = itertools.islice(learner, batch_size)
-        for instance in sample:
-            # Retrieve the labels from the oracle
-            oracle_labels = learner.env.truth.get_labels(instance)
-
-            # Set the labels in the active learner
-            learner.env.labels.set_labels(instance, *oracle_labels)
-            learner.set_as_labeled(instance)
-
-        plotter.update(learner)
-        stop_crit.update(learner)
-
-    return learner, plotter
-
-
-def simulate_stop_iteration(
-    learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
-    stop_crit: AbstractStopCriterion[LT],
-    plotter: AbstractPlotter[LT],
-    batch_size: int,
-    check_stop: int = 10,
-) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], AbstractPlotter[LT]]:
-    """Simulates the Active Learning
-
-    Parameters
-    ----------
-    learner : ActiveLearner[IT, KT, DT, VT, RT, LT]
-        [description]
-    stop_crit : AbstractStopCriterion[LT]
-        [description]
-    plotter : BinaryPlotter[LT]
-        [description]
-    batch_size : int
-        [description]
-
-    Returns
-    -------
-    Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], BinaryPlotter[LT]]
-        [description]
-    """
-    it = 0
-    while not stop_crit.stop_criterion:
-        # Train the model
-        learner.update_ordering()
-        # Sample batch_size documents from the learner
-        sample = itertools.islice(learner, batch_size)
-        for instance in sample:
-            # Retrieve the labels from the oracle
-            oracle_labels = learner.env.truth.get_labels(instance)
-
-            # Set the labels in the active learner
-            learner.env.labels.set_labels(instance, *oracle_labels)
-            learner.set_as_labeled(instance)
-            it = it + 1
-
-        if it % check_stop == 0:
-            plotter.update(learner)
-            stop_crit.update(learner)
-
-    return learner, plotter
-
-
 def multilabel_all_non_empty(
     learner: ActiveLearner[Any, Any, Any, Any, Any, Any], count: int
 ) -> bool:
@@ -299,108 +209,3 @@ def multilabel_all_non_empty(
         [provider.document_count(label) > count for label in provider.labelset]
     )
     return non_empty
-
-
-def simulate_with_cold_start(
-    learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
-    stop_crit: AbstractStopCriterion[LT],
-    plotter: AbstractPlotter[LT],
-    batch_size: int,
-    start_count=2,
-) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], AbstractPlotter[LT]]:
-    """Simulates the Active Learning
-
-    Parameters
-    ----------
-    learner : ActiveLearner[IT, KT, DT, VT, RT, LT]
-        [description]
-    stop_crit : AbstractStopCriterion[LT]
-        [description]
-    plotter : BinaryPlotter[LT]
-        [description]
-    batch_size : int
-        [description]
-
-    Returns
-    -------
-    Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], BinaryPlotter[LT]]
-        [description]
-    """
-    learner.update_ordering()
-    while not multilabel_all_non_empty(learner, start_count):
-        instance = next(learner)
-        oracle_labels = learner.env.truth.get_labels(instance)
-        # Set the labels in the active learner
-        learner.env.labels.set_labels(instance, *oracle_labels)
-        learner.set_as_labeled(instance)
-    while not stop_crit.stop_criterion:
-        # Train the model
-        learner.update_ordering()
-        # Sample batch_size documents from the learner
-        sample = itertools.islice(learner, batch_size)
-        for instance in sample:
-            # Retrieve the labels from the oracle
-            oracle_labels = learner.env.truth.get_labels(instance)
-
-            # Set the labels in the active learner
-            learner.env.labels.set_labels(instance, *oracle_labels)
-            learner.set_as_labeled(instance)
-
-        plotter.update(learner)
-        stop_crit.update(learner)
-
-    return learner, plotter
-
-
-def simulate_classification(
-    learner: ActiveLearner[IT, KT, DT, VT, RT, LT],
-    stop_crit: AbstractStopCriterion[LT],
-    plotter: AbstractPlotter[LT],
-    batch_size: int,
-    start_count=2,
-) -> Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], AbstractPlotter[LT]]:
-    """Simulates the Active Learning procedure
-
-    Parameters
-    ----------
-    learner : ActiveLearner[IT, KT, DT, VT, RT, LT]
-        The Active Learning object
-    stop_crit : AbstractStopCriterion[LT]
-        The stopping criterion
-    plotter : BinaryPlotter[LT]
-        A plotter that tracks the results
-    batch_size : int
-        The batch size of each sample
-    start_count : int
-        The number of instances that each class recieves before training the classification process.
-
-    Returns
-    -------
-    Tuple[ActiveLearner[IT, KT, DT, VT, RT, LT], AbstractPlotter[LT]]
-        A tuple consisting of the final model and the plot of the process
-    """
-    learner.update_ordering()
-    while not multilabel_all_non_empty(learner, start_count):
-        instance = next(learner)
-        oracle_labels = learner.env.truth.get_labels(instance)
-        # Set the labels in the active learner
-        learner.env.labels.set_labels(instance, *oracle_labels)
-        learner.set_as_labeled(instance)
-    while not stop_crit.stop_criterion:
-        # Train the model
-        learner.update_ordering()
-        # Sample batch_size documents from the learner
-        sample = itertools.islice(learner, batch_size)
-        for instance in sample:
-            # Retrieve the labels from the oracle
-            oracle_labels = learner.env.truth.get_labels(instance)
-            print(instance)
-            print(oracle_labels)
-            # Set the labels in the active learner
-            learner.env.labels.set_labels(instance, *oracle_labels)
-            learner.set_as_labeled(instance)
-
-        plotter.update(learner)
-        stop_crit.update(learner)
-
-    return learner, plotter
