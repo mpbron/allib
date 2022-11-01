@@ -2,38 +2,25 @@
 import numpy as np
 from typing import List
 from pathlib import Path
-from instancelib.ingest.qrel import TrecDataset
-from allib.activelearning.autostop import AutoStopLearner
-from allib.activelearning.base import ActiveLearner
 from allib.analysis.experiments import ExperimentIterator
-from allib.analysis.initialization import RandomInitializer, SeparateInitializer
+from allib.analysis.initialization import SeparateInitializer
 from allib.analysis.simulation import TarSimulator, initialize_tar_simulation
 from allib.analysis.tablecollector import TableCollector
-from allib.analysis.tarplotter import ModelStatsTar, TarExperimentPlotter
+from allib.analysis.tarplotter import ModelStatsTar
 from allib.benchmarking.reviews import read_review_dataset
 from allib.configurations.base import (
     AL_REPOSITORY,
-    ESTIMATION_REPOSITORY,
     FE_REPOSITORY,
-    STOP_REPOSITORY,
 )
 from allib.configurations.catalog import (
     ALConfiguration,
-    EstimationConfiguration,
     FEConfiguration,
 )
-from allib.environment.memory import MemoryEnvironment
 from allib.estimation.rasch_multiple import (
     FastEMRaschPosNeg,
-    FastOnlyPos,
-    FastPosAssisted,
-    rasch_estimate_parametric,
 )
 from allib.module.factory import MainFactory
-from allib.stopcriterion.catalog import StopCriterionCatalog
-import instancelib as il
-from sklearn.naive_bayes import MultinomialNB
-import matplotlib.pyplot as plt
+from allib.stopcriterion.estimation import Conservative
 
 from allib.utils.func import list_unzip
 
@@ -53,14 +40,16 @@ NEG = "Irrelevant"
 # Retrieve the configuration
 al_config = AL_REPOSITORY[ALConfiguration.RaschNBLRRFSVM]
 fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
-stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
+stop_constructor = lambda est, lbl: Conservative(est, lbl, 0.95)
 onlypos = FastEMRaschPosNeg(2000)
-initializer = SeparateInitializer(env, 1)
+initializer = SeparateInitializer(1)
 factory = MainFactory()
 
 #%%
 # Build the experiment objects
-al, fe = initialize_tar_simulation(factory, al_config, fe_config, initializer, env)
+al, fe = initialize_tar_simulation(
+    factory, al_config, fe_config, initializer, env, POS, NEG
+)
 only_pos_stop = stop_constructor(onlypos, POS)
 # %%
 criteria = {"POS": only_pos_stop}  # "POS": only_pos_stop}
@@ -79,7 +68,7 @@ simulator.simulate()
 #%%
 plotter.show()
 # %%
-def save_to_folder(table_hook, path: "PathLike[str]") -> None:
+def save_to_folder(table_hook, path: Path) -> None:
     path = Path(path)
     if not path.exists():
         path.mkdir(parents=True)

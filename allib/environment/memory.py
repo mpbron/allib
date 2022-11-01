@@ -7,11 +7,8 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
-    Mapping,
     MutableMapping,
     Sequence,
-    Set,
-    TypeVar,
     Union,
 )
 from uuid import UUID

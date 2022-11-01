@@ -13,13 +13,10 @@ from allib.analysis.tarplotter import ModelStatsTar, TarExperimentPlotter
 from allib.benchmarking.reviews import read_review_dataset
 from allib.configurations.base import (
     AL_REPOSITORY,
-    ESTIMATION_REPOSITORY,
     FE_REPOSITORY,
-    STOP_REPOSITORY,
 )
 from allib.configurations.catalog import (
     ALConfiguration,
-    EstimationConfiguration,
     FEConfiguration,
 )
 from allib.environment.memory import MemoryEnvironment
@@ -80,7 +77,9 @@ factory = MainFactory()
 
 #%%
 # Build the experiment objects
-al, fe = initialize_tar_simulation(factory, al_config, fe_config, initializer, env, POS, NEG)
+al, fe = initialize_tar_simulation(
+    factory, al_config, fe_config, initializer, env, POS, NEG
+)
 chao_stop = Conservative(chao, POS, 0.95)
 recall95 = AprioriRecallTarget(POS, 0.95)
 recall100 = AprioriRecallTarget(POS, 1.0)

@@ -29,7 +29,7 @@ from ..activelearning.ml_based import MLBased
 from ..environment.base import IT, AbstractEnvironment
 from ..machinelearning import AbstractClassifier
 from ..utils import get_random_generator
-from .base import ActiveLearner, NotInitializedException
+from .base import ActiveLearner
 
 _T = TypeVar("_T")
 

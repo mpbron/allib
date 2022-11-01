@@ -1,5 +1,6 @@
 from __future__ import annotations
 import collections
+from typing_extensions import Self
 
 from instancelib.instances.base import Instance
 
@@ -25,7 +26,6 @@ from typing import (
 )
 
 
-from ..exceptions import NotInitializedException
 from ..environment.base import AbstractEnvironment, IT
 
 DT = TypeVar("DT")
@@ -98,7 +98,7 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
             return self.identifier, None
         return self._name, None
 
-    def __iter__(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
+    def __iter__(self) -> Self:
         """The Active Learning class is an iterator, iterating
         over instances
 
@@ -341,10 +341,5 @@ class ActiveLearner(ABC, Iterator[IT], Generic[IT, KT, DT, VT, RT, LT]):
 
     @classmethod
     @abstractmethod
-    def builder(
-        cls, *args: Any, **kwargs: Any
-    ) -> Callable[
-        ...,
-        ActiveLearner[IT, KT, DT, VT, RT, LT],
-    ]:
+    def builder(cls, *args: Any, **kwargs: Any) -> Callable[..., Self]:
         raise NotImplementedError

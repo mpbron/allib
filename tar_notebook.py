@@ -13,9 +13,7 @@ from allib.analysis.tarplotter import ModelStatsTar, TarExperimentPlotter
 from allib.benchmarking.reviews import read_review_dataset
 from allib.configurations.base import (
     AL_REPOSITORY,
-    ESTIMATION_REPOSITORY,
     FE_REPOSITORY,
-    STOP_REPOSITORY,
 )
 from allib.configurations.catalog import (
     ALConfiguration,
@@ -34,6 +32,7 @@ from allib.stopcriterion.catalog import StopCriterionCatalog
 import instancelib as il
 from sklearn.naive_bayes import MultinomialNB
 import matplotlib.pyplot as plt
+from allib.stopcriterion.estimation import Conservative
 
 from allib.utils.func import list_unzip
 
@@ -53,15 +52,17 @@ NEG = "Irrelevant"
 # Retrieve the configuration
 al_config = AL_REPOSITORY[ALConfiguration.RaschNBLRRF]
 fe_config = FE_REPOSITORY[FEConfiguration("TfIDF5000")]
-stop_constructor = STOP_REPOSITORY[StopCriterionCatalog("UpperBound95")]
 estimator = FastEMRaschPosNeg(2000)
+stop_constructor = lambda est, lbl: Conservative(est, lbl, 0.95)
 onlypos = FastOnlyPos(20000)
-initializer = SeparateInitializer(env, 1)
+initializer = SeparateInitializer(1)
 factory = MainFactory()
 
 #%%
 # Build the experiment objects
-al, fe = initialize_tar_simulation(factory, al_config, fe_config, initializer, env)
+al, fe = initialize_tar_simulation(
+    factory, al_config, fe_config, initializer, env, POS, NEG
+)
 criterion = stop_constructor(estimator, POS)
 only_pos_stop = stop_constructor(onlypos, POS)
 # %%

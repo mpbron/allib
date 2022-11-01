@@ -19,6 +19,7 @@ from typing import (
     Tuple,
     TypeVar,
 )
+from typing_extensions import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -151,8 +152,6 @@ class ILMLBased(
         NotInitializedException
             If the model has no attached Environment
         """
-        if not self.initialized:
-            raise NotInitializedException
         _, labels = list_unzip(self.classifier.predict_proba(instances))
         return labels
 
@@ -406,33 +405,26 @@ class ILProbabilityBased(
     def builder(
         cls,
         classifier_builder: Callable[
-            ...,
-            Callable[
-                [il.AbstractEnvironment[IT, KT, DT, VT, RT, LT]],
-                AbstractClassifier[
-                    IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]
-                ],
+            [il.AbstractEnvironment[IT, KT, DT, VT, RT, LT]],
+            AbstractClassifier[
+                IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]
             ],
         ],
-        classifier_params: Mapping[str, Any] = dict(),
+        selection_criterion: AbstractSelectionCriterion,
         fallback_builder: Callable[
-            ..., Callable[..., ActiveLearner[IT, KT, DT, VT, RT, LT]]
-        ] = RandomSampling.builder,
-        fallback_params: Mapping[str, Any] = dict(),
-        batch_size=200,
+            ..., ActiveLearner[IT, KT, DT, VT, RT, LT]
+        ] = RandomSampling[IT, KT, DT, VT, RT, LT].builder(),
+        batch_size: int = 200,
         *_,
         identifier: Optional[str] = None,
         **kwargs,
-    ) -> Callable[
-        [AbstractEnvironment[IT, KT, DT, VT, RT, LT]],
-        ActiveLearner[IT, KT, DT, VT, RT, LT],
-    ]:
+    ) -> Callable[[AbstractEnvironment[IT, KT, DT, VT, RT, LT]], Self,]:
         def builder_func(
-            env: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
-        ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
-            fallback = fallback_builder(**fallback_params)(env)
-            classifier = classifier_builder()
-            raise NotImplementedError
+            env: AbstractEnvironment[IT, KT, DT, VT, RT, LT], *_, **__
+        ) -> Self:
+            fallback = fallback_builder(env)
+            classifier = classifier_builder(env)
+            return cls(env, classifier, selection_criterion, fallback, batch_size)
 
         return builder_func
 

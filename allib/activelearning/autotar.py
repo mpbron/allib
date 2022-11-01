@@ -13,6 +13,7 @@ from typing import (
     Sequence,
     Tuple,
 )
+from typing_extensions import Self
 from uuid import uuid4
 
 import instancelib as il
@@ -217,7 +218,7 @@ class AutoTarLearner(
         ],
         k_sample: int,
         batch_size: int,
-    ) -> Callable[..., ActiveLearner[IT, KT, DT, VT, RT, LT],]:
+    ) -> Callable[..., Self]:
         def builder_func(
             env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
             pos_label: LT,

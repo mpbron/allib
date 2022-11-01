@@ -109,17 +109,6 @@ ESTIMATION_REPOSITORY = {
     EstimationConfiguration.AUTOSTOP: HorvitzThompsonVar2(),
 }
 
-STOP_REPOSITORY: Dict[
-    StopCriterionCatalog, Callable[[AbstractEstimator, Any], AbstractStopCriterion]
-] = {
-    StopCriterionCatalog.INTERSECTION_FALLBACK: lambda est, label: CombinedStopCriterion(
-        est, label, 3, 1.0, 0.01
-    ),
-    StopCriterionCatalog.UPPERBOUND95: lambda est, label: UpperboundCombinedCritertion(
-        est, label, 3, 1.0, 0.01
-    ),
-}
-
 
 def filter_mapping(mapping: Mapping[_K, Optional[_T]]) -> Mapping[_K, _T]:
     return {k: v for k, v in mapping.items() if v is not None}

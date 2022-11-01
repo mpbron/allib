@@ -11,24 +11,6 @@ from allib.analysis.initialization import RandomInitializer, SeparateInitializer
 from allib.analysis.simulation import TarSimulator, initialize_tar_simulation
 from allib.analysis.tarplotter import TarExperimentPlotter
 from allib.benchmarking.reviews import read_review_dataset
-from allib.configurations.base import (
-    AL_REPOSITORY,
-    ESTIMATION_REPOSITORY,
-    FE_REPOSITORY,
-    STOP_REPOSITORY,
-)
-from allib.configurations.catalog import (
-    ALConfiguration,
-    EstimationConfiguration,
-    FEConfiguration,
-)
-from allib.estimation.autostop import (
-    HorvitzThompsonLoose,
-    HorvitzThompsonVar1,
-    HorvitzThompsonVar2,
-)
-from allib.module.factory import MainFactory
-from allib.stopcriterion.catalog import StopCriterionCatalog
 import instancelib as il
 from instancelib.ingest.qrel import TrecDataset
 from sklearn.naive_bayes import MultinomialNB

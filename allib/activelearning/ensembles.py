@@ -18,6 +18,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from typing_extensions import Self
 
 import instancelib as il
 import numpy as np  # type: ignore
@@ -175,7 +176,7 @@ class ManualEnsemble(
         probabilities: Sequence[float],
         *_: Any,
         **__: Any,
-    ) -> Callable[..., ManualEnsemble[IT, KT, DT, VT, RT, LT]]:
+    ) -> Callable[..., Self]:
         def wrap_func(
             env: AbstractEnvironment[IT, KT, DT, VT, RT, LT], *args, **kwargs
         ):

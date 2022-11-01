@@ -3,6 +3,7 @@ from __future__ import annotations
 import collections
 import logging
 from typing import Any, Callable, Generic, Optional, Sequence, Set, TypeVar
+from typing_extensions import Self
 
 from instancelib import Instance
 
@@ -175,15 +176,10 @@ class PoolBasedAL(
         self.env.unlabeled.add(instance)
 
     @classmethod
-    def builder(
-        cls, *args: Any, **kwargs: Any
-    ) -> Callable[
-        ...,
-        ActiveLearner[IT, KT, DT, VT, RT, LT],
-    ]:
+    def builder(cls, *args: Any, **kwargs: Any) -> Callable[..., Self]:
         def builder_func(
-            env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
-            *_: Any, **__: Any
-        ) -> PoolBasedAL[IT, KT, DT, VT, RT, LT]:
+            env: AbstractEnvironment[IT, KT, DT, VT, RT, LT], *_: Any, **__: Any
+        ) -> Self:
             return cls(env)
+
         return builder_func

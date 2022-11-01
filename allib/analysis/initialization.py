@@ -18,6 +18,7 @@ from typing import (
     Tuple,
     TypeVar,
 )
+from typing_extensions import Self, TypeVar
 from uuid import uuid4
 
 import numpy as np  # type: ignore
@@ -31,6 +32,8 @@ from ..typehints import KT, LT, IT, DT, VT, RT
 
 LOGGER = logging.getLogger(__name__)
 
+AT = TypeVar("AT", bound="ActiveLearner[Any, Any, Any, Any, Any, Any]", covariant=True)
+
 
 class Initializer(ABC, Generic[IT, KT, LT]):
     @abstractmethod
@@ -40,8 +43,8 @@ class Initializer(ABC, Generic[IT, KT, LT]):
         raise NotImplementedError
 
     @classmethod
-    def builder(cls, *args, **kwargs) -> Callable[..., Initializer[IT, KT, LT]]:
-        def builder_func(*args, **kwargs) -> Initializer[IT, KT, LT]:
+    def builder(cls, *args, **kwargs) -> Callable[..., Self]:
+        def builder_func(*args, **kwargs) -> Self:
             return cls()
 
         return builder_func
@@ -96,10 +99,8 @@ class RandomInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
         return learner
 
     @classmethod
-    def builder(
-        cls, sample_size: int, *args, **kwargs
-    ) -> Callable[..., Initializer[IT, KT, LT]]:
-        def builder_func(*args, **kwargs) -> Initializer[IT, KT, LT]:
+    def builder(cls, sample_size: int, *args, **kwargs) -> Callable[..., Self]:
+        def builder_func(*args, **kwargs) -> Self:
             return cls(sample_size)
 
         return builder_func
@@ -157,12 +158,8 @@ class PositiveUniformInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, 
         return learner
 
     @classmethod
-    def builder(
-        cls, sample_size: int, *args, **kwargs
-    ) -> Callable[..., Initializer[IT, KT, LT]]:
-        def builder_func(
-            pos_label: LT, neg_label: LT, *args, **kwargs
-        ) -> Initializer[IT, KT, LT]:
+    def builder(cls, sample_size: int, *args, **kwargs) -> Callable[..., Self]:
+        def builder_func(pos_label: LT, neg_label: LT, *args, **kwargs) -> Self:
             return cls(pos_label, neg_label, sample_size)
 
         return builder_func
