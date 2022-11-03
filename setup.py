@@ -19,7 +19,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setuptools.setup(  # type: ignore
     name="python-allib",
-    version="0.1.8.2",  # NOSONAR
+    version="0.2.0.0",  # NOSONAR
     description="A typed Active Learning Library",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -35,6 +35,7 @@ setuptools.setup(  # type: ignore
     packages=setuptools.find_packages(),  # type: ignore
     python_requires=">=3.8",
     install_requires=[
+        "numba",
         "numpy",
         "pandas",
         "h5py",
@@ -49,7 +50,7 @@ setuptools.setup(  # type: ignore
         "gensim",
         "more-itertools",
         "matplotlib",
-        "typing_extensions>=4.4.0" "numba",
+        "typing_extensions>=4.4.0",
     ],
     extras_require={"doc2vec": ["gensim"]},
 )
