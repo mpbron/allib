@@ -27,27 +27,27 @@ from allib.stopcriterion.others import (
 
 
 #%%
-# TOPIC_ID = 'CD008081'
-# qrel_path = Path("/data/tardata/tr")
-# trec = TrecDataset.from_path(qrel_path)
-# il_env = trec.get_env('401')
-# env = MemoryEnvironment.from_instancelib_simulation(il_env)
+TOPIC_ID = "CD008081"
+qrel_path = Path("/data/tardata/tr")
+trec = TrecDataset.from_path(qrel_path)
+il_env = trec.get_env("401")
+env = MemoryEnvironment.from_instancelib_simulation(il_env)
 
 #%%
 
 #%%
-wolters = Path("../datasets/Wolters_2018.csv")
-ace = Path("../datasets/ACEInhibitors.csv")
-dis = Path("../datasets/van_Dis_2020.csv")
-schoot = Path("../datasets/PTSD_VandeSchoot_18.csv")
-hall = Path("../datasets/Software_Engineering_Hall.csv")
-nudging = Path("../datasets/Nagtegaal_2019.csv")
-bos = Path("../datasets/Bos_2018.csv")
-wilson = Path("../datasets/Appenzeller-Herzog_2020.csv")
-bb = Path("../datasets/Bannach-Brown_2019.csv")
-wolters = Path("../datasets/Wolters_2018.csv")
-virus = Path("../datasets/Kwok_2020.csv")
-env = read_review_dataset(bos)
+# wolters = Path("../datasets/Wolters_2018.csv")
+# ace = Path("../datasets/ACEInhibitors.csv")
+# dis = Path("../datasets/van_Dis_2020.csv")
+# schoot = Path("../datasets/PTSD_VandeSchoot_18.csv")
+# hall = Path("../datasets/Software_Engineering_Hall.csv")
+# nudging = Path("../datasets/Nagtegaal_2019.csv")
+# bos = Path("../datasets/Bos_2018.csv")
+# wilson = Path("../datasets/Appenzeller-Herzog_2020.csv")
+# bb = Path("../datasets/Bannach-Brown_2019.csv")
+# wolters = Path("../datasets/Wolters_2018.csv")
+# virus = Path("../datasets/Kwok_2020.csv")
+# env = read_review_dataset(bos)
 
 #%%
 POS = "Relevant"
@@ -91,7 +91,7 @@ not at.env.unlabeled
 
 exp = ExperimentIterator(at, POS, NEG, criteria, estimators)
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter)
+simulator = TarSimulator(exp, plotter, 1000)
 # %%
 simulator.simulate()
 #%%
