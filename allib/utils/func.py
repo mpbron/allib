@@ -1,19 +1,48 @@
 import functools
 import itertools
-
-from typing import Any, Dict, FrozenSet, Iterable, List, Mapping, TypeVar, Callable,  Tuple, Optional, Sequence
+from inspect import signature
+from functools import partial
+from typing import (
+    Any,
+    Dict,
+    FrozenSet,
+    Iterable,
+    List,
+    Mapping,
+    TypeVar,
+    Callable,
+    Tuple,
+    Optional,
+    Sequence,
+)
 
 _T = TypeVar("_T")
 _U = TypeVar("_U")
 _V = TypeVar("_V")
+
+
+def curry(func: Callable[..., _T]) -> Callable[..., Callable[..., Callable[..., _T]]]:
+    def inner(arg):
+
+        # checking if the function has one argument,
+        # then return function as it is
+        if len(signature(func).parameters) == 1:
+            return func(arg)
+
+        return curry(partial(func, arg))
+
+    return inner
+
 
 def hn(val: Optional[_T], default: _T) -> _T:
     if val is not None:
         return val
     return default
 
+
 def prepend_keys(mapping: Mapping[str, _T], prefix: str) -> Mapping[str, _T]:
     return {f"{prefix}{key}": value for key, value in mapping.items()}
+
 
 def powerset(iterable: Iterable[_T]) -> FrozenSet[FrozenSet[_T]]:
     """Calculates the powerset of an interable.
@@ -32,7 +61,7 @@ def powerset(iterable: Iterable[_T]) -> FrozenSet[FrozenSet[_T]]:
 
     Examples
     --------
-    
+
     Usage
     >>> powerset([1,2,3])
     >>> # frozenset({() (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)})
@@ -40,14 +69,14 @@ def powerset(iterable: Iterable[_T]) -> FrozenSet[FrozenSet[_T]]:
     """
     s = list(iterable)
     result = itertools.chain.from_iterable(
-        itertools.combinations(s, r) for r in range(len(s)+1))
+        itertools.combinations(s, r) for r in range(len(s) + 1)
+    )
     return frozenset(map(frozenset, result))  # type: ignore
 
 
-
 def not_in_supersets(
-        contingency: Dict[FrozenSet[_T], FrozenSet[_U]]
-        ) -> Dict[FrozenSet[_T], FrozenSet[_U]]:
+    contingency: Dict[FrozenSet[_T], FrozenSet[_U]]
+) -> Dict[FrozenSet[_T], FrozenSet[_U]]:
     """This function filters out all values that also exist in supersets
     in the dictionary for the values that exist in
     all pairs in the mapping key sets to value sets
@@ -65,13 +94,13 @@ def not_in_supersets(
         A dictionary that maps sets to sets of of values.
         The values of that belong to a key set only contain
         values that do not exist in a superset of the keyset.
-    """    
+    """
     ret_dict: Dict[FrozenSet[_T], FrozenSet[_U]] = {}
     sets = frozenset(contingency.keys())
     for key_set in sets:
-        strict_supersets = frozenset(filter(
-            lambda s: s.issuperset(key_set) and s != key_set,
-            sets))
+        strict_supersets = frozenset(
+            filter(lambda s: s.issuperset(key_set) and s != key_set, sets)
+        )
         in_supersets: FrozenSet[_U] = frozenset()
         if len(strict_supersets) > 0:
             in_supersets = union(*map(lambda k: contingency[k], strict_supersets))
@@ -81,7 +110,7 @@ def not_in_supersets(
 
 def flatten_dicts(*dicts: Mapping[_T, _U]) -> Dict[_T, _U]:
     """Recursive function that combines a list of dictionaries
-    into a single dictionary. When a key exists multiple times, 
+    into a single dictionary. When a key exists multiple times,
     the last one is preserved.
 
     Parameters
@@ -93,16 +122,17 @@ def flatten_dicts(*dicts: Mapping[_T, _U]) -> Dict[_T, _U]:
     -------
     Dict[_T, _U]
         A single dictionary combining all given dictionaries.
-    """    
+    """
     try:
         head, *tail = dicts
         return {**head, **flatten_dicts(*tail)}
     except ValueError:
         return {}
 
+
 def intersection(*sets: FrozenSet[_T]) -> FrozenSet[_T]:
     """Return the intersection of all sets in the parameters
-    
+
     Parameters
     ----------
     sets
@@ -112,16 +142,17 @@ def intersection(*sets: FrozenSet[_T]) -> FrozenSet[_T]:
     -------
     FrozenSet[_T]
         A frozenset that contains the intersection of all the sets
-    """    
+    """
     try:
         head, *tail = sets
         return head.intersection(*tail)
     except ValueError:
         return frozenset()
 
+
 def union(*sets: FrozenSet[_T]) -> FrozenSet[_T]:
     """Return the union of all sets in the parameters
-    
+
     Parameters
     ----------
     sets
@@ -131,21 +162,24 @@ def union(*sets: FrozenSet[_T]) -> FrozenSet[_T]:
     -------
     FrozenSet[_T]
         A frozenset that contains the union of all the sets
-    """    
+    """
     try:
         head, *tail = sets
         return head.union(*tail)
     except ValueError:
         return frozenset()
-def find_subsets(s: FrozenSet[_T], n: int) -> FrozenSet[FrozenSet[_T]]:
-    
-    subsets_n = frozenset(
-        map(frozenset, itertools.combinations(s, n))) # type: ignore
-    return subsets_n # type: ignore
 
-def all_subsets(fset: FrozenSet[_T], 
-                n_min: int, n_max: int) -> FrozenSet[FrozenSet[_T]]:
-    """Find all subsets of `fset` with size `n_min` to and including 
+
+def find_subsets(s: FrozenSet[_T], n: int) -> FrozenSet[FrozenSet[_T]]:
+
+    subsets_n = frozenset(map(frozenset, itertools.combinations(s, n)))  # type: ignore
+    return subsets_n  # type: ignore
+
+
+def all_subsets(
+    fset: FrozenSet[_T], n_min: int, n_max: int
+) -> FrozenSet[FrozenSet[_T]]:
+    """Find all subsets of `fset` with size `n_min` to and including
     `n_max`
 
     Parameters
@@ -161,10 +195,11 @@ def all_subsets(fset: FrozenSet[_T],
     -------
     FrozenSet[FrozenSet[_T]]
         A set of subsets
-    """    
+    """
     subsets = (find_subsets(fset, n) for n in range(n_min, n_max + 1))
     result = union(*subsets)
     return result
+
 
 def expandgrid(**itrs: Iterable[_T]) -> Dict[str, List[_T]]:
     """Port of the expand.grid function from R
@@ -176,7 +211,7 @@ def expandgrid(**itrs: Iterable[_T]) -> Dict[str, List[_T]]:
     Returns
     -------
     Dict[str, List[_T]]
-        A dictionary with as values all possible combinations in a gridlike 
+        A dictionary with as values all possible combinations in a gridlike
         ordering
     """
     variables = list(itrs.keys())
@@ -184,16 +219,17 @@ def expandgrid(**itrs: Iterable[_T]) -> Dict[str, List[_T]]:
     product = list(itertools.product(*iterators))
     return {variable: [x[i] for x in product] for i, variable in enumerate(variables)}
 
+
 def mapsnd(func: Callable[[_U], _V]) -> Callable[[_T, _U], Tuple[_T, _V]]:
     """This function converts a function with signature `u -> v` to a function
-    with signature `(t, u) -> (t, v)`. 
-    
+    with signature `(t, u) -> (t, v)`.
+
     That is, a function that is applied to the second
     element of a tuple and where the first element is preserved.
 
     Parameters
     ----------
-    func 
+    func
         The original function
 
     Returns
@@ -212,12 +248,15 @@ def mapsnd(func: Callable[[_U], _V]) -> Callable[[_T, _U], Tuple[_T, _V]]:
     >>> result = mapped_p2(tuple_variable)
     >>> print(result)
     >>> # (2, 5)
-    """    
+    """
+
     @functools.wraps(func)
     def wrap(fst: _T, snd: _U) -> Tuple[_T, _V]:
         result = func(snd)
         return (fst, result)
+
     return wrap
+
 
 def all_equal(iterable: Iterable[Any]) -> bool:
     """Checks if all the elements of an iterable are the same
@@ -231,9 +270,10 @@ def all_equal(iterable: Iterable[Any]) -> bool:
     -------
     bool
         True if all elements are the same
-    """    
+    """
     g = itertools.groupby(iterable)
-    return next(g, True) and not next(g, False) # type: ignore
+    return next(g, True) and not next(g, False)  # type: ignore
+
 
 def list_unzip(iterable: Iterable[Tuple[_T, _U]]) -> Tuple[Sequence[_T], Sequence[_U]]:
     """Unzips an iterable of tuples of two elements, and returns a tuple of two lists,
@@ -248,8 +288,8 @@ def list_unzip(iterable: Iterable[Tuple[_T, _U]]) -> Tuple[Sequence[_T], Sequenc
     Returns
     -------
     Tuple[Sequence[_T], Sequence[_U]]
-        A tuple of two sequences: 
-        
+        A tuple of two sequences:
+
         - The first contains all first elements (of type `_T`)
         - The second contains all second elements (of type `_U`)
 
@@ -263,16 +303,18 @@ def list_unzip(iterable: Iterable[Tuple[_T, _U]]) -> Tuple[Sequence[_T], Sequenc
     >>> # [1, 2, 3]
     >>> print(abcs)
     >>> # ["a", "b", "c"]
-    """    
+    """
     try:
         fst_iter, snd_iter = zip(*iterable)
         fst_sequence, snd_sequence = list(fst_iter), list(snd_iter)
     except ValueError:
-        return [], [] # type: ignore
-    return fst_sequence, snd_sequence # type: ignore
+        return [], []  # type: ignore
+    return fst_sequence, snd_sequence  # type: ignore
+
 
 def list_unzip3(
-        iterable: Iterable[Tuple[_T, _U, _V]]) -> Tuple[Sequence[_T], Sequence[_U], Sequence[_V]]:
+    iterable: Iterable[Tuple[_T, _U, _V]]
+) -> Tuple[Sequence[_T], Sequence[_U], Sequence[_V]]:
     """Unzips an iterable of tuples of three elements, and returns a tuple of three lists,
     where the first contains all the first elements of the tuples and the latter the second
     elements, etc.
@@ -285,8 +327,8 @@ def list_unzip3(
     Returns
     -------
     Tuple[Sequence[_T], Sequence[_U], Sequence[_V]]
-        A tuple of three sequences: 
-        
+        A tuple of three sequences:
+
         - The first contains all first elements (of type `_T`)
         - The second contains all second elements (of type `_U`)
         - The third contains all third elements (of type `_V`)
@@ -303,14 +345,17 @@ def list_unzip3(
     >>> # ["a", "b", "c"]
     >>> print(ints)
     >>> # [20, 40, 60]
-    """    
+    """
     try:
         fst_sequence, snd_sequence, trd_sequence = zip(*iterable)  # type ignore
     except ValueError:
-        return [], [], [] #type: ignore
-    return list(fst_sequence), list(snd_sequence), list(trd_sequence) # type: ignore
+        return [], [], []  # type: ignore
+    return list(fst_sequence), list(snd_sequence), list(trd_sequence)  # type: ignore
 
-def filter_snd_none_zipped(iter: Iterable[Tuple[_T, Optional[_U]]]) -> Tuple[Sequence[_T], Sequence[_U]]:
+
+def filter_snd_none_zipped(
+    iter: Iterable[Tuple[_T, Optional[_U]]]
+) -> Tuple[Sequence[_T], Sequence[_U]]:
     """Filter a list of tuples where the second element is not None
 
     Parameters
@@ -321,7 +366,7 @@ def filter_snd_none_zipped(iter: Iterable[Tuple[_T, Optional[_U]]]) -> Tuple[Seq
     Returns
     -------
     Tuple[Sequence[_T], Sequence[_U]]
-        A tuple of two lists of equal length based on all tuples where the 
+        A tuple of two lists of equal length based on all tuples where the
         second element was not `None`:
 
         - A list of elements with type `_T`
@@ -330,17 +375,18 @@ def filter_snd_none_zipped(iter: Iterable[Tuple[_T, Optional[_U]]]) -> Tuple[Seq
     See Also
     --------
     filter_snd_none
-        This function works similarly, but here the 
+        This function works similarly, but here the
         iterable is not in `zipped` form.
-    """    
+    """
     filtered = filter(lambda x: x[1] is not None, iter)
-    return list_unzip(filtered) # type: ignore
+    return list_unzip(filtered)  # type: ignore
 
-def filter_snd_none(fst_iter: Iterable[_T], 
-                snd_iter: Iterable[Optional[_U]]
-                ) -> Tuple[Sequence[_T], Sequence[_U]]:
+
+def filter_snd_none(
+    fst_iter: Iterable[_T], snd_iter: Iterable[Optional[_U]]
+) -> Tuple[Sequence[_T], Sequence[_U]]:
     """Filter two iterables of equal length for pairs where the second element is not None
-    
+
     Parameters
     ----------
     fst_iter
@@ -351,7 +397,7 @@ def filter_snd_none(fst_iter: Iterable[_T],
     Returns
     -------
     Tuple[Sequence[_T], Sequence[_U]]
-         A tuple of two lists of equal length based on all pairs based on index where the 
+         A tuple of two lists of equal length based on all pairs based on index where the
         element in the second list was not `None`:
 
         - A list containing all eligble elements from `fst_iter`
@@ -372,12 +418,13 @@ def filter_snd_none(fst_iter: Iterable[_T],
 
     See Also
     --------
-    filter_snd_none_zipped : 
-        This function works similarly, but here the 
-        iterable is in `zipped` form, i.e., a list of tuples. 
-    """    
-    zipped: Iterable[Tuple[_T, _U]] = filter(lambda x: x[1] is not None, zip(fst_iter, snd_iter)) # type: ignore
+    filter_snd_none_zipped :
+        This function works similarly, but here the
+        iterable is in `zipped` form, i.e., a list of tuples.
+    """
+    zipped: Iterable[Tuple[_T, _U]] = filter(lambda x: x[1] is not None, zip(fst_iter, snd_iter))  # type: ignore
     return list_unzip(zipped)
+
 
 def sort_on(index: int, seq: Sequence[Tuple[_T, _U]]) -> Sequence[Tuple[_T, _U]]:
     """A function that allows you to sort a sequence on the `n-th` element of a tuple
@@ -387,21 +434,25 @@ def sort_on(index: int, seq: Sequence[Tuple[_T, _U]]) -> Sequence[Tuple[_T, _U]]
     ----------
     index : int
         The index of the tuple element on which you desire to sort
-    seq 
+    seq
         The sequence of tuples
 
     Returns
     -------
     Sequence[Tuple[_T, _U]]
         A sorted sequence of tuples
-    """    
-    return sorted(seq, key=lambda k: k[index], reverse=True) # type: ignore
+    """
+    return sorted(seq, key=lambda k: k[index], reverse=True)  # type: ignore
 
-def multisort(seq: Sequence[Tuple[_T, Sequence[_U]]]) -> Sequence[Sequence[Tuple[_T,_U]]]:
+
+def multisort(
+    seq: Sequence[Tuple[_T, Sequence[_U]]]
+) -> Sequence[Sequence[Tuple[_T, _U]]]:
     len_scores = len(seq[0][1])
     unpacked = [[(key, scores[i]) for (key, scores) in seq] for i in range(len_scores)]
     sorted_unpacked = [sort_on(1, sublist) for sublist in unpacked]
     return sorted_unpacked
+
 
 def fst(tup: Tuple[_T, Any]) -> _T:
     first_element = tup[0]

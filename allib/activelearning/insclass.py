@@ -97,11 +97,6 @@ class ILMLBased(
     def retrain(self) -> None:
         """Retrain the classifier using the information in the
         labeled set
-
-        Raises
-        ------
-        NotInitializedException
-            If the AL method has no attached Environment
         """
         self.classifier.fit_provider(self.env.labeled, self.env.labels)
 
@@ -120,11 +115,6 @@ class ILMLBased(
         -------
         Sequence[FrozenSet[LT]]
             A list of labelings, matching the order of the `instances` parameters
-
-        Raises
-        ------
-        NotInitializedException
-            If the model has no attached Environment
         """
         _, labels = list_unzip(self.classifier.predict(instances))
         return labels
@@ -146,11 +136,6 @@ class ILMLBased(
         Sequence[FrozenSet[Tuple[LT, float]]]
             A list of labelings and probabilities,
             matching the order of the `instances` parameters
-
-        Raises
-        ------
-        NotInitializedException
-            If the model has no attached Environment
         """
         _, labels = list_unzip(self.classifier.predict_proba(instances))
         return labels
@@ -313,9 +298,10 @@ class ILProbabilityBased(
         predictions = self.classifier.predict_proba_raw(
             self.env.unlabeled, self.batch_size
         )
-        # Transfrorm the selection criterion function into a function that works on tuples and
-        # applies the id :: a -> a function on the first element of the tuple and selection_criterion
-        # on the second
+        # Transfrorm the selection criterion function into a function
+        # that works on tuples and applies the identity (id :: a -> a)
+        # function on the first element of the tuple and
+        # the `self.selection_criterion` method on the second element.
         sel_func = mapsnd(self.selection_criterion)
         # Apply sel_func on the predictions
         metric_results = itertools.starmap(sel_func, predictions)

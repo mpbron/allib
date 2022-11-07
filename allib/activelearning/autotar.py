@@ -72,11 +72,8 @@ class AutoTarLearner(
     def __init__(
         self,
         env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
-        classifier: Callable[
-            [AbstractEnvironment[IT, KT, DT, VT, RT, LT]],
-            il.AbstractClassifier[
-                IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]
-            ],
+        classifier: il.AbstractClassifier[
+            IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]
         ],
         pos_label: LT,
         neg_label: LT,
@@ -89,7 +86,7 @@ class AutoTarLearner(
     ) -> None:
         super().__init__(env, *_, identifier=identifier, **__)
         # Problem definition
-        self.classifier = classifier(env)
+        self.classifier = classifier
         self.pos_label = pos_label
         self.neg_label = neg_label
 
@@ -205,12 +202,12 @@ class AutoTarLearner(
                 return self.env.dataset[ins_key]
         if not self.env.unlabeled.empty:
             return self.__next__()
-        raise StopIteration()
+        raise StopIteration
 
     @classmethod
     def builder(
         cls,
-        classifier: Callable[
+        classifier_builder: Callable[
             [AbstractEnvironment[IT, KT, DT, VT, RT, LT]],
             il.AbstractClassifier[
                 IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]
@@ -226,7 +223,7 @@ class AutoTarLearner(
             *_,
             **__,
         ):
-            classifier(env)
+            classifier = classifier_builder(env)
             return cls(env, classifier, pos_label, neg_label, k_sample, batch_size)
 
         return builder_func
