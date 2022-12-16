@@ -57,7 +57,7 @@ class PseudoInstanceInitializer(Initializer[IT, KT, LT], Generic[IT, KT, DT, LT]
         return cls(pseudo_data, trec.pos_label)  # type: ignore
 
 
-class AutoTarLearner(
+class BinaryTarLearner(
     PoolBasedAL[IT, KT, DT, VT, RT, LT],
     StatsMixin[KT, LT],
     Generic[IT, KT, DT, VT, RT, LT],
@@ -77,10 +77,10 @@ class AutoTarLearner(
         ],
         pos_label: LT,
         neg_label: LT,
-        k_sample: int,
         batch_size: int,
         *_,
         seed: int = 0,
+        chunk_size: int = 2000,
         identifier: Optional[str] = None,
         **__,
     ) -> None:
@@ -91,7 +91,7 @@ class AutoTarLearner(
         self.neg_label = neg_label
 
         # Batch and sample sizes
-        self.k_sample = k_sample
+        self.chunk_size = chunk_size
         self.batch_sizes = dict()
         self.batch_size = batch_size
 
@@ -116,32 +116,6 @@ class AutoTarLearner(
 
     def update_ordering(self) -> bool:
         return True
-
-    def _provider_sample(
-        self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]
-    ) -> il.InstanceProvider[IT, KT, DT, VT, RT]:
-        k_sample = min(self.k_sample, len(provider))
-        sampled_keys: Sequence[KT] = self.rng.choice(
-            provider.key_list, size=k_sample, replace=False  # type: ignore
-        ).tolist()
-        sampled_provider = self.env.create_bucket(sampled_keys)
-        return sampled_provider
-
-    def _temp_augment_and_train(self):
-        temp_labels = il.MemoryLabelProvider[KT, LT].from_provider(self.env.labels)
-        sampled_non_relevant = self._provider_sample(self.env.unlabeled)
-        if PSEUDO_INS_PROVIDER in self.env:
-            pseudo_docs = self.env[PSEUDO_INS_PROVIDER]
-            for ins_key in pseudo_docs:
-                temp_labels.set_labels(ins_key, self.pos_label)
-        else:
-            pseudo_docs = self.env.create_bucket([])
-        for ins_key in sampled_non_relevant:
-            temp_labels.set_labels(ins_key, self.neg_label)
-        train_set = self.env.combine(
-            sampled_non_relevant, self.env.labeled, pseudo_docs
-        )
-        self.classifier.fit_provider(train_set, temp_labels)
 
     def _predict(
         self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]
@@ -175,7 +149,7 @@ class AutoTarLearner(
     def update_sample(self) -> Deque[KT]:
         if not self.current_sample:
             self.stats.update(self)
-            self._temp_augment_and_train()
+            self.classifier.fit_provider(self.env.labeled, self.env.labels)
             ranking = self._rank(self.env.unlabeled)
             sample = self._sample(ranking)
 
@@ -187,8 +161,6 @@ class AutoTarLearner(
             self.sampled_sets[self.it] = tuple(sample)
             self.batch_sizes[self.it] = self.batch_size
 
-            # Increment batch_size for next for train iteration
-            self.batch_size += ceil(self.batch_size / 10)
             self.it += 1
         return self.current_sample
 
@@ -215,6 +187,7 @@ class AutoTarLearner(
         ],
         k_sample: int,
         batch_size: int,
+        chunk_size: int = 2000,
     ) -> Callable[..., Self]:
         def builder_func(
             env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
@@ -224,6 +197,97 @@ class AutoTarLearner(
             **__,
         ):
             classifier = classifier_builder(env)
-            return cls(env, classifier, pos_label, neg_label, k_sample, batch_size)
+            return cls(env, classifier, pos_label, neg_label, k_sample, batch_size, chunk_size=chunk_size)
 
         return builder_func
+
+
+class AutoTarLearner(
+    BinaryTarLearner[IT, KT, DT, VT, RT, LT],
+    StatsMixin[KT, LT],
+    Generic[IT, KT, DT, VT, RT, LT],
+):
+    def __init__(
+        self,
+        env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+        classifier: il.AbstractClassifier[
+            IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]
+        ],
+        pos_label: LT,
+        neg_label: LT,
+        k_sample: int,
+        batch_size: int,
+        *_,
+        seed: int = 0,
+        chunk_size: int = 2000,
+        identifier: Optional[str] = None,
+        **__,
+    ) -> None:
+        super().__init__(
+            env,
+            classifier,
+            pos_label,
+            neg_label,
+            batch_size,
+            seed=seed,
+            chunk_size=chunk_size,
+            identifier=identifier,
+        )
+        self.k_sample = k_sample
+
+    def _provider_sample(
+        self, provider: il.InstanceProvider[IT, KT, DT, VT, RT]
+    ) -> il.InstanceProvider[IT, KT, DT, VT, RT]:
+        k_sample = min(self.k_sample, len(provider))
+        sampled_keys: Sequence[KT] = self.rng.choice(
+            provider.key_list, size=k_sample, replace=False  # type: ignore
+        ).tolist()
+        sampled_provider = self.env.create_bucket(sampled_keys)
+        return sampled_provider
+
+    def _temp_augment_and_train(self):
+        temp_labels = il.MemoryLabelProvider[KT, LT].from_provider(self.env.labels)
+        sampled_non_relevant = self._provider_sample(self.env.unlabeled)
+        if PSEUDO_INS_PROVIDER in self.env:
+            pseudo_docs = self.env[PSEUDO_INS_PROVIDER]
+            for ins_key in pseudo_docs:
+                temp_labels.set_labels(ins_key, self.pos_label)
+        else:
+            pseudo_docs = self.env.create_bucket([])
+        for ins_key in sampled_non_relevant:
+            temp_labels.set_labels(ins_key, self.neg_label)
+        train_set = self.env.combine(
+            sampled_non_relevant, self.env.labeled, pseudo_docs
+        )
+        self.classifier.fit_provider(train_set, temp_labels)
+
+    def _sample(self, distribution: Sequence[Tuple[KT, float]]) -> Sequence[KT]:
+        keys, _ = list_unzip(distribution)
+        sample = keys[0 : self.batch_size]
+        return sample
+
+    @classmethod
+    def _to_history(cls, ranking: Sequence[Tuple[KT, float]]) -> Mapping[KT, int]:
+        keys, _ = list_unzip(ranking)
+        history = {k: i for i, k in enumerate(keys, start=1)}
+        return history
+
+    def update_sample(self) -> Deque[KT]:
+        if not self.current_sample:
+            self.stats.update(self)
+            self._temp_augment_and_train()
+            ranking = self._rank(self.env.unlabeled)
+            sample = self._sample(ranking)
+
+            # Store current sample
+            self.current_sample = collections.deque(sample)
+
+            # Record keeping
+            self.rank_history[self.it] = self._to_history(ranking)
+            self.sampled_sets[self.it] = tuple(sample)
+            self.batch_sizes[self.it] = self.batch_size
+
+            # Increment batch_size for next for train iteration
+            self.batch_size += ceil(self.batch_size / 10)
+            self.it += 1
+        return self.current_sample

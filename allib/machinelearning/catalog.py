@@ -6,6 +6,7 @@ class MachineLearningCatalog:
         BINARY = "Binary"
         MULTICLASS = "MultiClass"
         MULTILABEL = "MultiLabel"
+        BINARY_TAR = "BinaryTAR"
 
     class MulticlassMethod(Enum):
         ONE_VS_REST = "OneVsRest"

@@ -24,6 +24,39 @@ al_config_svm = {
     },
 }
 
+tf_idf_autotar = {
+    "datatype": Cat.FE.DataType.TEXTINSTANCE,
+    "vec_type": Cat.FE.VectorizerType.STACK,
+    "vectorizers": [
+        {
+            "vec_type": Cat.FE.VectorizerType.SKLEARN,
+            "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
+            "sklearn_config": {
+                "stop_words": "english",
+                "min_df": 2,
+                "max_features": 3000,
+            },
+        }
+    ],
+}
+
+al_il_config_lr = {
+    "paradigm": Cat.AL.Paradigm.CUSTOM,
+    "method": Cat.AL.CustomMethods.BINARYTAR,    
+    "machinelearning": {
+        "sklearn_model": Cat.ML.SklearnModel.LOGISTIC,
+        "model_configuration": {
+            "solver": "lbfgs",
+            "C": 1.0,
+            "max_iter": 10000,
+        },
+        "task": Cat.ML.Task.BINARY_TAR,
+        "feature_extraction": tf_idf_autotar,
+        "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
+    },
+    "batch_size": 1
+}
+
 al_config_lr = {
     "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,
     "query_type": Cat.AL.QueryType.LABELMAXIMIZER,
