@@ -89,6 +89,7 @@ class RandomInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
         labels = learner.env.truth.get_labels(doc)
         learner.env.labels.set_labels(doc, *labels)
         learner.set_as_labeled(doc)
+        LOGGER.info(f"Added {identifier} as prior knowledge with labels {list(labels)}")
 
     def __call__(
         self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]

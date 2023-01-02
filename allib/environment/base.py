@@ -12,10 +12,11 @@ import instancelib as ins
 IT = TypeVar("IT", bound="Instance[Any, Any, Any, Any]", covariant=True)
 
 
-
-class AbstractEnvironment(ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT], 
-                          ABC, Generic[IT, KT, DT, VT, RT, LT]):
-
+class AbstractEnvironment(
+    ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+    ABC,
+    Generic[IT, KT, DT, VT, RT, LT],
+):
     @property
     @abstractmethod
     def unlabeled(self) -> InstanceProvider[IT, KT, DT, VT, RT]:
@@ -26,7 +27,7 @@ class AbstractEnvironment(ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         -------
         InstanceProvider[KT, DT, VT, RT]
             An `InstanceProvider` that contains all unlabeld instances
-        """        
+        """
         raise NotImplementedError
 
     @property
@@ -40,7 +41,7 @@ class AbstractEnvironment(ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         -------
         InstanceProvider[KT, DT, VT, RT]
             An `InstanceProvider` that contains all labeled instances
-        """        
+        """
         raise NotImplementedError
 
     @property
@@ -53,14 +54,14 @@ class AbstractEnvironment(ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         -------
         BaseLogger[KT, LT, Any]
             The logger
-        """        
+        """
         raise NotImplementedError
 
     @property
     @abstractmethod
     def truth(self) -> LabelProvider[KT, LT]:
-        """This property contains a `LabelProvider` that maps 
-        instances to *ground truth* labels and vice-versa. 
+        """This property contains a `LabelProvider` that maps
+        instances to *ground truth* labels and vice-versa.
         This can be used for simulation purposes if you want
         to assess the performance of an AL algorithm on a dataset
         with a ground truth.
@@ -72,11 +73,11 @@ class AbstractEnvironment(ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         """
         raise NotImplementedError
 
-    @abstractclassmethod
-    def from_environment(cls, 
-                         environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
-                         *args, **kwargs
-                        ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
+    @classmethod
+    @abstractmethod
+    def from_environment(
+        cls, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT], *args, **kwargs
+    ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
         """Create a new independent environment with the same state.
         Implementations may enable conversion from and to several types
         of Enviroments.
@@ -90,7 +91,5 @@ class AbstractEnvironment(ins.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         -------
         AbstractEnvironment[KT, DT, VT, RT, LT]
             A new independent with the same state
-        """        
+        """
         raise NotImplementedError
-
-    

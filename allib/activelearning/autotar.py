@@ -188,6 +188,7 @@ class BinaryTarLearner(
         k_sample: int,
         batch_size: int,
         chunk_size: int = 2000,
+        identifier: Optional[str] = None,
     ) -> Callable[..., Self]:
         def builder_func(
             env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
@@ -197,7 +198,16 @@ class BinaryTarLearner(
             **__,
         ):
             classifier = classifier_builder(env)
-            return cls(env, classifier, pos_label, neg_label, k_sample, batch_size, chunk_size=chunk_size)
+            return cls(
+                env,
+                classifier,
+                pos_label,
+                neg_label,
+                k_sample,
+                batch_size,
+                chunk_size=chunk_size,
+                identifier=identifier,
+            )
 
         return builder_func
 

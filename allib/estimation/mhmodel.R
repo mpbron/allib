@@ -6,6 +6,11 @@ get_abundance <- function(df){
     res <- dat$CI
     return(as.data.frame(res))
 }
+get_abundance_eta <- function(df){
+    dat <- closedpCI.0(df, m = "Mh", h = "LB")
+    res <- dat$CI
+    return(as.data.frame(res))
+}
 
 rcapture.df <- function(df, positive_selection=1){
     pos.df <- df %>% filter(positive == positive_selection)

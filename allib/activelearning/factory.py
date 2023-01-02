@@ -255,16 +255,21 @@ class BinaryTarBuilder(AbstractBuilder):
 
 
 class AutoTARBuilder(AbstractBuilder):
-    def __call__(self, k_sample: int, batch_size: int, **kwargs):
-        logreg = LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000)
-        builder = classifier_builder(logreg, il.SkLearnVectorClassifier.build)
+    def __call__(self, 
+                 machinelearning: Mapping[str, Any],
+                 k_sample: int, 
+                 batch_size: int, **kwargs):
+        builder = self._factory.create(Component.CLASSIFIER, **machinelearning)
         at = AutoTarLearner.builder(builder, k_sample, batch_size, **kwargs)
         return at
 
 class AutoSTOPBuilder(AbstractBuilder):
-    def __call__(self, k_sample: int, batch_size: int, **kwargs):
-        logreg = LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000)
-        builder = classifier_builder(logreg, il.SkLearnVectorClassifier.build)
+    def __call__(self, 
+                 machinelearning: Mapping[str, Any],
+                 k_sample: int, 
+                 batch_size: int, 
+                 **kwargs):
+        builder = self._factory.create(Component.CLASSIFIER, **machinelearning)
         at = AutoStopLearner.builder(builder, k_sample, batch_size, **kwargs)
         return at
 

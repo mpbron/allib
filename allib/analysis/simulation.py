@@ -48,15 +48,6 @@ from .initialization import Initializer
 from .plotter import AbstractPlotter, ExperimentPlotter
 
 
-def reset_environment(
-    vectorizer: BaseVectorizer[IT],
-    environment: AbstractEnvironment[IT, KT, DT, npt.NDArray[Any], RT, LT],
-) -> AbstractEnvironment[IT, KT, DT, npt.NDArray[Any], RT, LT]:
-    env = MemoryEnvironment.from_environment_only_data(environment)
-    vectorize(vectorizer, env, True, 200)  # type: ignore
-    return env
-
-
 def initialize_tar_simulation(
     factory: ObjectFactory,
     al_config: Mapping[str, Any],
@@ -67,7 +58,7 @@ def initialize_tar_simulation(
     neg_label: LT,
 ) -> Tuple[
     ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT],
-    BaseVectorizer[Instance[KT, DT, npt.NDArray[Any], RT]],
+    Optional[BaseVectorizer[Instance[KT, DT, npt.NDArray[Any], RT]]],
 ]:
     """Build and initialize an Active Learning method.
 
@@ -102,12 +93,16 @@ def initialize_tar_simulation(
     learner_builder: Callable[
         ..., ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT]
     ] = factory.create(Component.ACTIVELEARNER, **al_config)
-    vectorizer: BaseVectorizer[Instance[KT, DT, npt.NDArray[Any], RT]] = factory.create(
-        Component.FEATURE_EXTRACTION, **fe_config
-    )
 
+    if fe_config:
+        vectorizer: BaseVectorizer[
+            Instance[KT, DT, npt.NDArray[Any], RT]
+        ] = factory.create(Component.FEATURE_EXTRACTION, **fe_config)
+        vectorize(vectorizer, env, True, 2000)
+    else:
+        vectorizer = None
     ## Copy the data to memory
-    start_env = reset_environment(vectorizer, env)
+    start_env = MemoryEnvironment.from_environment_only_data(env)
 
     # Build the Active Learner object
     learner = learner_builder(start_env, pos_label=pos_label, neg_label=neg_label)

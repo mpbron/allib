@@ -56,6 +56,7 @@ from .catalog import (
 from .ensemble import (
     al_config_ensemble_prob,
     al_config_entropy,
+    ilrasch_nblrrflgbmrand,
     naive_bayes_estimator,
     rasch_estimator,
     rasch_lr,
@@ -86,6 +87,7 @@ AL_REPOSITORY = {
     ALConfiguration.RaschRF: rasch_rf,
     ALConfiguration.RaschNBLRRFLGBM: rasch_nblrrflgbm,
     ALConfiguration.RaschNBLRRFLGBMRAND: rasch_nblrrflgbmrand,
+    ALConfiguration.ILRaschNBLRRFLGBMRAND: ilrasch_nblrrflgbmrand,
     ALConfiguration.AUTOTAR: autotar,
     ALConfiguration.AUTOSTOP: autostop,
 }
@@ -206,7 +208,7 @@ STOP_BUILDER_REPOSITORY = {
 
 EXPERIMENT_REPOSITORY = {
     ExperimentCombination.CHAO4: TarExperimentParameters(
-        ALConfiguration.RaschNBLRRFLGBMRAND,
+        ALConfiguration.ILRaschNBLRRFLGBMRAND,
         FEConfiguration.TFIDF5000,
         SeparateInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT,),
