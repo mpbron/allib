@@ -292,7 +292,7 @@ class Conservative(AbstractStopCriterion[LT], Generic[LT]):
 
     @property
     def stop_criterion(self) -> bool:
-        if self.estimate is None:
+        if self.estimate is None or self.estimate < 1:
             return False
         recall_estimate = self.count_found / self.estimate
         return round(recall_estimate, 2) >= self.target

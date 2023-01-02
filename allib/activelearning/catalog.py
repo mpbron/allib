@@ -35,3 +35,4 @@ class ALCatalog:
     class CustomMethods(Enum):
         AUTOTAR = "AUTOTAR"
         AUTOSTOP = "AUTOSTOP"
+        BINARYTAR = "BinaryTAR"

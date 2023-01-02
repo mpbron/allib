@@ -1,7 +1,7 @@
 import functools
 from abc import ABC
 from distutils.command.build import build
-from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, TypeVar
 
 import instancelib as il
 from instancelib.machinelearning.sklearn import SkLearnClassifier
@@ -15,7 +15,7 @@ from ..machinelearning import AbstractClassifier, MachineLearningFactory
 from ..module.component import Component
 from ..typehints.typevars import IT
 from .autostop import AutoStopLearner
-from .autotar import AutoTarLearner
+from .autotar import AutoTarLearner, BinaryTarLearner
 from .base import ActiveLearner
 from .catalog import ALCatalog as AL
 from .ensembles import StrategyEnsemble
@@ -245,18 +245,31 @@ def classifier_builder(
 
     return wrap_func
 
+class BinaryTarBuilder(AbstractBuilder):
+    def __call__(self, 
+                 machinelearning: Mapping[str, Any],
+                 batch_size: int,
+                 chunk_size: int = 2000, **kwargs):
+        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
+        return BinaryTarLearner.builder(classifier, batch_size, chunk_size, **kwargs)
+
 
 class AutoTARBuilder(AbstractBuilder):
-    def __call__(self, k_sample: int, batch_size: int, **kwargs):
-        logreg = LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000)
-        builder = classifier_builder(logreg, il.SkLearnVectorClassifier.build)
+    def __call__(self, 
+                 machinelearning: Mapping[str, Any],
+                 k_sample: int, 
+                 batch_size: int, **kwargs):
+        builder = self._factory.create(Component.CLASSIFIER, **machinelearning)
         at = AutoTarLearner.builder(builder, k_sample, batch_size, **kwargs)
         return at
 
 class AutoSTOPBuilder(AbstractBuilder):
-    def __call__(self, k_sample: int, batch_size: int, **kwargs):
-        logreg = LogisticRegression(solver="lbfgs", C=1.0, max_iter=10000)
-        builder = classifier_builder(logreg, il.SkLearnVectorClassifier.build)
+    def __call__(self, 
+                 machinelearning: Mapping[str, Any],
+                 k_sample: int, 
+                 batch_size: int, 
+                 **kwargs):
+        builder = self._factory.create(Component.CLASSIFIER, **machinelearning)
         at = AutoStopLearner.builder(builder, k_sample, batch_size, **kwargs)
         return at
 
@@ -291,6 +304,7 @@ class ActiveLearningFactory(ObjectFactory):
             AL.Paradigm.LABEL_MIN_PROB_ENSEMBLE, LabelMinProbilityBasedEnsembleBuilder()
         )
         self.register_builder(AL.CustomMethods.AUTOTAR, AutoTARBuilder())
+        self.register_builder(AL.CustomMethods.BINARYTAR, BinaryTarBuilder())
         self.register_builder(AL.CustomMethods.AUTOSTOP, AutoSTOPBuilder())
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling.builder)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)

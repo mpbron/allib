@@ -13,6 +13,8 @@ import numpy as np
 
 
 class AbstractStatistics(ABC, Generic[KT, LT]):
+    per_round: Deque[Mapping[LT, FrozenSet[KT]]]
+
     @abstractmethod
     def update(self, learner: ActiveLearner[Any, KT, Any, Any, Any, LT]):
         raise NotImplementedError
@@ -42,6 +44,15 @@ class AbstractStatistics(ABC, Generic[KT, LT]):
 
     @abstractmethod
     def label_per_round(self, label: LT) -> Sequence[int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def batch_at_round(self, it: int) -> FrozenSet[KT]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def last_batch(self) -> FrozenSet[KT]:
         raise NotImplementedError
 
     @property
@@ -179,3 +190,14 @@ class AnnotationStatistics(AbstractStatistics[KT, LT]):
     @property
     def annotations_per_round(self) -> Sequence[int]:
         return [len(an) for an in self.annotated_per_round]
+
+    def batch_at_round(self, it: int) -> FrozenSet[KT]:
+        return self.annotated_per_round[it]
+
+    @property
+    def last_batch(self) -> FrozenSet[KT]:
+        return (
+            frozenset()
+            if not self.annotated_per_round
+            else self.annotated_per_round[-1]
+        )
