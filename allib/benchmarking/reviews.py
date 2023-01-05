@@ -6,6 +6,7 @@ from uuid import UUID
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+import instancelib as il
 from instancelib import TextInstance
 from instancelib.ingest.spreadsheet import read_csv_dataset
 from instancelib.typehints.typevars import KT, LT
@@ -38,7 +39,7 @@ LT = TypeVar("LT")
 def read_review_dataset(
     path: Path,
 ) -> AbstractEnvironment[
-    TextInstance[Union[int, UUID], npt.NDArray[Any]],
+    TextInstance[int, npt.NDArray[Any]],
     Union[int, UUID],
     str,
     npt.NDArray[Any],
@@ -72,8 +73,10 @@ def read_review_dataset(
             label_cols=["included"],
             label_mapper=binary_mapper,
         )
+    if isinstance(env, il.TextEnvironment):
+        env = env.shuffle(env)
     al_env = MemoryEnvironment.from_instancelib_simulation(env)
-    return al_env
+    return al_env  # type: ignore
 
 
 def benchmark(

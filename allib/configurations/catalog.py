@@ -43,11 +43,13 @@ class EstimationConfiguration(str, Enum):
 
 class StopBuilderConfiguration(str, Enum):
     CHAO_CONS_OPT = "Chao_CONS_OPT"
+    CHAO_CONS_OPT_ALT = "Chao_CONS_OPT_ALT"
     AUTOTAR = "AUTOTAR"
     AUTOSTOP = "AUTOSTOP"
 
 
 class ExperimentCombination(str, Enum):
-    CHAO4 = "CHAO4"
+    CHAO = "CHAO"
+    CHAO_ALT = "CHAO_ALT"
     AUTOTAR = "AUTOTAR"
     AUTOSTOP = "AUTOSTOP"

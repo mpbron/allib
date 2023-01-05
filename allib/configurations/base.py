@@ -1,9 +1,7 @@
-import itertools
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
-    Dict,
     Generic,
     Mapping,
     Optional,
@@ -12,9 +10,8 @@ from typing import (
     TypeVar,
 )
 
-import numpy as np
 import numpy.typing as npt
-from instancelib.utils.func import flatten_dicts, list_unzip, value_map
+from instancelib.utils.func import flatten_dicts
 
 from allib.analysis.initialization import (
     Initializer,
@@ -24,18 +21,15 @@ from allib.analysis.initialization import (
 from ..estimation.autostop import HorvitzThompsonVar2
 
 from ..estimation.base import AbstractEstimator
-from ..estimation.mhmodel import AbundanceEstimator
+from ..estimation.mhmodel import ChaoEstimator, ChaoAlternative
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
 from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
 from ..estimation.rasch_parametric import ParametricRaschPython
 from ..estimation.rasch_python import EMRaschRidgePython
 from ..stopcriterion.base import AbstractStopCriterion
-from ..stopcriterion.catalog import StopCriterionCatalog
 from ..stopcriterion.estimation import (
-    CombinedStopCriterion,
     Conservative,
     Optimistic,
-    UpperboundCombinedCritertion,
 )
 from ..stopcriterion.heuristic import AprioriRecallTarget
 from ..stopcriterion.others import (
@@ -107,7 +101,7 @@ ESTIMATION_REPOSITORY = {
     EstimationConfiguration.RaschApproxConvParametric: EMRaschRidgeParametricConvPython[
         int, str, npt.NDArray[Any], str, str
     ](),
-    EstimationConfiguration.CHAO: AbundanceEstimator[Any, Any, Any, Any, Any, str](),
+    EstimationConfiguration.CHAO: ChaoEstimator[Any, Any, Any, Any, Any, str](),
     EstimationConfiguration.AUTOSTOP: HorvitzThompsonVar2(),
 }
 
@@ -131,7 +125,7 @@ def mapping_unzip(
 @dataclass(frozen=True)
 class TarExperimentParameters(Generic[LT]):
     al_configuration: ALConfiguration
-    fe_configuration: FEConfiguration
+    fe_configuration: Optional[FEConfiguration]
     init_configuration: Callable[..., Initializer[Any, Any, LT]]
     stop_builder_configuration: Sequence[StopBuilderConfiguration]
     batch_size: int
@@ -169,6 +163,33 @@ def conservative_optimistic_builder(
     return builder
 
 
+def combine_builders(
+    a: Callable[
+        [LT, LT],
+        Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]],
+    ],
+    b: Callable[
+        [LT, LT],
+        Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]],
+    ],
+) -> Callable[
+    [LT, LT],
+    Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]],
+]:
+    def builder(
+        pos_label: LT, neg_label: LT
+    ) -> Tuple[
+        Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]
+    ]:
+        estimators_a, stops_a = a(pos_label, neg_label)
+        estimators_b, stops_b = b(pos_label, neg_label)
+        estimators = flatten_dicts(estimators_a, estimators_b)
+        stops = flatten_dicts(stops_a, stops_b)
+        return estimators, stops
+
+    return builder
+
+
 def standoff_builder(
     pos_label: LT, neg_label: LT
 ) -> Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]]:
@@ -196,8 +217,9 @@ def standoff_builder(
 TARGETS = [0.7, 0.8, 0.9, 0.95, 1.0]
 
 STOP_BUILDER_REPOSITORY = {
-    StopBuilderConfiguration.CHAO_CONS_OPT: conservative_optimistic_builder(
-        {"Chao": AbundanceEstimator()}, TARGETS
+    StopBuilderConfiguration.CHAO_CONS_OPT: combine_builders(
+        conservative_optimistic_builder({"Chao": ChaoEstimator()}, TARGETS),
+        conservative_optimistic_builder({"ChaoALT": ChaoAlternative()}, TARGETS),
     ),
     StopBuilderConfiguration.AUTOTAR: standoff_builder,
     StopBuilderConfiguration.AUTOSTOP: conservative_optimistic_builder(
@@ -207,18 +229,27 @@ STOP_BUILDER_REPOSITORY = {
 
 
 EXPERIMENT_REPOSITORY = {
-    ExperimentCombination.CHAO4: TarExperimentParameters(
+    ExperimentCombination.CHAO: TarExperimentParameters(
         ALConfiguration.ILRaschNBLRRFLGBMRAND,
-        FEConfiguration.TFIDF5000,
+        None,
         SeparateInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT,),
         10,
         10,
         10,
     ),
+    ExperimentCombination.CHAO_ALT: TarExperimentParameters(
+        ALConfiguration.ILRaschNBLRRFLGBMRAND,
+        None,
+        SeparateInitializer.builder(1),
+        (StopBuilderConfiguration.CHAO_CONS_OPT_ALT,),
+        10,
+        10,
+        10,
+    ),
     ExperimentCombination.AUTOTAR: TarExperimentParameters(
         ALConfiguration.AUTOTAR,
-        FEConfiguration.TFIDF5000,
+        None,
         RandomInitializer.builder(5),
         (StopBuilderConfiguration.AUTOTAR,),
         10,
@@ -227,7 +258,7 @@ EXPERIMENT_REPOSITORY = {
     ),
     ExperimentCombination.AUTOSTOP: TarExperimentParameters(
         ALConfiguration.AUTOSTOP,
-        FEConfiguration.TFIDF5000,
+        None,
         RandomInitializer.builder(5),
         (StopBuilderConfiguration.AUTOSTOP,),
         10,
