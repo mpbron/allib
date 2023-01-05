@@ -1,35 +1,17 @@
 from __future__ import annotations
 
-import functools
-import itertools
 import pickle
-import random
-import typing as ty
-from abc import ABC, abstractmethod
-from collections import OrderedDict
-from dataclasses import dataclass
-from os import PathLike
 from pathlib import Path
 from typing import (
     Any,
     Callable,
-    Dict,
-    FrozenSet,
     Generic,
-    List,
     Mapping,
     Optional,
-    Sequence,
     Tuple,
-    TypeVar,
-    Union,
 )
 
-import instancelib as il
-import matplotlib.pyplot as plt  # type: ignore
-import numpy as np
 import numpy.typing as npt
-import pandas as pd
 from instancelib.feature_extraction.base import BaseVectorizer
 from instancelib.functions.vectorize import vectorize
 from instancelib.instances.base import Instance
@@ -40,12 +22,11 @@ from ..environment.base import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
 from ..factory.factory import ObjectFactory
 from ..module.component import Component
-from ..stopcriterion.base import AbstractStopCriterion
 from ..typehints import DT, IT, KT, LT, RT, VT
 from .classificationplotter import ClassificationPlotter
 from .experiments import ClassificationExperiment, ExperimentIterator
 from .initialization import Initializer
-from .plotter import AbstractPlotter, ExperimentPlotter
+from .tarplotter import TarExperimentPlotter
 
 
 def initialize_tar_simulation(
@@ -93,7 +74,6 @@ def initialize_tar_simulation(
     learner_builder: Callable[
         ..., ActiveLearner[IT, KT, DT, npt.NDArray[Any], RT, LT]
     ] = factory.create(Component.ACTIVELEARNER, **al_config)
-
     if fe_config:
         vectorizer: BaseVectorizer[
             Instance[KT, DT, npt.NDArray[Any], RT]
@@ -113,7 +93,7 @@ def initialize_tar_simulation(
 
 
 class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
-    plotter: ExperimentPlotter[LT]
+    plotter: TarExperimentPlotter[LT]
     experiment: ExperimentIterator
     output_pkl_path: Optional[Path]
     output_pdf_path: Optional[Path]
@@ -122,7 +102,7 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
     def __init__(
         self,
         experiment: ExperimentIterator[IT, KT, DT, VT, RT, LT],
-        plotter: ExperimentPlotter[LT],
+        plotter: TarExperimentPlotter[LT],
         max_it: Optional[int] = None,
         print_enabled=False,
         output_path: Optional[Path] = None,
@@ -149,9 +129,13 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
             while not self.experiment.finished and not self._debug_finished:
                 result = self.experiment()
                 self.plotter.update(self.experiment, result)
-                if self.print_enabled:
-                    self.plotter.print_last_stats()
                 pbar.update(1)
+                found = self.plotter.recall_stats[self.plotter.it].pos_docs_found
+                estimates = [
+                    f"{n} {e.point:.1f}, CI: [{e.lower_bound:.1f}, {e.upper_bound:.1f}]"
+                    for n, e in self.plotter.estimates[self.plotter.it].items()
+                ]
+                pbar.set_description(f"Found: {found}, Estimate: {estimates}")
                 if self.output_pkl_path is not None:
                     with self.output_pkl_path.open("wb") as fh:
                         pickle.dump(self.plotter, fh)

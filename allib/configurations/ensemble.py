@@ -1,8 +1,8 @@
-from typing import Any, Dict, Mapping
+from typing import Any, Mapping
 from ..module import ModuleCatalog as Cat
 
 
-def add_identifier(config: Dict[str, Any], identifier: str) -> Dict[str, Any]:
+def add_identifier(config: Mapping[str, Any], identifier: str) -> Mapping[str, Any]:
     id_dict = {"identifier": identifier}
     new_dict = {**config, **id_dict}
     return new_dict
@@ -28,6 +28,30 @@ al_config_svm = {
         "task": Cat.ML.Task.BINARY,
         "balancer": {"type": Cat.BL.Type.DOUBLE, "config": {}},
     },
+}
+
+tf_idf_full = {
+    "datatype": Cat.FE.DataType.TEXTINSTANCE,
+    "vec_type": Cat.FE.VectorizerType.STACK,
+    "vectorizers": [
+        {
+            "vec_type": Cat.FE.VectorizerType.SKLEARN,
+            "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
+            "sklearn_config": {},
+        }
+    ],
+}
+
+tf_idf5000 = {
+    "datatype": Cat.FE.DataType.TEXTINSTANCE,
+    "vec_type": Cat.FE.VectorizerType.STACK,
+    "vectorizers": [
+        {
+            "vec_type": Cat.FE.VectorizerType.SKLEARN,
+            "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
+            "sklearn_config": {"max_features": 5000},
+        }
+    ],
 }
 
 tf_idf_autotar = {
@@ -523,31 +547,3 @@ al_config_entropy = {
 
 
 env_config = {"environment_type": Cat.ENV.Type.MEMORY}
-
-tf_idf5000 = {
-    "datatype": Cat.FE.DataType.TEXTINSTANCE,
-    "vec_type": Cat.FE.VectorizerType.STACK,
-    "vectorizers": [
-        {
-            "vec_type": Cat.FE.VectorizerType.SKLEARN,
-            "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
-            "sklearn_config": {"max_features": 5000},
-        }
-    ],
-}
-
-tf_idf_autotar = {
-    "datatype": Cat.FE.DataType.TEXTINSTANCE,
-    "vec_type": Cat.FE.VectorizerType.STACK,
-    "vectorizers": [
-        {
-            "vec_type": Cat.FE.VectorizerType.SKLEARN,
-            "sklearn_vec_type": Cat.FE.SklearnVecType.TFIDF_VECTORIZER,
-            "sklearn_config": {
-                "stop_words": "english",
-                "min_df": 2,
-                "max_features": 3000,
-            },
-        }
-    ],
-}

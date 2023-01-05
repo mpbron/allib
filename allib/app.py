@@ -30,7 +30,9 @@ def tar_benchmark(
 
     # Retrieve Configuration
     al_config = AL_REPOSITORY[exp.al_configuration]
-    fe_config = FE_REPOSITORY[exp.fe_configuration]
+    fe_config = (
+        dict() if exp.fe_configuration is None else FE_REPOSITORY[exp.fe_configuration]
+    )
     stop_builders = [
         STOP_BUILDER_REPOSITORY[config] for config in exp.stop_builder_configuration
     ]
