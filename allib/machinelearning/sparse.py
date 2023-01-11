@@ -53,8 +53,8 @@ def sparseslicer(matrix: Union[Dataset, npt.NDArray[DType]], slices: Iterable[Tu
     return sparse.vstack(list(get_slices_2d())) # type: ignore
 
 class SparseVectorStorage(VectorStorage[KT, npt.NDArray[DType], npt.NDArray[DType]], Generic[KT, DType]):
-    """This class provides the handling of on disk vector storage in HDF5 format.
-    In many cases, storing feature matrices or large sets of vectors
+    """This class provides the handling of spase matrices.
+    In many cases, storing dense feature matrices or large sets of vectors
     in memory is not feasible.
     
     This class provides methods that `InstanceProvider` implementations
