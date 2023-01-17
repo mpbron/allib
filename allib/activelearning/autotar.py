@@ -69,6 +69,8 @@ class BinaryTarLearner(
     rng: np.random.Generator
     _stats: AbstractStatistics[KT, LT]
 
+    _name = "BinaryTarLearner"
+
     def __init__(
         self,
         env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
@@ -113,6 +115,12 @@ class BinaryTarLearner(
     @property
     def stats(self) -> AbstractStatistics[KT, LT]:
         return self._stats
+
+    @property
+    def name(self) -> Tuple[str, Optional[LT]]:
+        if self.identifier is not None:
+            return self.identifier, self.pos_label
+        return self._name, self.pos_label
 
     def update_ordering(self) -> bool:
         return True
@@ -195,6 +203,7 @@ class BinaryTarLearner(
             pos_label: LT,
             neg_label: LT,
             *_,
+            identifier: Optional[str] = identifier,
             **__,
         ):
             classifier = classifier_builder(env)
@@ -217,6 +226,8 @@ class AutoTarLearner(
     StatsMixin[KT, LT],
     Generic[IT, KT, DT, VT, RT, LT],
 ):
+    _name = "AutoTAR"
+
     def __init__(
         self,
         env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],

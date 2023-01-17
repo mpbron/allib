@@ -18,7 +18,8 @@ from .tarplotter import TarExperimentPlotter
 class BenchmarkResult:
     dataset: str
     run_id: UUID
-    method: str
+    learner_id: str
+    stop_criterion: str
 
     stop_wss: float
     stop_recall: float
@@ -27,7 +28,7 @@ class BenchmarkResult:
     stop_effort: int
     stop_prop_effort: float
     stop_relative_error: float
-    
+
     dataset_stats: TarDatasetStats
 
 
@@ -45,17 +46,21 @@ def read_datasets(root_path: Path) -> Mapping[str, Mapping[UUID, TarExperimentPl
 
 
 def extract_results(
-    dataset: str, run_id: UUID, plotter: TarExperimentPlotter, crit_name: str,
-    target_recall: float = 0.95
+    dataset: str,
+    run_id: UUID,
+    plotter: TarExperimentPlotter,
+    crit_name: str,
+    target_recall: float = 0.95,
 ) -> BenchmarkResult:
     stop_it = plotter._it_at_stop(crit_name) or plotter.it
     rs = plotter.recall_stats[stop_it]
     ds = plotter.dataset_stats[stop_it]
     l_er = loss_er(rs.pos_docs_found, rs.effort, ds.pos_count, ds.size)
-    re = abs(target_recall - rs.recall) / target_recall 
+    re = abs(target_recall - rs.recall) / target_recall
     return BenchmarkResult(
         dataset,
         run_id,
+        rs.name,
         crit_name,
         rs.wss,
         rs.recall,
@@ -64,7 +69,7 @@ def extract_results(
         rs.effort,
         rs.proportional_effort,
         re,
-        ds
+        ds,
     )
 
 
@@ -78,6 +83,7 @@ def extract_information(
         for crit_name in plotter.criterion_names
     ]
     return records
+
 
 def results_to_pandas(results: Sequence[BenchmarkResult]) -> pd.DataFrame:
     df = pd.DataFrame(results)
