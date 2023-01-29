@@ -24,6 +24,7 @@ from ..activelearning.ml_based import FeatureMatrix, MLBased
 from ..environment import AbstractEnvironment
 from ..machinelearning import AbstractClassifier
 from ..typehints import DT, IT, KT, LT, RT, VT
+from typing_extensions import Self
 
 
 @dataclass
@@ -31,6 +32,10 @@ class Estimate:
     point: float
     lower_bound: float
     upper_bound: float
+
+    @classmethod
+    def empty(cls) -> Self:
+        return cls(float("nan"), float("nan"), float("nan"))
 
 
 class AbstractEstimator(ABC, Generic[IT, KT, DT, VT, RT, LT]):

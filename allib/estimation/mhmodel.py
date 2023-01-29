@@ -76,12 +76,16 @@ class ChaoEstimator(
         self.matrix_history: Deque[pd.DataFrame] = collections.deque()
         self.contingency_history: Deque[Dict[FrozenSet[int], int]] = collections.deque()
         self.r_loaded = False
+        self.df: Optional[pd.DataFrame] = None
+        self.est = Estimate.empty()
+        self.rfile = "mhmodel.R"
+        self.rfunc = "get_abundance"
 
     def _start_r(self) -> None:
         _check_R()
         R = ro.r
         filedir = os.path.dirname(os.path.realpath(__file__))
-        r_script_file = os.path.join(filedir, "mhmodel.R")
+        r_script_file = os.path.join(filedir, self.rfile)
         R["source"](r_script_file)
 
     def get_label_matrix(
@@ -136,18 +140,15 @@ class ChaoEstimator(
                     matrix[i, j] = len(intersection)
         return matrix
 
-    def calculate_abundance_R(
-        self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT
-    ) -> pd.DataFrame:
+    def calculate_abundance_R(self, df: pd.DataFrame) -> pd.DataFrame:
         if not self.r_loaded:
             self._start_r()
             self.r_loaded = True
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            df = self.get_label_matrix(estimator, label)
             with localconverter(ro.default_converter + pandas2ri.converter):
                 df_r = ro.conversion.py2rpy(df)
-                abundance_r = ro.globalenv["get_abundance"]
+                abundance_r = ro.globalenv[self.rfunc]
                 r_df = abundance_r(df_r)
                 res_df: pd.DataFrame = ro.conversion.rpy2py(r_df)
         return res_df
@@ -155,19 +156,24 @@ class ChaoEstimator(
     def calculate_abundance(
         self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT
     ) -> Estimate:
-        res_df = self.calculate_abundance_R(estimator, label)
+        df = self.get_label_matrix(estimator, label)
+        old_df = self.df
+        if old_df is None or not old_df.equals(df):
+            self.df = df
+            res_df = self.calculate_abundance_R(df)
 
-        def try_float(val: Any) -> float:
-            try:
-                parsed = float(val)
-            except ValueError:
-                parsed = float("nan")
-            return parsed
+            def try_float(val: Any) -> float:
+                try:
+                    parsed = float(val)
+                except ValueError:
+                    parsed = float("nan")
+                return parsed
 
-        point = try_float(res_df["abundance"][0])
-        lower = try_float(res_df["infCL"][0])
-        upper = try_float(res_df["supCL"][0])
-        return Estimate(point, lower, upper)
+            point = try_float(res_df["abundance"][0])
+            lower = try_float(res_df["infCL"][0])
+            upper = try_float(res_df["supCL"][0])
+            self.est = Estimate(point, lower, upper)
+        return self.est
 
     def __call__(
         self, learner: ActiveLearner[Any, KT, DT, VT, RT, LT], label: LT
@@ -233,18 +239,6 @@ class ChaoEstimator(
 class ChaoAlternative(
     ChaoEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
-    def calculate_abundance_R(
-        self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT
-    ) -> pd.DataFrame:
-        if not self.r_loaded:
-            self._start_r()
-            self.r_loaded = True
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            df = self.get_label_matrix(estimator, label)
-            with localconverter(ro.default_converter + pandas2ri.converter):
-                df_r = ro.conversion.py2rpy(df)
-                abundance_r = ro.globalenv["get_abundance_eta"]
-                r_df = abundance_r(df_r)
-                res_df: pd.DataFrame = ro.conversion.rpy2py(r_df)
-        return res_df
+    def __init__(self):
+        super().__init__()
+        self.rfunc = "get_abundance_eta"

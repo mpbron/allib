@@ -217,7 +217,13 @@ def standoff_builder(
 TARGETS = [0.7, 0.8, 0.9, 0.95, 1.0]
 
 STOP_BUILDER_REPOSITORY = {
-    StopBuilderConfiguration.CHAO_CONS_OPT: combine_builders(
+    StopBuilderConfiguration.CHAO_CONS_OPT: conservative_optimistic_builder(
+        {"Chao": ChaoEstimator()}, TARGETS
+    ),
+    StopBuilderConfiguration.CHAO_CONS_OPT_ALT: conservative_optimistic_builder(
+        {"ChaoALT": ChaoAlternative()}, TARGETS
+    ),
+    StopBuilderConfiguration.CHAO_BOTH: combine_builders(
         conservative_optimistic_builder({"Chao": ChaoEstimator()}, TARGETS),
         conservative_optimistic_builder({"ChaoALT": ChaoAlternative()}, TARGETS),
     ),
@@ -243,6 +249,15 @@ EXPERIMENT_REPOSITORY = {
         None,
         SeparateInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT_ALT,),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.CHAO_BOTH: TarExperimentParameters(
+        ALConfiguration.ILRaschNBLRRFLGBMRAND,
+        None,
+        SeparateInitializer.builder(1),
+        (StopBuilderConfiguration.CHAO_BOTH,),
         10,
         10,
         10,
