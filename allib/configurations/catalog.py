@@ -14,9 +14,11 @@ class ALConfiguration(Enum):
     RaschNBLRRFSVM = "RaschNBLRRFSVM"
     RaschNBLRRFLGBM = "RaschNBLRRFLBGM"
     RaschNBLRRFLGBMRAND = "RaschNBLRRFLGBMRAND"
-    ILRaschNBLRRFLGBMRAND = "ILRaschNBLRRFLGBMRAND"
+    CHAO_ENSEMBLE = "Chao_ENSEMBLE"
     AUTOTAR = "AUTOTAR"
     AUTOSTOP = "AUTOSTOP"
+    CHAO_AT_ENSEMBLE = "CHAO_AT_ENSEMBLE"
+    CHAO_IB_ENSEMBLE = "CHAO_IB_ENSEMBLE"
 
 
 class INITConfiguration(Enum):
@@ -55,3 +57,5 @@ class ExperimentCombination(str, Enum):
     CHAO_BOTH = "CHAO_BOTH"
     AUTOTAR = "AUTOTAR"
     AUTOSTOP = "AUTOSTOP"
+    CHAO_AT = "CHAO_AT"
+    CHAO_IB = "CHAO_IB"

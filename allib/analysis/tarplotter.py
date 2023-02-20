@@ -2,8 +2,20 @@ import typing as ty
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from os import PathLike
-from typing import (Any, Dict, FrozenSet, Generic, Iterable, List, Mapping,
-                    Optional, Sequence, Tuple, TypeVar, Union)
+from typing import (
+    Any,
+    Dict,
+    FrozenSet,
+    Generic,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -148,9 +160,11 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         plt.plot(xs, ys, linestyle="-.", label=f"Estimate by {key}", color=color)
         plt.fill_between(xrs, ls, us, color=color, alpha=alpha)  # type: ignore
 
-    def _plot_stop_criteria(self) -> None:
+    def _plot_stop_criteria(self, included_criteria: Optional[Sequence[str]]) -> None:
         results: Sequence[Tuple[int, float, float, str, str]] = list()
-        for i, crit_name in enumerate(self.criterion_names):
+        if included_criteria is None:
+            included_criteria = list(self.criterion_names)
+        for i, crit_name in enumerate(included_criteria):
             color = f"C{i}"
             for it in self.it_axis:
                 frame = self.stop_results[it]
@@ -238,6 +252,9 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         else:
             plt.ylim(0, 1.4 * true_pos)
 
+    def _plot_legend(self) -> None:
+        plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left", fontsize="xx-small")
+
     def show(
         self,
         x_lim: Optional[float] = None,
@@ -245,15 +262,16 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         recall_target: float = 0.95,
         included_estimators: Optional[Sequence[str]] = None,
         included_models: Optional[Sequence[str]] = None,
+        included_stopcriteria: Optional[Sequence[str]] = None,
         filename: "Optional[PathLike[str]]" = None,
     ) -> None:
         self._graph_setup()
         self._plot_static_data(recall_target)
         self._plot_recall_stats(included_models)
         self._plot_estimators(included_estimators)
-        self._plot_stop_criteria()
+        self._plot_stop_criteria(included_stopcriteria)
         self._set_axes(x_lim, y_lim)
-        plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+        self._plot_legend()
         plt.tight_layout()
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
@@ -267,14 +285,16 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         y_lim: Optional[float] = None,
         included_estimators: Optional[Sequence[str]] = None,
         included_models: Optional[Sequence[str]] = None,
+        included_stopcriteria: Optional[Sequence[str]] = None,
         filename: "Optional[PathLike[str]]" = None,
     ):
         self._graph_setup(simulation=False)
         self._plot_recall_stats(included_models)
         self._plot_estimators(included_estimators)
-        self._plot_stop_criteria()
+        self._plot_stop_criteria(included_stopcriteria)
         self._set_axes(x_lim, y_lim)
-        plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+        self._plot_legend()
+        plt.tight_layout()
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
         else:

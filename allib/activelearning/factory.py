@@ -15,22 +15,35 @@ from ..machinelearning import AbstractClassifier, MachineLearningFactory
 from ..module.component import Component
 from ..typehints.typevars import IT
 from .autostop import AutoStopLearner
-from .autotar import AutoTarLearner, BinaryTarLearner
+from .autotar import AutoTarLearner, BinaryTarLearner, IncreasingBatch
 from .base import ActiveLearner
 from .catalog import ALCatalog as AL
 from .ensembles import StrategyEnsemble
 from .estimator import CycleEstimator, Estimator, RetryEstimator
 from .labelmethods import LabelProbabilityBased
 from .ml_based import ProbabilityBased
-from .mostcertain import (LabelMaximizer, LabelMaximizerNew,
-                          MostCertainSampling, MostConfidence)
-from .prob_ensembles import (LabelMinProbEnsemble, LabelProbEnsemble,
-                             ProbabilityBasedEnsemble)
+from .mostcertain import (
+    LabelMaximizer,
+    LabelMaximizerNew,
+    MostCertainSampling,
+    MostConfidence,
+)
+from .prob_ensembles import (
+    LabelMinProbEnsemble,
+    LabelProbEnsemble,
+    ProbabilityBasedEnsemble,
+)
 from .random import RandomSampling
 from .selectioncriterion import AbstractSelectionCriterion
-from .uncertainty import (EntropySampling, LabelUncertainty,
-                          LabelUncertaintyNew, LeastConfidence, MarginSampling,
-                          NearDecisionBoundary, RandomMLStrategy)
+from .uncertainty import (
+    EntropySampling,
+    LabelUncertainty,
+    LabelUncertaintyNew,
+    LeastConfidence,
+    MarginSampling,
+    NearDecisionBoundary,
+    RandomMLStrategy,
+)
 
 
 class FallbackBuilder(AbstractBuilder):
@@ -87,7 +100,7 @@ class LabelProbabilityBasedBuilder(AbstractBuilder):
         return LabelProbabilityBased.builder(
             classifier,
             selection_criterion,
-            built_fallback,            
+            built_fallback,
             identifier=identifier,
         )
 
@@ -97,6 +110,7 @@ class PoolbasedBuilder(AbstractBuilder):
         self, query_type: AL.QueryType, identifier: Optional[str] = None, **kwargs
     ):
         return self._factory.create(query_type, identifier=identifier, **kwargs)
+
 
 class CustomBuilder(AbstractBuilder):
     def __call__(self, method: AL.CustomMethods, **kwargs):
@@ -245,30 +259,52 @@ def classifier_builder(
 
     return wrap_func
 
+
 class BinaryTarBuilder(AbstractBuilder):
-    def __call__(self, 
-                 machinelearning: Mapping[str, Any],
-                 batch_size: int,
-                 chunk_size: int = 2000, **kwargs):
+    def __call__(
+        self,
+        machinelearning: Mapping[str, Any],
+        batch_size: int,
+        chunk_size: int = 2000,
+        **kwargs,
+    ):
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
         return BinaryTarLearner.builder(classifier, batch_size, chunk_size, **kwargs)
 
 
+class IncreasingBatchBuilder(AbstractBuilder):
+    def __call__(
+        self,
+        machinelearning: Mapping[str, Any],
+        batch_size: int,
+        chunk_size: int = 2000,
+        **kwargs,
+    ):
+        classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
+        return IncreasingBatch.builder(classifier, batch_size, chunk_size, **kwargs)
+
+
 class AutoTARBuilder(AbstractBuilder):
-    def __call__(self, 
-                 machinelearning: Mapping[str, Any],
-                 k_sample: int, 
-                 batch_size: int, **kwargs):
+    def __call__(
+        self,
+        machinelearning: Mapping[str, Any],
+        k_sample: int,
+        batch_size: int,
+        **kwargs,
+    ):
         builder = self._factory.create(Component.CLASSIFIER, **machinelearning)
         at = AutoTarLearner.builder(builder, k_sample, batch_size, **kwargs)
         return at
 
+
 class AutoSTOPBuilder(AbstractBuilder):
-    def __call__(self, 
-                 machinelearning: Mapping[str, Any],
-                 k_sample: int, 
-                 batch_size: int, 
-                 **kwargs):
+    def __call__(
+        self,
+        machinelearning: Mapping[str, Any],
+        k_sample: int,
+        batch_size: int,
+        **kwargs,
+    ):
         builder = self._factory.create(Component.CLASSIFIER, **machinelearning)
         at = AutoStopLearner.builder(builder, k_sample, batch_size, **kwargs)
         return at
@@ -305,6 +341,9 @@ class ActiveLearningFactory(ObjectFactory):
         )
         self.register_builder(AL.CustomMethods.AUTOTAR, AutoTARBuilder())
         self.register_builder(AL.CustomMethods.BINARYTAR, BinaryTarBuilder())
+        self.register_builder(
+            AL.CustomMethods.INCREASING_BATCH, IncreasingBatchBuilder()
+        )
         self.register_builder(AL.CustomMethods.AUTOSTOP, AutoSTOPBuilder())
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling.builder)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)
@@ -322,4 +361,3 @@ class ActiveLearningFactory(ObjectFactory):
             AL.QueryType.LABELUNCERTAINTY_NEW, LabelUncertaintyNew
         )
         self.register_constructor(AL.QueryType.RANDOM_ML, RandomMLStrategy)
-  

@@ -221,6 +221,33 @@ class BinaryTarLearner(
         return builder_func
 
 
+class IncreasingBatch(
+    BinaryTarLearner[IT, KT, DT, VT, RT, LT],
+    StatsMixin[KT, LT],
+    Generic[IT, KT, DT, VT, RT, LT],
+):
+    def update_sample(self) -> Deque[KT]:
+        if not self.current_sample:
+            self.stats.update(self)
+            self.classifier.fit_provider(self.env.labeled, self.env.labels)
+            ranking = self._rank(self.env.unlabeled)
+            sample = self._sample(ranking)
+
+            # Store current sample
+            self.current_sample = collections.deque(sample)
+
+            # Record keeping
+            self.rank_history[self.it] = self._to_history(ranking)
+            self.sampled_sets[self.it] = tuple(sample)
+            self.batch_sizes[self.it] = self.batch_size
+
+            # Increment batch_size for next for train iteration
+            self.batch_size += ceil(self.batch_size / 10)
+
+            self.it += 1
+        return self.current_sample
+
+
 class AutoTarLearner(
     BinaryTarLearner[IT, KT, DT, VT, RT, LT],
     StatsMixin[KT, LT],

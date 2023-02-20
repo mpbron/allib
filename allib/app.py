@@ -6,6 +6,7 @@ from uuid import uuid4
 from instancelib.utils.func import list_unzip
 
 from .analysis.tarplotter import TarExperimentPlotter
+from .benchmarking.datasets import TarDataset, DatasetType
 from .benchmarking.reviews import benchmark, read_review_dataset
 from .configurations import AL_REPOSITORY, FE_REPOSITORY
 from .configurations.base import EXPERIMENT_REPOSITORY, STOP_BUILDER_REPOSITORY
@@ -17,13 +18,15 @@ LOGGER = logging.getLogger(__name__)
 
 
 def tar_benchmark(
-    dataset_path: Path,
+    dataset: TarDataset,
     target_path: Path,
     exp_choice: ExperimentCombination,
     pos_label: str,
     neg_label: str,
 ) -> None:
-    LOGGER.info(f"Start Experiment on {dataset_path} with {exp_choice}")
+    LOGGER.info(
+        f"Start Experiment on {dataset.path.stem} for topic ´{dataset.topic}´ with {exp_choice}"
+    )
     exp = EXPERIMENT_REPOSITORY[exp_choice]
 
     # Parse Configuration
@@ -46,17 +49,20 @@ def tar_benchmark(
     # Specify benchmark targets and outputs
     uuid = uuid4()
     target_path = Path(target_path)
-    dataset_name = dataset_path.stem
+    dataset_name = (
+        dataset.path.stem
+        if dataset.type == DatasetType.REVIEW or dataset.topic is None
+        else f"{dataset.path.stem}-{dataset.topic}"
+    )
     # File locations for the plotter object
     dataset_dir = target_path / dataset_name
     plot_filename_pkl = dataset_dir / f"run_{uuid}.pkl"
     plot_filename_pdf = dataset_dir / f"run_{uuid}.pdf"
 
     # Load the dataset
-    env = read_review_dataset(dataset_path)
     create_dir_if_not_exists(dataset_dir)
     plot = benchmark(
-        env,
+        dataset.env,
         plot_filename_pkl,
         plot_filename_pdf,
         al_config,

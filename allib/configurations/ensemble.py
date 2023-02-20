@@ -1,4 +1,4 @@
-from typing import Any, Mapping
+from typing import Any, Mapping, Tuple
 from ..module import ModuleCatalog as Cat
 
 
@@ -106,10 +106,14 @@ DOUBLEBALANCER = {"type": Cat.BL.Type.DOUBLE, "config": {}}
 IDENTITYBALANCER = {"type": Cat.BL.Type.IDENTITY, "config": {}}
 
 
-def btar(machinelearning: Mapping[str, Any], batch_size: int = 10):
+def btar(
+    machinelearning: Mapping[str, Any],
+    batch_size: int = 10,
+    method: Cat.AL.CustomMethods = Cat.AL.CustomMethods.BINARYTAR,
+):
     config = {
         "paradigm": Cat.AL.Paradigm.CUSTOM,
-        "method": Cat.AL.CustomMethods.BINARYTAR,
+        "method": method,
         "machinelearning": machinelearning,
         "batch_size": batch_size,
     }
@@ -123,8 +127,8 @@ def autotar(
         "paradigm": Cat.AL.Paradigm.CUSTOM,
         "method": Cat.AL.CustomMethods.AUTOTAR,
         "machinelearning": machinelearning,
-        "k_sample": 100,
-        "batch_size": 20,
+        "k_sample": k_sample,
+        "batch_size": batch_size,
     }
     return config
 
@@ -145,45 +149,45 @@ def tar_classifier(
     return config
 
 
-al_il_config_nb = btar(
-    machinelearning=tar_classifier(
-        sklearn_model=Cat.ML.SklearnModel.NAIVE_BAYES,
-        model_configuration={"alpha": 3.822},
-        feature_extraction=tf_idf_autotar,
-        balancer=DOUBLEBALANCER,
-    ),
-    batch_size=10,
+NB = (Cat.ML.SklearnModel.NAIVE_BAYES, {"alpha": 3.822})
+LR = (
+    Cat.ML.SklearnModel.LOGISTIC,
+    {
+        "solver": "lbfgs",
+        "C": 1.0,
+        "max_iter": 10000,
+    },
 )
-al_il_config_lr = btar(
-    machinelearning=tar_classifier(
-        sklearn_model=Cat.ML.SklearnModel.LOGISTIC,
-        model_configuration=dict(),
-        feature_extraction=tf_idf_autotar,
-        balancer=DOUBLEBALANCER,
-    ),
-    batch_size=10,
+LGBM = (Cat.ML.SklearnModel.LGBM, {"n_jobs": 1})
+RF = (
+    Cat.ML.SklearnModel.RANDOM_FOREST,
+    {
+        "n_estimators": 100,
+        "max_features": 10,
+    },
 )
-al_il_config_lgbm = btar(
-    machinelearning=tar_classifier(
-        sklearn_model=Cat.ML.SklearnModel.LGBM,
-        model_configuration=dict(),
-        feature_extraction=tf_idf_autotar,
-        balancer=DOUBLEBALANCER,
-    ),
-    batch_size=10,
-)
-al_il_config_rf = btar(
-    machinelearning=tar_classifier(
-        sklearn_model=Cat.ML.SklearnModel.RANDOM_FOREST,
-        model_configuration={
-            "n_estimators": 100,
-            "max_features": 10,
-        },
-        feature_extraction=tf_idf_autotar,
-        balancer=DOUBLEBALANCER,
-    ),
-    batch_size=10,
-)
+
+
+def sk_btar(
+    model: Tuple[Cat.ML.SklearnModel, Mapping[str, Any]],
+    batch_size: int = 10,
+    fe: Mapping[str, Any] = tf_idf_autotar,
+    balancer: Mapping[str, Any] = DOUBLEBALANCER,
+    method: Cat.AL.CustomMethods = Cat.AL.CustomMethods.BINARYTAR,
+) -> Mapping[str, Any]:
+    model_type, model_config = model
+    return btar(
+        machinelearning=tar_classifier(
+            sklearn_model=model_type,
+            model_configuration=model_config,
+            feature_extraction=fe,
+            balancer=balancer,
+        ),
+        batch_size=batch_size,
+        method=method,
+    )
+
+
 al_config_nb = {
     "paradigm": Cat.AL.Paradigm.LABEL_PROBABILITY_BASED,
     "query_type": Cat.AL.QueryType.LABELMAXIMIZER,
@@ -399,16 +403,34 @@ rasch_nblrrflgbmrand = {
     ],
 }
 
-ilrasch_nblrrflgbmrand = {
-    "paradigm": Cat.AL.Paradigm.ESTIMATOR,
-    "learners": [
-        set_batch_size(add_identifier(al_il_config_nb, "NaiveBayes"), 200),
-        set_batch_size(add_identifier(al_il_config_rf, "RandomForest"), 200),
-        set_batch_size(add_identifier(al_il_config_lr, "LogisticRegression"), 200),
-        set_batch_size(add_identifier(al_il_config_lgbm, "LGBM"), 200),
-        set_batch_size(add_identifier(al_config_random, "Random"), 200),
-    ],
-}
+
+def chao_ensemble(
+    batch_size: int,
+    tf_idf: Mapping[str, Any] = tf_idf_autotar,
+    method=Cat.AL.CustomMethods.BINARYTAR,
+) -> Mapping[str, Any]:
+    return {
+        "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+        "learners": [
+            add_identifier(
+                sk_btar(NB, batch_size, tf_idf, DOUBLEBALANCER, method=method),
+                "NaiveBayes",
+            ),
+            add_identifier(
+                sk_btar(RF, batch_size, tf_idf, DOUBLEBALANCER, method=method),
+                "RandomForest",
+            ),
+            add_identifier(
+                sk_btar(LGBM, batch_size, tf_idf, DOUBLEBALANCER, method=method), "LGBM"
+            ),
+            add_identifier(
+                sk_btar(LR, batch_size, tf_idf, DOUBLEBALANCER, method=method),
+                "Logistic Regression",
+            ),
+            set_batch_size(add_identifier(al_config_random, "Random"), batch_size),
+        ],
+    }
+
 
 rasch_lr = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,

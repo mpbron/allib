@@ -9,7 +9,7 @@ from typing import (
     Tuple,
     TypeVar,
 )
-
+from ..module import ModuleCatalog as Cat
 import numpy.typing as npt
 from instancelib.utils.func import flatten_dicts
 
@@ -50,7 +50,8 @@ from .catalog import (
 from .ensemble import (
     al_config_ensemble_prob,
     al_config_entropy,
-    ilrasch_nblrrflgbmrand,
+    autotar_ensemble,
+    chao_ensemble,
     naive_bayes_estimator,
     rasch_estimator,
     rasch_lr,
@@ -81,9 +82,13 @@ AL_REPOSITORY = {
     ALConfiguration.RaschRF: rasch_rf,
     ALConfiguration.RaschNBLRRFLGBM: rasch_nblrrflgbm,
     ALConfiguration.RaschNBLRRFLGBMRAND: rasch_nblrrflgbmrand,
-    ALConfiguration.ILRaschNBLRRFLGBMRAND: ilrasch_nblrrflgbmrand,
+    ALConfiguration.CHAO_ENSEMBLE: chao_ensemble(20),
     ALConfiguration.AUTOTAR: autotar,
     ALConfiguration.AUTOSTOP: autostop,
+    ALConfiguration.CHAO_AT_ENSEMBLE: autotar_ensemble,
+    ALConfiguration.CHAO_IB_ENSEMBLE: chao_ensemble(
+        20, method=Cat.AL.CustomMethods.INCREASING_BATCH
+    ),
 }
 
 FE_REPOSITORY = {FEConfiguration.TFIDF5000: tf_idf5000}
@@ -236,7 +241,7 @@ STOP_BUILDER_REPOSITORY = {
 
 EXPERIMENT_REPOSITORY = {
     ExperimentCombination.CHAO: TarExperimentParameters(
-        ALConfiguration.ILRaschNBLRRFLGBMRAND,
+        ALConfiguration.CHAO_ENSEMBLE,
         None,
         SeparateInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT,),
@@ -245,7 +250,7 @@ EXPERIMENT_REPOSITORY = {
         10,
     ),
     ExperimentCombination.CHAO_ALT: TarExperimentParameters(
-        ALConfiguration.ILRaschNBLRRFLGBMRAND,
+        ALConfiguration.CHAO_ENSEMBLE,
         None,
         SeparateInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT_ALT,),
@@ -254,7 +259,7 @@ EXPERIMENT_REPOSITORY = {
         10,
     ),
     ExperimentCombination.CHAO_BOTH: TarExperimentParameters(
-        ALConfiguration.ILRaschNBLRRFLGBMRAND,
+        ALConfiguration.CHAO_ENSEMBLE,
         None,
         SeparateInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_BOTH,),
@@ -276,6 +281,24 @@ EXPERIMENT_REPOSITORY = {
         None,
         RandomInitializer.builder(5),
         (StopBuilderConfiguration.AUTOSTOP,),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.CHAO_AT: TarExperimentParameters(
+        ALConfiguration.CHAO_AT_ENSEMBLE,
+        None,
+        SeparateInitializer.builder(1),
+        (StopBuilderConfiguration.CHAO_CONS_OPT,),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.CHAO_IB: TarExperimentParameters(
+        ALConfiguration.CHAO_IB_ENSEMBLE,
+        None,
+        SeparateInitializer.builder(1),
+        (StopBuilderConfiguration.CHAO_CONS_OPT,),
         10,
         10,
         10,

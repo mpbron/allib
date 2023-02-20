@@ -36,3 +36,4 @@ class ALCatalog:
         AUTOTAR = "AUTOTAR"
         AUTOSTOP = "AUTOSTOP"
         BINARYTAR = "BinaryTAR"
+        INCREASING_BATCH = "IncreasingBatch"
