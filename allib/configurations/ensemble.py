@@ -1,5 +1,6 @@
 from typing import Any, Mapping, Tuple
 from ..module import ModuleCatalog as Cat
+from lenses import lens
 
 
 def add_identifier(config: Mapping[str, Any], identifier: str) -> Mapping[str, Any]:
@@ -9,8 +10,8 @@ def add_identifier(config: Mapping[str, Any], identifier: str) -> Mapping[str, A
 
 
 def set_batch_size(config: Mapping[str, Any], batch_size: int) -> Mapping[str, Any]:
-    id_dict = {"batch_size": batch_size}
-    new_dict = {**config, **id_dict}
+    l = lens.Item("batch_size").set(("batch_size", batch_size))
+    new_dict = l(config)
     return new_dict
 
 
@@ -425,7 +426,7 @@ def chao_ensemble(
             ),
             add_identifier(
                 sk_btar(LR, batch_size, tf_idf, DOUBLEBALANCER, method=method),
-                "Logistic Regression",
+                "LogisticRegression",
             ),
             set_batch_size(add_identifier(al_config_random, "Random"), batch_size),
         ],
@@ -499,7 +500,7 @@ al_config_est5 = {
 }
 autotars = {
     "NaiveBayes": (Cat.ML.SklearnModel.NAIVE_BAYES, {"alpha": 3.822}, 100, 20),
-    "Logistic": (
+    "LogisticRegression": (
         Cat.ML.SklearnModel.LOGISTIC,
         {
             "solver": "lbfgs",
@@ -509,7 +510,7 @@ autotars = {
         100,
         20,
     ),
-    "RF": (
+    "RandomForest": (
         Cat.ML.SklearnModel.RANDOM_FOREST,
         {
             "n_estimators": 100,

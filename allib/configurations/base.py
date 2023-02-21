@@ -38,6 +38,8 @@ from ..stopcriterion.others import (
     ReviewHalfStoppingRule,
     Rule2399StoppingRule,
     StopAfterKNegative,
+    QuantStoppingRule,
+    CHMHeuristicsStoppingRule,
 )
 from ..typehints import LT
 from .catalog import (
@@ -82,12 +84,12 @@ AL_REPOSITORY = {
     ALConfiguration.RaschRF: rasch_rf,
     ALConfiguration.RaschNBLRRFLGBM: rasch_nblrrflgbm,
     ALConfiguration.RaschNBLRRFLGBMRAND: rasch_nblrrflgbmrand,
-    ALConfiguration.CHAO_ENSEMBLE: chao_ensemble(20),
+    ALConfiguration.CHAO_ENSEMBLE: chao_ensemble(1),
     ALConfiguration.AUTOTAR: autotar,
     ALConfiguration.AUTOSTOP: autostop,
     ALConfiguration.CHAO_AT_ENSEMBLE: autotar_ensemble,
     ALConfiguration.CHAO_IB_ENSEMBLE: chao_ensemble(
-        20, method=Cat.AL.CustomMethods.INCREASING_BATCH
+        1, method=Cat.AL.CustomMethods.INCREASING_BATCH
     ),
 }
 
@@ -195,6 +197,9 @@ def combine_builders(
     return builder
 
 
+TARGETS = [0.7, 0.8, 0.9, 0.95, 1.0]
+
+
 def standoff_builder(
     pos_label: LT, neg_label: LT
 ) -> Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]]:
@@ -206,6 +211,10 @@ def standoff_builder(
     rule2399 = Rule2399StoppingRule(pos_label)
     stop200 = StopAfterKNegative(pos_label, 200)
     stop400 = StopAfterKNegative(pos_label, 400)
+    quants = {f"Quant_{t}": QuantStoppingRule(pos_label, t) for t in TARGETS}
+    chm = {
+        f"CHM_{t}": CHMHeuristicsStoppingRule(pos_label, t, alpha=0.95) for t in TARGETS
+    }
     criteria = {
         "Perfect95": recall95,
         "Perfect100": recall100,
@@ -216,10 +225,8 @@ def standoff_builder(
         "Stop200": stop200,
         "Stop400": stop400,
     }
-    return dict(), criteria
+    return dict(), {**criteria, **quants, **chm}
 
-
-TARGETS = [0.7, 0.8, 0.9, 0.95, 1.0]
 
 STOP_BUILDER_REPOSITORY = {
     StopBuilderConfiguration.CHAO_CONS_OPT: conservative_optimistic_builder(
@@ -239,12 +246,12 @@ STOP_BUILDER_REPOSITORY = {
 }
 
 
-EXPERIMENT_REPOSITORY = {
+EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] = {
     ExperimentCombination.CHAO: TarExperimentParameters(
         ALConfiguration.CHAO_ENSEMBLE,
         None,
         SeparateInitializer.builder(1),
-        (StopBuilderConfiguration.CHAO_CONS_OPT,),
+        (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
         10,
@@ -253,7 +260,7 @@ EXPERIMENT_REPOSITORY = {
         ALConfiguration.CHAO_ENSEMBLE,
         None,
         SeparateInitializer.builder(1),
-        (StopBuilderConfiguration.CHAO_CONS_OPT_ALT,),
+        (StopBuilderConfiguration.CHAO_CONS_OPT_ALT, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
         10,
@@ -262,7 +269,7 @@ EXPERIMENT_REPOSITORY = {
         ALConfiguration.CHAO_ENSEMBLE,
         None,
         SeparateInitializer.builder(1),
-        (StopBuilderConfiguration.CHAO_BOTH,),
+        (StopBuilderConfiguration.CHAO_BOTH, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
         10,
@@ -280,7 +287,7 @@ EXPERIMENT_REPOSITORY = {
         ALConfiguration.AUTOSTOP,
         None,
         RandomInitializer.builder(5),
-        (StopBuilderConfiguration.AUTOSTOP,),
+        (StopBuilderConfiguration.AUTOSTOP, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
         10,
@@ -289,7 +296,7 @@ EXPERIMENT_REPOSITORY = {
         ALConfiguration.CHAO_AT_ENSEMBLE,
         None,
         SeparateInitializer.builder(1),
-        (StopBuilderConfiguration.CHAO_CONS_OPT,),
+        (StopBuilderConfiguration.CHAO_BOTH, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
         10,
@@ -298,7 +305,7 @@ EXPERIMENT_REPOSITORY = {
         ALConfiguration.CHAO_IB_ENSEMBLE,
         None,
         SeparateInitializer.builder(1),
-        (StopBuilderConfiguration.CHAO_CONS_OPT,),
+        (StopBuilderConfiguration.CHAO_BOTH, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
         10,

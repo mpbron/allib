@@ -226,6 +226,8 @@ class IncreasingBatch(
     StatsMixin[KT, LT],
     Generic[IT, KT, DT, VT, RT, LT],
 ):
+    _name = "IncreasingBatchBinaryTARLearner"
+
     def update_sample(self) -> Deque[KT]:
         if not self.current_sample:
             self.stats.update(self)

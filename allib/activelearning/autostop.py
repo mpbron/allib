@@ -37,6 +37,8 @@ def calc_ap_prior_distribution(
 class AutoStopLearner(
     AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
+
+    _name = "AUTOSTOP"
     distributions: Dict[int, Dict[KT, float]]
 
     dist_fixed: Dict[int, npt.NDArray[Any]]
@@ -222,4 +224,3 @@ class AutoStopLearner(
         if len(self.env.unlabeled) != 1:
             return super().__next__()
         return next(iter(self.env.unlabeled.values()))
-        
