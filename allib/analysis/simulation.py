@@ -27,6 +27,7 @@ from .classificationplotter import ClassificationPlotter
 from .experiments import ClassificationExperiment, ExperimentIterator
 from .initialization import Initializer
 from .tarplotter import TarExperimentPlotter
+import gc
 
 
 def initialize_tar_simulation(
@@ -144,6 +145,8 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
                     and self.output_pdf_path is not None
                 ):
                     self.plotter.show(filename=self.output_pdf_path)
+                if self.experiment.it % 1000 == 0:
+                    gc.collect()
 
 
 class ClassificationSimulator(Generic[IT, KT, DT, VT, RT, LT]):
