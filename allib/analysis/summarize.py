@@ -1,7 +1,7 @@
 import pickle
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, Optional
 from uuid import UUID
 
 import pandas as pd
@@ -18,6 +18,7 @@ from .tarplotter import TarExperimentPlotter
 class BenchmarkResult:
     dataset: str
     run_id: UUID
+    seed: Optional[int]
     learner_id: str
     stop_criterion: str
 
@@ -38,7 +39,9 @@ def read_datasets(root_path: Path) -> Mapping[str, Mapping[UUID, TarExperimentPl
             if file.suffix == ".pkl":
                 with file.open("rb") as fh:
                     plotter = pickle.load(fh)
-                run_id = UUID(file.stem.split("_")[1])
+                splitted = file.stem.split("_")
+                run_id = UUID(splitted[1])
+                # seed = int(splitted[2])
                 yield (run_id, plotter)
 
     dss = {ds_path.stem: dict(read_ds(ds_path)) for ds_path in root_path.iterdir()}
@@ -51,6 +54,7 @@ def extract_results(
     plotter: TarExperimentPlotter,
     crit_name: str,
     target_recall: float = 0.95,
+    seed: Optional[int] = None,
 ) -> BenchmarkResult:
     stop_it = plotter._it_at_stop(crit_name) or plotter.it
     rs = plotter.recall_stats[stop_it]
@@ -60,6 +64,7 @@ def extract_results(
     return BenchmarkResult(
         dataset,
         run_id,
+        seed,
         rs.name,
         crit_name,
         rs.wss,

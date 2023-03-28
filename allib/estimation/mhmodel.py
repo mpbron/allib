@@ -165,7 +165,7 @@ class ChaoEstimator(
             def try_float(val: Any) -> float:
                 try:
                     parsed = float(val)
-                except ValueError:
+                except:
                     parsed = float("nan")
                 return parsed
 
@@ -242,3 +242,9 @@ class ChaoAlternative(
     def __init__(self):
         super().__init__()
         self.rfunc = "get_abundance_eta"
+
+
+class LogLinear(ChaoEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
+    def __init__(self):
+        super().__init__()
+        self.rfunc = "get_abundance_ll"

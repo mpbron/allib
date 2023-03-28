@@ -41,12 +41,14 @@ class EstimationConfiguration(str, Enum):
     RaschApproxConvParametric = "RaschApproxConvParametric"
     CHAO = "Chao"
     AUTOSTOP = "AUTOSTOP"
+    LOGLINEAR = "Loglinear"
 
 
 class StopBuilderConfiguration(str, Enum):
     CHAO_CONS_OPT = "Chao_CONS_OPT"
     CHAO_CONS_OPT_ALT = "Chao_CONS_OPT_ALT"
     CHAO_BOTH = "CHAOBOTH"
+    RCAPTURE_ALL = "RCAPTURE_ALL"
     AUTOTAR = "AUTOTAR"
     AUTOSTOP = "AUTOSTOP"
 
@@ -59,3 +61,4 @@ class ExperimentCombination(str, Enum):
     AUTOSTOP = "AUTOSTOP"
     CHAO_AT = "CHAO_AT"
     CHAO_IB = "CHAO_IB"
+    RCAPTURE = "RCAPTURE"

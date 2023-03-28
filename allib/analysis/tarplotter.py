@@ -27,10 +27,16 @@ from ..typehints import LT
 from .experiments import ExperimentIterator
 from .plotter import ExperimentPlotter
 from .statistics import TarDatasetStats, TemporalRecallStats
+import scienceplots
+import pylatex
 
 _T = TypeVar("_T")
 _V = TypeVar("_V")
 _W = TypeVar("_W")
+
+
+def escape(s: str, latex: bool = True) -> str:
+    return pylatex.escape_latex(s) if latex else s
 
 
 def smooth_similar(
@@ -150,17 +156,25 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         curve = np.array([stats[it].__dict__[key] for it in self.it_axis])
         plt.plot(effort_axis, curve, label=label)
 
-    def _plot_estimator(self, key: str, color="gray", alpha=0.2) -> None:
+    def _plot_estimator(self, key: str, color="gray", alpha=0.2, latex=False) -> None:
         effort_axis = self._effort_axis()
         points = np.array([self.estimates[it][key].point for it in self.it_axis])
         lows = np.array([self.estimates[it][key].lower_bound for it in self.it_axis])
         uppers = np.array([self.estimates[it][key].upper_bound for it in self.it_axis])
         xs, ys = smooth_similar(effort_axis, points)
         xrs, ls, us = smooth_similar3(effort_axis, lows, uppers)
-        plt.plot(xs, ys, linestyle="-.", label=f"Estimate by {key}", color=color)
+        plt.plot(
+            xs,
+            ys,
+            linestyle="-.",
+            label=escape(f"Estimate by {key}", latex),
+            color=color,
+        )
         plt.fill_between(xrs, ls, us, color=color, alpha=alpha)  # type: ignore
 
-    def _plot_stop_criteria(self, included_criteria: Optional[Sequence[str]]) -> None:
+    def _plot_stop_criteria(
+        self, included_criteria: Optional[Sequence[str]], short=True, latex=False
+    ) -> None:
         results: Sequence[Tuple[int, float, float, str, str]] = list()
         if included_criteria is None:
             included_criteria = list(self.criterion_names)
@@ -177,17 +191,25 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         for it, recall, wss, crit_name, color in results_sorted:
             exp_found = self.exp_random_recall(it)
             act_found = self.recall_stats[it].pos_docs_found
+            nicer_name = crit_name.replace("_", " ").title()
+            if short:
+                legend = f"{nicer_name}"
+            else:
+                legend = (
+                    f"{nicer_name} WSS: {(wss*100):.1f} Recall: {(recall*100):.1f} %"
+                )
             plt.vlines(
                 x=self.recall_stats[it].effort,
                 ymin=exp_found,
                 ymax=act_found,
                 linestyles="dashed",
                 color=color,
-                label=f"{crit_name} WSS: {(wss*100):.1f} %, "
-                f"Recall: {(recall*100):.1f} %",
+                label=escape(legend, latex),
             )
 
-    def _graph_setup(self, simulation=True) -> None:
+    def _graph_setup(self, simulation=True, latex=False) -> None:
+        if latex:
+            plt.style.use(["science", "nature"])
         true_pos = self.dataset_stats[self.it].pos_count
         dataset_size = self.dataset_stats[self.it].size
 
@@ -200,7 +222,7 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         else:
             plt.title(f"Run on a dataset of {int(dataset_size)}")
 
-    def _plot_static_data(self, recall_target: float) -> None:
+    def _plot_static_data(self, recall_target: float, latex=False) -> None:
         # Static data
         true_pos = self.dataset_stats[self.it].pos_count
         dataset_size = self.dataset_stats[self.it].size
@@ -208,11 +230,13 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         pos_target = int(np.ceil(recall_target * true_pos))
         effort_axis = self._effort_axis()
 
-        plt.axhline(y=true_pos, linestyle=":", label=f"100 % recall ({true_pos})")
+        plt.axhline(
+            y=true_pos, linestyle=":", label=escape(f"100 % recall ({true_pos})", latex)
+        )
         plt.axhline(
             y=pos_target,
             linestyle=":",
-            label=f"{int(recall_target * 100)} % recall ({pos_target})",
+            label=escape(f"{int(recall_target * 100)} % recall ({pos_target})", latex),
         )
         plt.plot(
             effort_axis,
@@ -221,18 +245,27 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
             label=f"Exp. found at random",
         )
 
-    def _plot_recall_stats(self, included: Optional[Sequence[str]] = list()) -> None:
+    def _plot_recall_stats(
+        self, included: Optional[Sequence[str]] = list(), short=True, latex=False
+    ) -> None:
         # Gather and reorganize recall data
         recall_stats = TemporalRecallStats.transpose_dict(self.recall_stats)
         # Plot pos docs docs found
         for name, stats in recall_stats.items():
+            if short:
+                try:
+                    pname = name.split("-")[0].rstrip().lstrip()
+                except:
+                    pname = name
+            else:
+                pname = name
             if included is None or name in included:
                 self.plot_recall_statistic(
-                    stats, "pos_docs_found", f"# found by {name}"
+                    stats, "pos_docs_found", escape(f"# by {pname}", latex)
                 )
 
     def _plot_estimators(
-        self, included_estimators: Optional[Sequence[str]] = None
+        self, included_estimators: Optional[Sequence[str]] = None, latex=False
     ) -> None:
         if included_estimators is None:
             included_estimators = list(self.estimator_names)
@@ -252,8 +285,11 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         else:
             plt.ylim(0, 1.4 * true_pos)
 
-    def _plot_legend(self) -> None:
-        plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left", fontsize="xx-small")
+    def _plot_legend(self, latex=False) -> None:
+        if latex:
+            plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+        else:
+            plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left", fontsize="xx-small")
 
     def show(
         self,
@@ -264,14 +300,15 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         included_models: Optional[Sequence[str]] = None,
         included_stopcriteria: Optional[Sequence[str]] = None,
         filename: "Optional[PathLike[str]]" = None,
+        latex: bool = False,
     ) -> None:
-        self._graph_setup()
-        self._plot_static_data(recall_target)
-        self._plot_recall_stats(included_models)
-        self._plot_estimators(included_estimators)
-        self._plot_stop_criteria(included_stopcriteria)
+        self._graph_setup(latex=latex)
+        self._plot_static_data(recall_target, latex=latex)
+        self._plot_recall_stats(included_models, latex=latex)
+        self._plot_estimators(included_estimators, latex=latex)
+        self._plot_stop_criteria(included_stopcriteria, latex=latex)
         self._set_axes(x_lim, y_lim)
-        self._plot_legend()
+        self._plot_legend(latex=latex)
         plt.tight_layout()
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
@@ -287,13 +324,14 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         included_models: Optional[Sequence[str]] = None,
         included_stopcriteria: Optional[Sequence[str]] = None,
         filename: "Optional[PathLike[str]]" = None,
+        latex: bool = False,
     ):
-        self._graph_setup(simulation=False)
-        self._plot_recall_stats(included_models)
-        self._plot_estimators(included_estimators)
-        self._plot_stop_criteria(included_stopcriteria)
+        self._graph_setup(simulation=False, latex=latex)
+        self._plot_recall_stats(included_models, latex=latex)
+        self._plot_estimators(included_estimators, latex=latex)
+        self._plot_stop_criteria(included_stopcriteria, latex=latex)
         self._set_axes(x_lim, y_lim)
-        self._plot_legend()
+        self._plot_legend(latex=latex)
         plt.tight_layout()
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
@@ -378,9 +416,9 @@ class ModelStatsTar(TarExperimentPlotter[LT]):
         self.model_stats[self.it] = filter_model_infos(exp_iterator.estimators)
 
     def _plot_estimators(
-        self, included_estimators: Optional[Sequence[str]] = None
+        self, included_estimators: Optional[Sequence[str]] = None, latex=False
     ) -> None:
-        super()._plot_estimators(included_estimators)
+        super()._plot_estimators(included_estimators, latex)
         if included_estimators is None:
             included_estimators = list(self.estimator_names)
         assert included_estimators is not None
@@ -392,6 +430,6 @@ class ModelStatsTar(TarExperimentPlotter[LT]):
                 plt.plot(
                     self._effort_axis(),
                     deviances,
-                    label=f"Deviance {estimator}",
+                    label=escape(f"Deviance {estimator}", latex),
                     linestyle="--",
                 )

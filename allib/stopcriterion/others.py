@@ -156,7 +156,7 @@ class QuantStoppingRule(StatsStoppingCriterion[KT, LT]):
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
         super().update(learner)
         if hasattr(learner, "classifier") and isinstance(learner.classifier, il.AbstractClassifier):  # type: ignore
-            clf: il.AbstractClassifier[Any, Any, Any, Any, Any, LT, npt.NDArray[np.int64], np.float64] = learner.classifier  # type: ignore
+            clf: il.AbstractClassifier[Any, Any, Any, Any, Any, LT, npt.NDArray[np.int64], npt.NDArray[np.float64]] = learner.classifier  # type: ignore
             self.scores = {
                 key: dict(pred)[self.pos_label]
                 for key, pred in clf.predict_proba(learner.env.dataset)

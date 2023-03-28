@@ -76,7 +76,7 @@ class RandomInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
             itertools.chain.from_iterable(
                 map(
                     lambda lbl: self.get_random_sample_for_label(learner, lbl),
-                    learner.env.labels.labelset,
+                    sorted(learner.env.labels.labelset),
                 )
             )
         )
@@ -103,6 +103,30 @@ class RandomInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
     def builder(cls, sample_size: int, *args, **kwargs) -> Callable[..., Self]:
         def builder_func(*args, **kwargs) -> Self:
             return cls(sample_size)
+
+        return builder_func
+
+
+class SeededRandomInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
+    def __init__(self, sample_size: int = 1, seed: int = 42) -> None:
+        super().__init__(sample_size)
+        self.seed = seed
+        self.rng = np.random.default_rng(seed)
+
+    def get_random_sample_for_label(
+        self, learner: ActiveLearner[IT, KT, Any, Any, Any, LT], label: LT
+    ) -> Sequence[KT]:
+        docs = self.rng.choice(
+            list(learner.env.truth.get_instances_by_label(label)), self.sample_size
+        )
+        return docs
+
+    @classmethod
+    def builder(
+        cls, sample_size: int, seed: int, *args, **kwargs
+    ) -> Callable[..., Self]:
+        def builder_func(*args, **kwargs) -> Self:
+            return cls(sample_size, seed)
 
         return builder_func
 

@@ -21,7 +21,7 @@ from allib.analysis.initialization import (
 from ..estimation.autostop import HorvitzThompsonVar2
 
 from ..estimation.base import AbstractEstimator
-from ..estimation.mhmodel import ChaoEstimator, ChaoAlternative
+from ..estimation.mhmodel import ChaoEstimator, ChaoAlternative, LogLinear
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
 from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
 from ..estimation.rasch_parametric import ParametricRaschPython
@@ -110,6 +110,7 @@ ESTIMATION_REPOSITORY = {
     ](),
     EstimationConfiguration.CHAO: ChaoEstimator[Any, Any, Any, Any, Any, str](),
     EstimationConfiguration.AUTOSTOP: HorvitzThompsonVar2(),
+    EstimationConfiguration.LOGLINEAR: LogLinear[Any, Any, Any, Any, Any, str](),
 }
 
 
@@ -211,10 +212,11 @@ def standoff_builder(
     rule2399 = Rule2399StoppingRule(pos_label)
     stop200 = StopAfterKNegative(pos_label, 200)
     stop400 = StopAfterKNegative(pos_label, 400)
-    quants = {f"Quant_{t}": QuantStoppingRule(pos_label, t) for t in TARGETS}
-    chm = {
-        f"CHM_{t}": CHMHeuristicsStoppingRule(pos_label, t, alpha=0.95) for t in TARGETS
-    }
+    quants = dict()  # {f"Quant_{t}": QuantStoppingRule(pos_label, t) for t in TARGETS}
+    chm = dict()
+    # chm = {
+    #     f"CHM_{t}": CHMHeuristicsStoppingRule(pos_label, t, alpha=0.95) for t in TARGETS
+    # }
     criteria = {
         "Perfect95": recall95,
         "Perfect100": recall100,
@@ -225,7 +227,7 @@ def standoff_builder(
         "Stop200": stop200,
         "Stop400": stop400,
     }
-    return dict(), {**criteria, **quants, **chm}
+    return dict(), {**criteria}
 
 
 STOP_BUILDER_REPOSITORY = {
@@ -238,6 +240,10 @@ STOP_BUILDER_REPOSITORY = {
     StopBuilderConfiguration.CHAO_BOTH: combine_builders(
         conservative_optimistic_builder({"Chao": ChaoEstimator()}, TARGETS),
         conservative_optimistic_builder({"ChaoALT": ChaoAlternative()}, TARGETS),
+    ),
+    StopBuilderConfiguration.RCAPTURE_ALL: combine_builders(
+        conservative_optimistic_builder({"Chao": ChaoEstimator()}, TARGETS),
+        conservative_optimistic_builder({"LL": LogLinear()}, TARGETS),
     ),
     StopBuilderConfiguration.AUTOTAR: standoff_builder,
     StopBuilderConfiguration.AUTOSTOP: conservative_optimistic_builder(
@@ -306,6 +312,15 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
         None,
         SeparateInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_BOTH, StopBuilderConfiguration.AUTOTAR),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.RCAPTURE: TarExperimentParameters(
+        ALConfiguration.CHAO_IB_ENSEMBLE,
+        None,
+        SeparateInitializer.builder(1),
+        (StopBuilderConfiguration.RCAPTURE_ALL, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
         10,

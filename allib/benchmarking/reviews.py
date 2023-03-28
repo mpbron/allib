@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Callable, Mapping, TypeVar, Union
+from typing import Any, Callable, Mapping, TypeVar, Union, Optional
 from uuid import UUID
 
 import numpy as np
@@ -37,7 +37,7 @@ LT = TypeVar("LT")
 
 
 def read_review_dataset(
-    path: Path,
+    path: Path, rng: Optional[np.random.Generator] = None
 ) -> AbstractEnvironment[
     TextInstance[int, npt.NDArray[Any]],
     Union[int, UUID],
@@ -74,7 +74,9 @@ def read_review_dataset(
             label_mapper=binary_mapper,
         )
     if isinstance(env, il.TextEnvironment):
-        env = env.shuffle(env)
+        if rng is None:
+            rng = np.random.default_rng(42)
+        env = env.shuffle(env, rng=rng)
     al_env = MemoryEnvironment.from_instancelib_simulation(env)
     return al_env  # type: ignore
 
