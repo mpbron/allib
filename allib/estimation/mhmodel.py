@@ -80,6 +80,7 @@ class ChaoEstimator(
         self.est = Estimate.empty()
         self.rfile = "mhmodel.R"
         self.rfunc = "get_abundance"
+        self.it = 0
 
     def _start_r(self) -> None:
         _check_R()
@@ -151,6 +152,9 @@ class ChaoEstimator(
                 abundance_r = ro.globalenv[self.rfunc]
                 r_df = abundance_r(df_r)
                 res_df: pd.DataFrame = ro.conversion.rpy2py(r_df)
+                if self.it % 100 == 0:
+                    ro.r("gc()")
+                self.it += 1
         return res_df
 
     def calculate_abundance(

@@ -95,6 +95,7 @@ def benchmark(
     batch_size: int = 10,
     stop_interval: Union[int, Mapping[str, int]] = 10,
     estimation_interval: Union[int, Mapping[str, int]] = 10,
+    enable_plots=True,
 ) -> TarExperimentPlotter[str]:
     factory = MainFactory()
     initializer = initializer_builder(pos_label=pos_label, neg_label=neg_label)
@@ -113,7 +114,11 @@ def benchmark(
     )
     plotter = ModelStatsTar(POS, NEG)
     simulator = TarSimulator(
-        exp, plotter, output_path=output_path, output_pdf_path=output_pdf_path
+        exp,
+        plotter,
+        output_path=output_path,
+        output_pdf_path=output_pdf_path,
+        plot_enabled=enable_plots,
     )
     try:
         simulator.simulate()

@@ -1,6 +1,16 @@
 import collections
 from abc import ABC, abstractmethod
-from typing import Any, Deque, FrozenSet, Generic, Mapping, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Deque,
+    FrozenSet,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 from instancelib import Instance
 
@@ -11,9 +21,11 @@ from ..typehints import DT, IT, KT, LT, RT, VT
 from .base import ActiveLearner
 import numpy as np
 
+from instancelib.utils.func import value_map
+
 
 class AbstractStatistics(ABC, Generic[KT, LT]):
-    per_round: Deque[Mapping[LT, FrozenSet[KT]]]
+    per_round: List[Mapping[LT, int]]
 
     @abstractmethod
     def update(self, learner: ActiveLearner[Any, KT, Any, Any, Any, LT]):
@@ -44,15 +56,6 @@ class AbstractStatistics(ABC, Generic[KT, LT]):
 
     @abstractmethod
     def label_per_round(self, label: LT) -> Sequence[int]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def batch_at_round(self, it: int) -> FrozenSet[KT]:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def last_batch(self) -> FrozenSet[KT]:
         raise NotImplementedError
 
     @property
@@ -125,20 +128,20 @@ class StatsWrapper(StatsMixin[KT, LT], ActiveLearner[IT, KT, DT, VT, RT, LT]):
 
 
 class AnnotationStatistics(AbstractStatistics[KT, LT]):
-    labelwise: Deque[Mapping[LT, FrozenSet[KT]]]
-    per_round: Deque[Mapping[LT, FrozenSet[KT]]]
-    annotated_per_round: Deque[FrozenSet[KT]]
-    annotated: Deque[FrozenSet[KT]]
-    unlabeled: Deque[FrozenSet[KT]]
-    dataset: Deque[FrozenSet[KT]]
+    labelwise: List[Mapping[LT, FrozenSet[KT]]]
+    per_round: List[Mapping[LT, FrozenSet[KT]]]
+    annotated_per_round: List[FrozenSet[KT]]
+    annotated: List[FrozenSet[KT]]
+    unlabeled: List[FrozenSet[KT]]
+    dataset: List[FrozenSet[KT]]
 
     def __init__(self) -> None:
-        self.labelwise = collections.deque()
-        self.per_round = collections.deque()
-        self.annotated = collections.deque()
-        self.annotated_per_round = collections.deque()
-        self.unlabeled = collections.deque()
-        self.dataset = collections.deque()
+        self.labelwise = list()
+        self.per_round = list()
+        self.annotated = list()
+        self.annotated_per_round = list()
+        self.unlabeled = list()
+        self.dataset = list()
 
     def update(self, learner: ActiveLearner[Any, KT, Any, Any, Any, LT]):
         previous_round = frozenset() if not self.annotated else self.annotated[-1]
@@ -201,3 +204,74 @@ class AnnotationStatistics(AbstractStatistics[KT, LT]):
             if not self.annotated_per_round
             else self.annotated_per_round[-1]
         )
+
+
+class AnnotationStatisticsSlim(AbstractStatistics[KT, LT]):
+    labelwise: List[Mapping[LT, int]]
+    per_round: List[Mapping[LT, int]]
+    annotated_per_round: List[int]
+    annotated: List[int]
+    unlabeled: List[int]
+    dataset: List[int]
+
+    def __init__(self) -> None:
+        self.labelwise = list()
+        self.per_round = list()
+        self.annotated = list()
+        self.annotated_per_round = list()
+        self.unlabeled = list()
+        self.dataset = list()
+        self.previous_round = frozenset()
+
+    def update(self, learner: ActiveLearner[Any, KT, Any, Any, Any, LT]):
+        annotated = frozenset(learner.env.labeled)
+        unlabeled = frozenset(learner.env.unlabeled)
+        current_round = {
+            label: (
+                frozenset(
+                    learner.env.get_subset_by_labels(
+                        learner.env.labeled, label, labelprovider=learner.env.labels
+                    )
+                )
+            )
+            for label in learner.env.labels.labelset
+        }
+        current_round_new = {
+            label: keys.difference(self.previous_round)
+            for label, keys in current_round.items()
+        }
+        current_round_counts = value_map(len, current_round)
+        current_round_new_counts = value_map(len, current_round_new)
+        annotated_new = annotated.difference(self.previous_round)
+        self.annotated_per_round.append(len(annotated_new))
+        self.labelwise.append(current_round_counts)
+        self.annotated.append(len(annotated))
+        self.unlabeled.append(len(unlabeled))
+        self.per_round.append(current_round_new_counts)
+        self.dataset.append(len(learner.env.dataset))
+        self.previous_round = current_round
+
+    @property
+    def dataset_size(self) -> int:
+        return 0 if not self.dataset else self.dataset[-1]
+
+    @property
+    def rounds(self) -> int:
+        return len(self.annotated)
+
+    def current_label_count(self, label: LT) -> int:
+        return 0 if not self.labelwise else self.labelwise[-1][label]
+
+    @property
+    def current_annotated(self) -> int:
+        return 0 if not self.annotated else self.annotated[-1]
+
+    def label_annotated(self, label: LT, it: int) -> int:
+        return 0 if not self.per_round else self.per_round[it][label]
+
+    def label_per_round(self, label: LT) -> Sequence[int]:
+        return [dc[label] for dc in self.per_round]
+
+    @property
+    def annotations_per_round(self) -> Sequence[int]:
+        return tuple(self.annotated_per_round)

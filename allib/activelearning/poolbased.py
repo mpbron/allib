@@ -7,7 +7,7 @@ from typing_extensions import Self
 
 from instancelib import Instance
 
-from ..analysis.base import AnnotationStatistics
+from ..analysis.base import AnnotationStatisticsSlim
 from ..environment import AbstractEnvironment
 from ..typehints import DT, IT, KT, LT, RT, VT
 from .base import ActiveLearner
@@ -68,7 +68,7 @@ class PoolBasedAL(
     ) -> None:
         self.env = env
         self.ordering = None
-        self._stats = AnnotationStatistics()
+        self._stats = AnnotationStatisticsSlim()
         self.sampled: Set[KT] = set()
         self.identifier = identifier
 

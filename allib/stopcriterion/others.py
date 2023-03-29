@@ -1,5 +1,5 @@
 from typing import Any, Generic, Mapping, Optional
-from ..analysis.base import AbstractStatistics, StatsMixin, AnnotationStatistics
+from ..analysis.base import AbstractStatistics, StatsMixin, AnnotationStatisticsSlim
 from ..activelearning.base import ActiveLearner
 from ..typehints.typevars import KT, LT
 from .base import AbstractStopCriterion
@@ -15,7 +15,7 @@ class StatsStoppingCriterion(AbstractStopCriterion[LT], Generic[KT, LT]):
     def __init__(self, pos_label: LT) -> None:
         super().__init__()
         self.pos_label = pos_label
-        self.stats = AnnotationStatistics[KT, LT]()
+        self.stats = AnnotationStatisticsSlim[KT, LT]()
 
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
         if isinstance(learner, StatsMixin):
@@ -111,8 +111,8 @@ class BatchPrecStoppingRule(StatsStoppingCriterion[KT, LT]):
     def stop_criterion(self) -> bool:
         bprec = np.array(
             [
-                len(batch[self.pos_label])
-                / sum([len(batch[k]) for k in batch if k != self.pos_label])
+                batch[self.pos_label]
+                / sum([batch[k] for k in batch if k != self.pos_label])
                 for batch in self.stats.per_round
             ]
         )

@@ -85,6 +85,7 @@ def tar_benchmark(
         batch_size=exp.batch_size,
         stop_interval=exp.stop_interval,
         estimation_interval=exp.estimation_interval,
+        enable_plots=False,
     )
     with plot_filename_pkl.open("wb") as fh:
         pickle.dump(plot, fh)

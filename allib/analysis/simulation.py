@@ -109,6 +109,7 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         output_path: Optional[Path] = None,
         output_pdf_path: Optional[Path] = None,
         plot_interval: int = 20,
+        plot_enabled=True,
     ) -> None:
         self.experiment = experiment
         self.plotter = plotter
@@ -117,6 +118,7 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         self.output_pkl_path = output_path
         self.output_pdf_path = output_pdf_path
         self.plot_interval = plot_interval
+        self.plot_enabled = plot_enabled
 
     @property
     def _debug_finished(self) -> bool:
@@ -137,14 +139,15 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
                     for n, e in self.plotter.estimates[self.plotter.it].items()
                 ]
                 pbar.set_description(f"Found: {found}, Estimate: {estimates}")
-                if self.output_pkl_path is not None:
-                    with self.output_pkl_path.open("wb") as fh:
-                        pickle.dump(self.plotter, fh)
                 if (
                     self.experiment.it % self.plot_interval == 0
                     and self.output_pdf_path is not None
                 ):
-                    self.plotter.show(filename=self.output_pdf_path)
+                    if self.output_pkl_path is not None:
+                        with self.output_pkl_path.open("wb") as fh:
+                            pickle.dump(self.plotter, fh)
+                    if self.plot_enabled:
+                        self.plotter.show(filename=self.output_pdf_path)
                 if self.experiment.it % 1000 == 0:
                     gc.collect()
 
