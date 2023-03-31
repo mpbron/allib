@@ -22,7 +22,7 @@ import numpy.typing as npt
 from instancelib.ingest.qrel import TrecDataset
 from instancelib.typehints import DT, KT, LT, RT, VT
 
-from ..analysis.base import AbstractStatistics, AnnotationStatistics, StatsMixin
+from ..analysis.base import AbstractStatistics, AnnotationStatisticsSlim, StatsMixin
 from ..analysis.initialization import Initializer
 from ..environment.base import AbstractEnvironment
 from ..typehints import IT
@@ -110,7 +110,7 @@ class BinaryTarLearner(
         self.rng = np.random.default_rng(seed)
 
         # Statistics Logger for Stopping
-        self._stats = AnnotationStatistics()
+        self._stats = AnnotationStatisticsSlim()
 
     @property
     def stats(self) -> AbstractStatistics[KT, LT]:

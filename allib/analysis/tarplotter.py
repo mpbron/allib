@@ -173,7 +173,7 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         plt.fill_between(xrs, ls, us, color=color, alpha=alpha)  # type: ignore
 
     def _plot_stop_criteria(
-        self, included_criteria: Optional[Sequence[str]], short=True, latex=False
+        self, included_criteria: Optional[Sequence[str]], show_stats=True, latex=False
     ) -> None:
         results: Sequence[Tuple[int, float, float, str, str]] = list()
         if included_criteria is None:
@@ -192,12 +192,12 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
             exp_found = self.exp_random_recall(it)
             act_found = self.recall_stats[it].pos_docs_found
             nicer_name = crit_name.replace("_", " ").title()
-            if short:
-                legend = f"{nicer_name}"
-            else:
+            if show_stats:
                 legend = (
                     f"{nicer_name} WSS: {(wss*100):.1f} Recall: {(recall*100):.1f} %"
                 )
+            else:
+                legend = f"{nicer_name}"
             plt.vlines(
                 x=self.recall_stats[it].effort,
                 ymin=exp_found,
@@ -301,12 +301,15 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         included_stopcriteria: Optional[Sequence[str]] = None,
         filename: "Optional[PathLike[str]]" = None,
         latex: bool = False,
+        show_stats=True,
     ) -> None:
         self._graph_setup(latex=latex)
         self._plot_static_data(recall_target, latex=latex)
         self._plot_recall_stats(included_models, latex=latex)
         self._plot_estimators(included_estimators, latex=latex)
-        self._plot_stop_criteria(included_stopcriteria, latex=latex)
+        self._plot_stop_criteria(
+            included_stopcriteria, latex=latex, show_stats=show_stats
+        )
         self._set_axes(x_lim, y_lim)
         self._plot_legend(latex=latex)
         plt.tight_layout()

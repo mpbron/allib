@@ -27,6 +27,8 @@ import pandas as pd  # type: ignore
 from ..environment import AbstractEnvironment
 from ..activelearning.base import ActiveLearner
 from ..activelearning.estimator import Estimator
+from ..activelearning.target import TargetMethod
+from ..activelearning.autotarensemble import AutoTARFirstMethod
 
 from ..typehints import KT, LT, IT, DT, VT, RT
 
@@ -117,7 +119,7 @@ class SeededRandomInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
         self, learner: ActiveLearner[IT, KT, Any, Any, Any, LT], label: LT
     ) -> Sequence[KT]:
         docs = self.rng.choice(
-            list(learner.env.truth.get_instances_by_label(label)), self.sample_size
+            list(learner.env.truth.get_instances_by_label(label)), self.sample_size  # type: ignore
         )
         return docs
 
@@ -129,6 +131,34 @@ class SeededRandomInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
             return cls(sample_size, seed)
 
         return builder_func
+
+
+class TargetInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
+    def __call__(
+        self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
+    ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
+        if not isinstance(learner, TargetMethod):
+            return super().__call__(learner)
+        sublearner = learner.learners[1]
+        docs = self.get_initialization_sample(learner)
+        for doc in docs:
+            self.add_doc(sublearner, doc)
+            self.add_doc(learner, doc)
+        return learner
+
+
+class PriorInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
+    def __call__(
+        self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
+    ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
+        if not isinstance(learner, AutoTARFirstMethod):
+            return super().__call__(learner)
+        sublearner = learner.learners[0]
+        docs = self.get_initialization_sample(learner)
+        for doc in docs:
+            self.add_doc(sublearner, doc)
+            self.add_doc(learner, doc)
+        return learner
 
 
 class UniformInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):

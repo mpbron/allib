@@ -180,6 +180,6 @@ class PoolBasedAL(
         def builder_func(
             env: AbstractEnvironment[IT, KT, DT, VT, RT, LT], *_: Any, **__: Any
         ) -> Self:
-            return cls(env)
+            return cls(env, *args, **kwargs)
 
         return builder_func

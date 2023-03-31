@@ -108,7 +108,9 @@ class TemporalRecallStats:
         neg_docs = len(learner.env.get_subset_by_labels(learner.env.labeled, neg_label))
         effort = len(learner.env.labeled)
         prop_effort = effort / len(learner.env.dataset)
-        if isinstance(learner, AbstractEnsemble):
+        if isinstance(learner, AbstractEnsemble) and not hasattr(
+            learner, "_disable_substats"
+        ):
             subresults: Sequence[TemporalRecallStats] = tuple(
                 [
                     cls.from_learner(learner, pos_label, neg_label, namer)

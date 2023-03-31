@@ -1,22 +1,17 @@
 from __future__ import annotations
 
 import collections
-import itertools
 import logging
 import os
-from abc import ABC, abstractmethod
 from typing import (
     Any,
     Deque,
     Dict,
     FrozenSet,
     Generic,
-    Iterable,
-    List,
     Optional,
     Sequence,
     Tuple,
-    TypeVar,
 )
 import warnings
 
@@ -24,13 +19,11 @@ import numpy as np
 import numpy.typing as npt
 
 import pandas as pd  # type: ignore
-
+from ..activelearning.autotarensemble import AutoTARFirstMethod
 from ..activelearning.base import ActiveLearner
 from ..activelearning.estimator import Estimator
 from ..utils.func import (
-    all_subsets,
     intersection,
-    list_unzip3,
     not_in_supersets,
     powerset,
     union,
@@ -184,9 +177,17 @@ class ChaoEstimator(
     ) -> Estimate:
         empty = np.array([])
         stats = EstimationModelStatistics(empty, empty, 0.0, empty)
-        if not isinstance(learner, Estimator):
-            return Estimate(0.0, 0.0, 0.0)
-        estimate = self.calculate_abundance(learner, label)
+        if not isinstance(learner, (Estimator, AutoTARFirstMethod)):
+            return Estimate(float("nan"), float("nan"), float("nan"))
+        if isinstance(learner, AutoTARFirstMethod):
+            l2 = learner.learners[2]
+            assert isinstance(l2, Estimator)
+            if l2.env.labeled:
+                estimate = self.calculate_abundance(l2, label)
+            else:
+                estimate = Estimate(float("nan"), float("nan"), float("nan"))
+        else:
+            estimate = self.calculate_abundance(learner, label)
         return estimate
 
     def all_estimations(

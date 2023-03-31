@@ -433,6 +433,31 @@ def chao_ensemble(
     }
 
 
+def chao_ensemble_prior(
+    batch_size: int,
+    tf_idf: Mapping[str, Any] = tf_idf_autotar,
+    method=Cat.AL.CustomMethods.BINARYTAR,
+    nneg: int = 10,
+    nirel: int = 10,
+) -> Mapping[str, Any]:
+    return {
+        "paradigm": Cat.AL.Paradigm.CUSTOM,
+        "method": Cat.AL.CustomMethods.PRIORAUTOTAR,
+        "tarmethod": autotar(tar_classifier(LR[0], LR[1], tf_idf), 100, 20),
+        "ensemble": chao_ensemble(batch_size, tf_idf, method),
+        "nneg": nneg,
+        "nirel": nirel,
+    }
+
+
+def targetmethod(tf_idf: Mapping[str, Any] = tf_idf_autotar) -> Mapping[str, Any]:
+    return {
+        "paradigm": Cat.AL.Paradigm.CUSTOM,
+        "method": Cat.AL.CustomMethods.TARGET,
+        "tarmethod": autotar(tar_classifier(LR[0], LR[1], tf_idf), 100, 20),
+    }
+
+
 rasch_lr = {
     "paradigm": Cat.AL.Paradigm.ESTIMATOR,
     "learners": [

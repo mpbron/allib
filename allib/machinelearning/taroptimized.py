@@ -41,7 +41,7 @@ from sklearn.preprocessing import (
 )
 from sklearn.preprocessing import MultiLabelBinarizer
 from tqdm.auto import tqdm
-from ..balancing.base import BaseBalancer
+from ..balancing.base import BaseBalancer, IdentityBalancer
 
 from ..typehints.typevars import IT
 
@@ -266,7 +266,7 @@ class ALSklearn(
         env: il.Environment[IT, KT, DT, VT, Any, LT],
         vectorizer: il.BaseVectorizer[IT],
         vectorstorage: VectorStorage[KT, npt.NDArray[DType], npt.NDArray[DType]],
-        balancer: BaseBalancer,
+        balancer: BaseBalancer = IdentityBalancer(),
         chunk_size: int = 2000,
         storage_location: "Optional[PathLike[str]]" = None,
         filename: "Optional[PathLike[str]]" = None,

@@ -8,28 +8,31 @@ from ..analysis.analysis import process_performance
 from ..typehints import LT
 from .base import AbstractStopCriterion
 
+
 class AllDocsCriterion(AbstractStopCriterion[LT], Generic[LT]):
     def __init__(self) -> None:
         self.remaining = 2000
 
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
         self.remaining = len(learner.env.unlabeled)
-    
+
     @property
     def stop_criterion(self) -> bool:
         return self.remaining <= 0
+
 
 class DocCountStopCritertion(AbstractStopCriterion[LT], Generic[LT]):
     def __init__(self, max_docs: int):
         self.max_docs = max_docs
         self.doc_count = 0
-    
+
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
         self.doc_count = len(learner.env.labeled)
-    
+
     @property
     def stop_criterion(self) -> bool:
         return self.doc_count >= self.max_docs
+
 
 class SameStateCount(AbstractStopCriterion[LT], Generic[LT]):
     def __init__(self, label: LT, same_state_count: int):
@@ -62,12 +65,12 @@ class SameStateCount(AbstractStopCriterion[LT], Generic[LT]):
     @property
     def stop_criterion(self) -> bool:
         if len(self.pos_history) < self.same_state_count:
-            return False 
+            return False
         return self.has_been_different and self.same_count
 
 
 class AprioriRecallTarget(AbstractStopCriterion[LT]):
-    def __init__(self, pos_label: LT,  target: float = 0.95):
+    def __init__(self, pos_label: LT, target: float = 0.95):
         self.target = target
         self.stopped = False
         self.pos_label = pos_label
@@ -83,7 +86,6 @@ class AprioriRecallTarget(AbstractStopCriterion[LT]):
         return self.stopped
 
 
-
 class FractionStopCritertion(AbstractStopCriterion[LT], Generic[LT]):
     read_fraction: float
     target_fraction: float
@@ -91,10 +93,30 @@ class FractionStopCritertion(AbstractStopCriterion[LT], Generic[LT]):
     def __init__(self, target_fraction: float):
         self.target_fraction = target_fraction
         self.read_fraction = 0.0
-    
+
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
         self.read_fraction = len(learner.env.labeled) / len(learner.env.dataset)
-    
+
     @property
     def stop_criterion(self) -> bool:
         return self.read_fraction >= self.target_fraction
+
+
+class LabelCount(AbstractStopCriterion[LT], Generic[LT]):
+    pos_label: LT
+    nrel: int
+    pos_count: int
+
+    def __init__(self, pos_label: LT, nrel: int):
+        self.pos_label = pos_label
+        self.nrel = nrel
+        self.pos_count = 0
+
+    def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
+        self.pos_count = len(
+            learner.env.get_subset_by_labels(learner.env.labeled, self.pos_label)
+        )
+
+    @property
+    def stop_criterion(self) -> bool:
+        return self.pos_count >= self.nrel

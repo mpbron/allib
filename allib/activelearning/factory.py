@@ -9,6 +9,8 @@ from instancelib.typehints.typevars import DT, KT, LMT, LT, PMT, RT, VT
 from sklearn.base import ClassifierMixin, TransformerMixin
 from sklearn.linear_model import LogisticRegression
 
+from ..stopcriterion.heuristic import LabelCount
+
 from ..environment.base import AbstractEnvironment
 from ..factory import AbstractBuilder, ObjectFactory
 from ..machinelearning import AbstractClassifier, MachineLearningFactory
@@ -18,6 +20,7 @@ from .autostop import AutoStopLearner
 from .autotar import AutoTarLearner, BinaryTarLearner, IncreasingBatch
 from .base import ActiveLearner
 from .catalog import ALCatalog as AL
+from ..stopcriterion.others import StopAfterKNegative
 from .ensembles import StrategyEnsemble
 from .estimator import CycleEstimator, Estimator, RetryEstimator
 from .labelmethods import LabelProbabilityBased
@@ -44,6 +47,9 @@ from .uncertainty import (
     NearDecisionBoundary,
     RandomMLStrategy,
 )
+
+from .autotarensemble import AutoTARFirstMethod
+from .target import TargetMethod
 
 
 class FallbackBuilder(AbstractBuilder):
@@ -297,6 +303,36 @@ class AutoTARBuilder(AbstractBuilder):
         return at
 
 
+class PriorAutoTARBuilder(AbstractBuilder):
+    def __call__(
+        self,
+        tarmethod: Mapping[str, Any],
+        ensemble: Mapping[str, Any],
+        nneg: int = 50,
+        nirel: int = 10,
+        **kwargs,
+    ):
+        def stopbuilder(pos_label: LT, neg_label: LT):
+            return LabelCount(pos_label, 10)
+
+        tarbuilder = self._factory.create(Component.ACTIVELEARNER, **tarmethod)
+        ensbuilder = self._factory.create(Component.ACTIVELEARNER, **ensemble)
+        builder = AutoTARFirstMethod.builder(tarbuilder, ensbuilder, stopbuilder, nirel)
+        return builder
+
+
+class TargetBuilder(AbstractBuilder):
+    def __call__(
+        self,
+        tarmethod: Mapping[str, Any],
+        nrel: int = 10,
+        **kwargs,
+    ):
+        tarbuilder = self._factory.create(Component.ACTIVELEARNER, **tarmethod)
+        builder = TargetMethod.builder(tarbuilder, nrel)  # type: ignore
+        return builder
+
+
 class AutoSTOPBuilder(AbstractBuilder):
     def __call__(
         self,
@@ -339,6 +375,8 @@ class ActiveLearningFactory(ObjectFactory):
         self.register_builder(
             AL.Paradigm.LABEL_MIN_PROB_ENSEMBLE, LabelMinProbilityBasedEnsembleBuilder()
         )
+        self.register_builder(AL.CustomMethods.PRIORAUTOTAR, PriorAutoTARBuilder())
+        self.register_builder(AL.CustomMethods.TARGET, TargetBuilder())
         self.register_builder(AL.CustomMethods.AUTOTAR, AutoTARBuilder())
         self.register_builder(AL.CustomMethods.BINARYTAR, BinaryTarBuilder())
         self.register_builder(

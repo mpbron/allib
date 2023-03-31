@@ -1,46 +1,37 @@
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Callable,
-    Generic,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-)
-from ..module import ModuleCatalog as Cat
+from typing import Any, Callable, Generic, Mapping, Optional, Sequence, Tuple, TypeVar
+
 import numpy.typing as npt
 from instancelib.utils.func import flatten_dicts
 
-from allib.analysis.initialization import (
+from ..analysis.initialization import (
     Initializer,
+    PriorInitializer,
     RandomInitializer,
     SeparateInitializer,
+    TargetInitializer,
 )
 from ..estimation.autostop import HorvitzThompsonVar2
-
 from ..estimation.base import AbstractEstimator
-from ..estimation.mhmodel import ChaoEstimator, ChaoAlternative, LogLinear
+from ..estimation.mhmodel import ChaoAlternative, ChaoEstimator, LogLinear
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
 from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
 from ..estimation.rasch_parametric import ParametricRaschPython
 from ..estimation.rasch_python import EMRaschRidgePython
+from ..module import ModuleCatalog as Cat
 from ..stopcriterion.base import AbstractStopCriterion
-from ..stopcriterion.estimation import (
-    Conservative,
-    Optimistic,
-)
+from ..stopcriterion.estimation import Conservative, Optimistic
 from ..stopcriterion.heuristic import AprioriRecallTarget
 from ..stopcriterion.others import (
     BudgetStoppingRule,
+    CHMHeuristicsStoppingRule,
     KneeStoppingRule,
+    QuantStoppingRule,
     ReviewHalfStoppingRule,
     Rule2399StoppingRule,
     StopAfterKNegative,
-    QuantStoppingRule,
-    CHMHeuristicsStoppingRule,
 )
+from ..stopcriterion.target import TargetCriterion
 from ..typehints import LT
 from .catalog import (
     ALConfiguration,
@@ -54,6 +45,7 @@ from .ensemble import (
     al_config_entropy,
     autotar_ensemble,
     chao_ensemble,
+    chao_ensemble_prior,
     naive_bayes_estimator,
     rasch_estimator,
     rasch_lr,
@@ -63,10 +55,10 @@ from .ensemble import (
     rasch_nblrrfsvm,
     rasch_rf,
     svm_estimator,
+    targetmethod,
     tf_idf5000,
 )
-
-from .tarbaselines import autotar, autostop
+from .tarbaselines import autostop, autotar
 
 _K = TypeVar("_K")
 _T = TypeVar("_T")
@@ -90,6 +82,10 @@ AL_REPOSITORY = {
     ALConfiguration.CHAO_AT_ENSEMBLE: autotar_ensemble,
     ALConfiguration.CHAO_IB_ENSEMBLE: chao_ensemble(
         1, method=Cat.AL.CustomMethods.INCREASING_BATCH
+    ),
+    ALConfiguration.TARGET: targetmethod(),
+    ALConfiguration.PRIOR: chao_ensemble_prior(
+        1, method=Cat.AL.CustomMethods.INCREASING_BATCH, nneg=50, nirel=10
     ),
 }
 
@@ -230,6 +226,12 @@ def standoff_builder(
     return dict(), {**criteria}
 
 
+def target_builder(
+    pos_label: LT, neg_label: LT
+) -> Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]]:
+    return dict(), {"TARGET": TargetCriterion(pos_label)}
+
+
 STOP_BUILDER_REPOSITORY = {
     StopBuilderConfiguration.CHAO_CONS_OPT: conservative_optimistic_builder(
         {"Chao": ChaoEstimator()}, TARGETS
@@ -249,6 +251,7 @@ STOP_BUILDER_REPOSITORY = {
     StopBuilderConfiguration.AUTOSTOP: conservative_optimistic_builder(
         {"AUTOSTOP": HorvitzThompsonVar2()}, TARGETS
     ),
+    StopBuilderConfiguration.TARGET: target_builder,
 }
 
 
@@ -311,7 +314,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
         ALConfiguration.CHAO_IB_ENSEMBLE,
         None,
         SeparateInitializer.builder(1),
-        (StopBuilderConfiguration.CHAO_BOTH, StopBuilderConfiguration.AUTOTAR),
+        (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
         10,
@@ -321,6 +324,24 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
         None,
         SeparateInitializer.builder(1),
         (StopBuilderConfiguration.RCAPTURE_ALL, StopBuilderConfiguration.AUTOTAR),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.PRIOR: TarExperimentParameters(
+        ALConfiguration.PRIOR,
+        None,
+        PriorInitializer.builder(1),
+        (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.TARGET: TarExperimentParameters(
+        ALConfiguration.TARGET,
+        None,
+        TargetInitializer.builder(1),
+        (StopBuilderConfiguration.TARGET,),
         10,
         10,
         10,

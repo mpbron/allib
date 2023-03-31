@@ -1,28 +1,22 @@
 from __future__ import annotations
 
 import logging
-import random
 from abc import ABC, abstractmethod
 from typing import (
     Any,
     Callable,
     Dict,
     Generic,
-    Iterable,
-    List,
-    Mapping,
     Optional,
     Sequence,
     Set,
-    Tuple,
     TypeVar,
-    Union,
 )
 from typing_extensions import Self
 
 import instancelib as il
 import numpy as np  # type: ignore
-from instancelib import Instance, InstanceProvider
+from instancelib import Instance
 from instancelib.typehints.typevars import LMT, PMT
 
 from ..activelearning.insclass import ILMLBased
@@ -32,7 +26,6 @@ from ..utils import get_random_generator
 from .base import ActiveLearner
 from .ml_based import MLBased
 from .poolbased import PoolBasedAL
-from .random import RandomSampling
 
 DT = TypeVar("DT")
 VT = TypeVar("VT")
