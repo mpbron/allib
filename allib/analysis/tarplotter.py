@@ -246,13 +246,13 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         )
 
     def _plot_recall_stats(
-        self, included: Optional[Sequence[str]] = list(), short=True, latex=False
+        self, included: Optional[Sequence[str]] = list(), short_names=False, latex=False
     ) -> None:
         # Gather and reorganize recall data
         recall_stats = TemporalRecallStats.transpose_dict(self.recall_stats)
         # Plot pos docs docs found
         for name, stats in recall_stats.items():
-            if short:
+            if short_names:
                 try:
                     pname = name.split("-")[0].rstrip().lstrip()
                 except:
@@ -302,10 +302,11 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         filename: "Optional[PathLike[str]]" = None,
         latex: bool = False,
         show_stats=True,
+        short_names=False,
     ) -> None:
         self._graph_setup(latex=latex)
         self._plot_static_data(recall_target, latex=latex)
-        self._plot_recall_stats(included_models, latex=latex)
+        self._plot_recall_stats(included_models, latex=latex, short_names=short_names)
         self._plot_estimators(included_estimators, latex=latex)
         self._plot_stop_criteria(
             included_stopcriteria, latex=latex, show_stats=show_stats
@@ -328,11 +329,12 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         included_stopcriteria: Optional[Sequence[str]] = None,
         filename: "Optional[PathLike[str]]" = None,
         latex: bool = False,
+        short_names=False,
     ):
         self._graph_setup(simulation=False, latex=latex)
-        self._plot_recall_stats(included_models, latex=latex)
+        self._plot_recall_stats(included_models, latex=latex, short_names=short_names)
         self._plot_estimators(included_estimators, latex=latex)
-        self._plot_stop_criteria(included_stopcriteria, latex=latex)
+        self._plot_stop_criteria(included_stopcriteria, latex=latex, show_stats=False)
         self._set_axes(x_lim, y_lim)
         self._plot_legend(latex=latex)
         plt.tight_layout()

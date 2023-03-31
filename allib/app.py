@@ -30,6 +30,7 @@ def tar_benchmark(
     pos_label: str,
     neg_label: str,
     stop_interval: Optional[int] = None,
+    enable_plots=True,
 ) -> None:
     LOGGER.info(
         f"Start Experiment on {dataset.path.stem} for topic ´{dataset.topic}´ with {exp_choice}"
@@ -85,7 +86,7 @@ def tar_benchmark(
         batch_size=exp.batch_size,
         stop_interval=exp.stop_interval,
         estimation_interval=exp.estimation_interval,
-        enable_plots=True,
+        enable_plots=enable_plots,
     )
     with plot_filename_pkl.open("wb") as fh:
         pickle.dump(plot, fh)
