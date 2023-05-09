@@ -14,6 +14,7 @@ from ..estimation.base import AbstractEstimator
 from ..typehints import LT
 from .base import AbstractStopCriterion
 from .heuristic import AprioriRecallTarget, SameStateCount
+from typing_extensions import Self
 
 
 class CaptureRecaptureCriterion(SameStateCount[LT], Generic[LT]):
@@ -284,7 +285,7 @@ class Conservative(AbstractStopCriterion[LT], Generic[LT]):
     @classmethod
     def builder(
         cls, calculator: AbstractEstimator[Any, Any, Any, Any, Any, LT], target: float
-    ) -> Callable[[LT, LT], Conservative[LT]]:
+    ) -> Callable[[LT, LT], Self]:
         def builder_func(pos_label: LT, neg_label: LT) -> Conservative[LT]:
             return cls(calculator, pos_label, target)
 

@@ -4,11 +4,13 @@ from abc import ABC
 from typing import (
     Any,
     Dict,
+    FrozenSet,
     Generic,
     Iterable,
     Iterator,
     MutableMapping,
     Sequence,
+    Tuple,
     Union,
 )
 from uuid import UUID
@@ -29,6 +31,7 @@ from instancelib.utils.func import union
 from ..history import MemoryLogger
 from ..history.base import BaseLogger
 from .base import IT, AbstractEnvironment
+from typing_extensions import Self
 
 # TODO Adjust MemoryEnvironment Generic Type (ADD ST)
 
@@ -265,6 +268,7 @@ class MemoryEnvironment(
         dataset = environment.all_instances
         unlabeled = MemoryBucketProvider(dataset, train_set.key_list)
         labeled = MemoryBucketProvider(dataset, [])
+        
         labels = MemoryLabelProvider[KT, LT].from_data(
             environment.labels.labelset, [], []
         )
@@ -285,6 +289,29 @@ class MemoryEnvironment(
             logger,
             truth,
         )
+        
+    @classmethod
+    def create_part(cls, environment: Self, unlabeled: FrozenSet[KT], labeled: FrozenSet[KT]) -> Self:
+            labels = MemoryLabelProvider[KT, LT].from_data(
+            environment.labels.labelset, [], []
+            )
+            unl_prov = MemoryBucketProvider(environment.all_instances, unlabeled)
+            dts_prov = MemoryBucketProvider(environment.all_instances, union(unlabeled, labeled))
+            lbl_prov = MemoryBucketProvider(environment.all_instances, labeled)
+            return cls(environment.all_instances,
+                unl_prov,
+                lbl_prov,
+                {},
+                dts_prov,
+                labels,
+                MemoryLogger(labels),
+                environment.truth,
+            )
+        
+    @classmethod
+    def divide_in_parts(cls, environment: Self, parts: Sequence[Tuple[FrozenSet[KT], FrozenSet[KT]]]) -> Sequence[Self]:
+        return [cls.create_part(environment, unl, lbl) for unl, lbl in parts]            
+        
 
 
 class DataPointEnvironment(
