@@ -70,14 +70,17 @@ class LearnerSequence(
             One of the learners from the ensemble
         """
         learner = self.learners[self.current_learner]
-        if (
-            self.current_learner < len(self.learners) - 1
-            and self.stop_interval % self.stop_interval == 0
+        if self.stop_interval % self.stop_interval == 0 and self.current_learner < len(
+            self.stopcriteria
         ):
             self.stopcriteria[self.current_learner].update(learner)
-            if self.stopcriteria[self.current_learner].stop_criterion:
-                self.current_learner += 1
-                return self._choose_learner()
+
+        if (
+            self.current_learner < len(self.learners) - 1
+            and self.stopcriteria[self.current_learner].stop_criterion
+        ):
+            self.current_learner += 1
+            return self._choose_learner()
         return learner
 
     def __next__(self) -> IT:

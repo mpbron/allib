@@ -1,13 +1,18 @@
 import functools
-from abc import ABC
-from distutils.command.build import build
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, TypeVar
 
 import instancelib as il
-from instancelib.machinelearning.sklearn import SkLearnClassifier
 from instancelib.typehints.typevars import DT, KT, LMT, LT, PMT, RT, VT
-from sklearn.base import ClassifierMixin, TransformerMixin
-from sklearn.linear_model import LogisticRegression
+
+from allib.estimation.catalog import EstimatorCatalog
+from allib.stopcriterion.catalog import StopCriterionCatalog
+
+from ..estimation.autostop import (
+    HorvitzThompsonLoose,
+    HorvitzThompsonVar1,
+    HorvitzThompsonVar2,
+)
+from ..stopcriterion.estimation import Conservative, Optimistic
 
 from ..stopcriterion.heuristic import LabelCount
 
@@ -20,7 +25,6 @@ from .autostop import AutoStopLearner
 from .autotar import AutoTarLearner, BinaryTarLearner, IncreasingBatch
 from .base import ActiveLearner
 from .catalog import ALCatalog as AL
-from ..stopcriterion.others import StopAfterKNegative
 from .ensembles import StrategyEnsemble
 from .estimator import CycleEstimator, Estimator, RetryEstimator
 from .labelmethods import LabelProbabilityBased
@@ -50,6 +54,7 @@ from .uncertainty import (
 
 from .autotarensemble import AutoTARFirstMethod
 from .target import TargetMethod
+from .autostoplarge import AutoStopLarge
 
 
 class FallbackBuilder(AbstractBuilder):
@@ -343,6 +348,38 @@ class AutoSTOPBuilder(AbstractBuilder):
     ):
         builder = self._factory.create(Component.CLASSIFIER, **machinelearning)
         at = AutoStopLearner.builder(builder, k_sample, batch_size, **kwargs)
+        return at
+
+
+ESTIMATORS = {
+    EstimatorCatalog.HorvitzThompsonLoose: HorvitzThompsonLoose,
+    EstimatorCatalog.HorvitzThompson1: HorvitzThompsonVar1,
+    EstimatorCatalog.HorvitzThompson2: HorvitzThompsonVar2,
+}
+CRITERIA = {
+    StopCriterionCatalog.CONSERVATIVE: Conservative.builder,
+    StopCriterionCatalog.OPTIMISTIC: Optimistic.builder,
+}
+
+
+class AutoSTOPLargeBuilder(AbstractBuilder):
+    def __call__(
+        self,
+        machinelearning: Mapping[str, Any],
+        k_sample: int,
+        batch_size: int,
+        estimator: EstimatorCatalog,
+        stopcriterion: StopCriterionCatalog,
+        target: float,
+        **kwargs,
+    ):
+        builder = self._factory.create(Component.CLASSIFIER, **machinelearning)
+        estimator_builder = ESTIMATORS[estimator]
+        criterion_builder = CRITERIA[stopcriterion]
+
+        at = AutoStopLarge.builder(
+            builder, k_sample, batch_size, estimator_builder, criterion_builder, target
+        )
         return at
 
 
