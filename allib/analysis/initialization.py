@@ -13,6 +13,7 @@ from typing import (
     Generic,
     Iterable,
     List,
+    Mapping,
     Optional,
     Sequence,
     Tuple,
@@ -110,7 +111,14 @@ class RandomInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
 
 
 class SeededRandomInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
-    def __init__(self, sample_size: int = 1, seed: int = 42) -> None:
+    rng: np.random.Generator
+    seed: None | int | np.random.BitGenerator | np.random.Generator
+
+    def __init__(
+        self,
+        sample_size: int = 1,
+        seed: None | int | np.random.BitGenerator | np.random.Generator = 42,
+    ) -> None:
         super().__init__(sample_size)
         self.seed = seed
         self.rng = np.random.default_rng(seed)
@@ -131,6 +139,44 @@ class SeededRandomInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
             return cls(sample_size, seed)
 
         return builder_func
+
+
+class SeededEnsembleInitializer(
+    SeededRandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
+):
+    def get_random_sample_for_label(
+        self, learner: ActiveLearner[IT, KT, Any, Any, Any, LT], label: LT, size: int
+    ) -> Sequence[KT]:
+        docs = self.rng.choice(
+            list(learner.env.truth.get_instances_by_label(label)), size  # type: ignore
+        )
+        return docs
+
+    def get_sample(
+        self, learner: ActiveLearner[IT, KT, Any, Any, Any, LT]
+    ) -> Mapping[LT, Sequence[KT]]:
+        assert isinstance(learner, Estimator)
+        learner_n = len(learner.learners)
+        docs = {
+            lbl: self.get_random_sample_for_label(
+                learner, lbl, self.sample_size * learner_n
+            )
+            for lbl in sorted(list(learner.env.labels.labelset))
+        }  # type: ignore
+
+        return docs
+
+    def __call__(
+        self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
+    ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
+        if not isinstance(learner, Estimator):
+            return super().__call__(learner)
+        docs = self.get_sample(learner)
+        for sublearner in learner.learners:
+            for doc in docs:
+                self.add_doc(sublearner, doc)
+                self.add_doc(learner, doc)
+        return learner
 
 
 class TargetInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):

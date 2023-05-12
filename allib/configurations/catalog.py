@@ -21,6 +21,7 @@ class ALConfiguration(Enum):
     CHAO_IB_ENSEMBLE = "CHAO_IB_ENSEMBLE"
     TARGET = "TARGET"
     PRIOR = "PRIOR"
+    AUTOSTOP_LARGE = "AUTOSTOP_LARGE"
 
 
 class INITConfiguration(Enum):
@@ -67,3 +68,4 @@ class ExperimentCombination(str, Enum):
     RCAPTURE = "RCAPTURE"
     TARGET = "TARGET"
     PRIOR = "PRIOR"
+    AUTOSTOP_LARGE = "AUTOSTOP_LARGE"

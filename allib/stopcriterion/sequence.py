@@ -16,7 +16,7 @@ class LastSequence(AbstractStopCriterion, Generic[LT]):
         self.last_status = False
 
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]) -> None:
-        if isinstance(learner, LearnerSequence):
+        if isinstance(learner, LearnerSequence) and learner.stopcriteria:
             self.last_status = learner.stopcriteria[-1].stop_criterion
 
     @property
