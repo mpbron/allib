@@ -346,4 +346,13 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
         10,
         10,
     ),
+    ExperimentCombination.AUTOSTOP_LARGE: TarExperimentParameters(
+        ALConfiguration.AUTOSTOP_LARGE,
+        None,
+        RandomInitializer.builder(5),
+        (StopBuilderConfiguration.AUTOTAR,),
+        10,
+        10,
+        10,
+    )
 }

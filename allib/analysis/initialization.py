@@ -68,7 +68,7 @@ class RandomInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
         self, learner: ActiveLearner[IT, KT, Any, Any, Any, LT], label: LT
     ) -> Sequence[KT]:
         docs = random.sample(
-            learner.env.truth.get_instances_by_label(label), self.sample_size
+            list(learner.env.truth.get_instances_by_label(label)), self.sample_size
         )
         return docs
 
@@ -161,7 +161,7 @@ class SeededEnsembleInitializer(
             lbl: self.get_random_sample_for_label(
                 learner, lbl, self.sample_size * learner_n
             )
-            for lbl in sorted(list(learner.env.labels.labelset))
+            for lbl in sorted(list(learner.env.labels.labelset))  # type: ignore
         }  # type: ignore
 
         return docs
@@ -171,9 +171,10 @@ class SeededEnsembleInitializer(
     ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         if not isinstance(learner, Estimator):
             return super().__call__(learner)
-        docs = self.get_sample(learner)
-        for sublearner in learner.learners:
-            for doc in docs:
+        docmap = self.get_sample(learner)
+        for _, docs in docmap.items():
+            assert len(docs) == len(learner.learners)
+            for sublearner, doc in zip(learner.learners, docs):
                 self.add_doc(sublearner, doc)
                 self.add_doc(learner, doc)
         return learner

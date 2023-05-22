@@ -31,7 +31,9 @@ setuptools.setup(  # type: ignore
         "Programming Language :: Python",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    package_data={"allib": ["py.typed", "estimation/mhmodel.R"]},
+    package_data={
+        "allib": ["py.typed", "estimation/mhmodel.R", "tests/testdataset.csv"]
+    },
     packages=setuptools.find_packages(),  # type: ignore
     python_requires=">=3.8",
     install_requires=[
@@ -52,7 +54,7 @@ setuptools.setup(  # type: ignore
         "matplotlib",
         "typing_extensions>=4.4.0",
         "pylatex",
-        "scienceplots"
+        "scienceplots",
     ],
     extras_require={"doc2vec": ["gensim"]},
 )

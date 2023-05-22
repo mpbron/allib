@@ -99,6 +99,7 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
     output_pkl_path: Optional[Path]
     output_pdf_path: Optional[Path]
     plot_interval: int
+    stop_when_found_all: bool
 
     def __init__(
         self,
@@ -110,6 +111,7 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         output_pdf_path: Optional[Path] = None,
         plot_interval: int = 20,
         plot_enabled=True,
+        stop_when_found_all = False
     ) -> None:
         self.experiment = experiment
         self.plotter = plotter
@@ -119,17 +121,28 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         self.output_pdf_path = output_pdf_path
         self.plot_interval = plot_interval
         self.plot_enabled = plot_enabled
+        self.stop_when_found_all = stop_when_found_all
 
     @property
     def _debug_finished(self) -> bool:
         if self.max_it is None:
             return False
         return self.experiment.it > self.max_it
+    
+    @property
+    def stop_all_found(self) -> bool:
+        if self.stop_when_found_all:
+            pos_label = self.experiment.pos_label
+            truth_pos = self.experiment.learner.env.truth.get_instances_by_label(pos_label)
+            current_pos = self.experiment.learner.env.truth.get_instances_by_label(pos_label).intersection(self.experiment.learner.env.labeled)
+            diff = truth_pos.difference(current_pos)
+            return not diff
+        return False
 
     def simulate(self) -> None:
         with tqdm(total=len(self.experiment.learner.env.dataset)) as pbar:
             pbar.update(self.experiment.learner.len_labeled)
-            while not self.experiment.finished and not self._debug_finished:
+            while not self.experiment.finished and not self._debug_finished and not self.stop_all_found:
                 result = self.experiment()
                 self.plotter.update(self.experiment, result)
                 pbar.update(1)
