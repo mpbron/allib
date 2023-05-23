@@ -32,6 +32,7 @@ from instancelib.utils.chunks import divide_iterable_in_lists
 
 from typing_extensions import Self
 
+
 def calc_ap_prior_distribution(
     ranking: Sequence[Tuple[KT, float]]
 ) -> Sequence[Tuple[KT, float]]:
@@ -46,7 +47,6 @@ def calc_ap_prior_distribution(
 class AutoStopLearner(
     AutoTarLearner[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
-
     _name = "AUTOSTOP"
     distributions: Dict[int, Dict[KT, float]]
 
@@ -74,7 +74,7 @@ class AutoStopLearner(
         seed: int = 0,
         prune: bool = True,
         identifier: Optional[str] = None,
-        **__
+        **__,
     ) -> None:
         super().__init__(
             env,
@@ -86,7 +86,7 @@ class AutoStopLearner(
             *_,
             seed=seed,
             identifier=identifier,
-            **__
+            **__,
         )
 
         super().__init__(
@@ -235,23 +235,35 @@ class AutoStopLearner(
         return next(iter(self.env.unlabeled.values()))
 
 
-def divide_dataset(env: AbstractEnvironment[IT, KT, Any, Any, Any, Any], size: int = 2000, rng: np.random.Generator = np.random.default_rng()) -> Sequence[Tuple[FrozenSet[KT], FrozenSet[KT]]]:
+def divide_dataset(
+    env: AbstractEnvironment[IT, KT, Any, Any, Any, Any],
+    size: int = 2000,
+    rng: np.random.Generator = np.random.default_rng(),
+) -> Sequence[Tuple[FrozenSet[KT], FrozenSet[KT]]]:
     keys = env.dataset.key_list
-    rng.shuffle(keys) # type: ignore
+    rng.shuffle(keys)  # type: ignore
     chunks = divide_iterable_in_lists(keys, size)
     return [(frozenset(unl), frozenset()) for unl in chunks]
 
-class AutoStopLarge(LearnerSequence[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT , LT]):
-    
-    
-    def __init__(self, env: AbstractEnvironment[IT, KT, DT, VT, RT, LT], learners: Sequence[ActiveLearner[IT, KT, DT, VT, RT, LT]], stopcriteria: Sequence[AbstractStopCriterion[LT]], *_, identifier: str | None = None, **__) -> None:
+
+class AutoStopLarge(
+    LearnerSequence[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
+    def __init__(
+        self,
+        env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+        learners: Sequence[ActiveLearner[IT, KT, DT, VT, RT, LT]],
+        stopcriteria: Sequence[AbstractStopCriterion[LT]],
+        *_,
+        identifier: Optional[str] = None,
+        **__,
+    ) -> None:
         super().__init__(env, learners, stopcriteria, *_, identifier=identifier, **__)
-        
+
     @classmethod
     def builder(
         cls,
         autostop_params: Mapping[str, Any],
-        
         size: int = 2000,
         **__: Any,
     ) -> Callable[..., Self]:

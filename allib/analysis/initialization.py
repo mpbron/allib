@@ -18,6 +18,7 @@ from typing import (
     Sequence,
     Tuple,
     TypeVar,
+    Union,
 )
 from typing_extensions import Self, TypeVar
 from uuid import uuid4
@@ -112,12 +113,12 @@ class RandomInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
 
 class SeededRandomInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
     rng: np.random.Generator
-    seed: None | int | np.random.BitGenerator | np.random.Generator
+    seed: Optional[Union[int, np.random.BitGenerator, np.random.Generator]]
 
     def __init__(
         self,
         sample_size: int = 1,
-        seed: None | int | np.random.BitGenerator | np.random.Generator = 42,
+        seed: Optional[Union[int, np.random.BitGenerator, np.random.Generator]] = 42,
     ) -> None:
         super().__init__(sample_size)
         self.seed = seed
