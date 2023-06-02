@@ -113,6 +113,7 @@ class LearnerSequence(
         if instance.identifier in self._sample_dict:
             learner = self.learners[self._sample_dict[instance.identifier]]
             learner.set_as_labeled(instance)
+            learner.env.labels.set_labels(instance, *self.env.labels[instance])
 
     def set_as_unlabeled(self, instance: Instance[KT, DT, VT, RT]) -> None:
         self.env.unlabeled.add(instance)

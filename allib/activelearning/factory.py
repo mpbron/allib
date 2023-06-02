@@ -420,6 +420,7 @@ class ActiveLearningFactory(ObjectFactory):
             AL.CustomMethods.INCREASING_BATCH, IncreasingBatchBuilder()
         )
         self.register_builder(AL.CustomMethods.AUTOSTOP, AutoSTOPBuilder())
+        self.register_builder(AL.CustomMethods.AUTOSTOP_LARGE, AutoSTOPLargeBuilder())
         self.register_constructor(AL.QueryType.RANDOM_SAMPLING, RandomSampling.builder)
         self.register_constructor(AL.QueryType.LEAST_CONFIDENCE, LeastConfidence)
         self.register_constructor(AL.QueryType.MAX_ENTROPY, EntropySampling)

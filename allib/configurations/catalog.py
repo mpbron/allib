@@ -55,6 +55,7 @@ class StopBuilderConfiguration(str, Enum):
     AUTOTAR = "AUTOTAR"
     AUTOSTOP = "AUTOSTOP"
     TARGET = "Target"
+    LASTSEQUENCE = "LastSequence"
 
 
 class ExperimentCombination(str, Enum):

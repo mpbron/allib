@@ -1,38 +1,25 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 
 import itertools
 import logging
 import random
-from typing import (
-    Any,
-    Callable,
-    Deque,
-    Dict,
-    FrozenSet,
-    Generic,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    Union,
-)
-from typing_extensions import Self, TypeVar
+from abc import ABC, abstractmethod
+from typing import (Any, Callable, Generic, Mapping, Optional, Sequence, TypeVar, Union)
 from uuid import uuid4
 
 import numpy as np  # type: ignore
-import pandas as pd  # type: ignore
+from typing_extensions import Self, TypeVar
 
-from ..environment import AbstractEnvironment
+from ..activelearning.autostop import AutoStopLearner
+from ..activelearning.autotar import PSEUDO_INS_PROVIDER
+
+from ..activelearning.learnersequence import LearnerSequence  # type: ignore
+from ..activelearning.autotarensemble import AutoTARFirstMethod
 from ..activelearning.base import ActiveLearner
 from ..activelearning.estimator import Estimator
 from ..activelearning.target import TargetMethod
-from ..activelearning.autotarensemble import AutoTARFirstMethod
-
-from ..typehints import KT, LT, IT, DT, VT, RT
+from ..typehints import DT, IT, KT, LT, RT, VT
+from instancelib.ingest.qrel import TrecDataset
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,7 +39,30 @@ class Initializer(ABC, Generic[IT, KT, LT]):
             return cls()
 
         return builder_func
+    
 
+
+class PseudoInstanceInitializer(Initializer[IT, KT, LT], Generic[IT, KT, DT, LT]):
+    def __init__(self, pseudo_data: DT, pseudo_label: LT):
+        self.pseudo_data = pseudo_data
+        self.pseudo_label = pseudo_label
+        self.pseudo_id = uuid4()
+
+    def __call__(
+        self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
+    ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
+        ins = learner.env.create(data=self.pseudo_data, vector=None)
+        learner.env.create_named_provider(PSEUDO_INS_PROVIDER, [ins.identifier])
+        return learner
+
+    @classmethod
+    def from_trec(
+        cls, trec: TrecDataset, topic_id: str
+    ) -> PseudoInstanceInitializer[IT, str, str, str]:
+        topic_df = trec.topics.set_index("id")
+        topic_row = topic_df.xs(topic_id)
+        pseudo_data: str = topic_row.title + " " + topic_row.query  # type: ignore
+        return cls(pseudo_data, trec.pos_label)  # type: ignore
 
 class IdentityInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
     def __call__(
@@ -80,7 +90,7 @@ class RandomInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
             itertools.chain.from_iterable(
                 map(
                     lambda lbl: self.get_random_sample_for_label(learner, lbl),
-                    sorted(learner.env.labels.labelset),
+                    sorted(list(learner.env.labels.labelset)),
                 )
             )
         )
@@ -134,7 +144,7 @@ class SeededRandomInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
 
     @classmethod
     def builder(
-        cls, sample_size: int, seed: int, *args, **kwargs
+        cls, sample_size: int, seed: Optional[Union[int, np.random.BitGenerator, np.random.Generator]], *args, **kwargs
     ) -> Callable[..., Self]:
         def builder_func(*args, **kwargs) -> Self:
             return cls(sample_size, seed)
@@ -178,6 +188,24 @@ class SeededEnsembleInitializer(
             for sublearner, doc in zip(learner.learners, docs):
                 self.add_doc(sublearner, doc)
                 self.add_doc(learner, doc)
+        return learner
+    
+class AutoStopLargeInitializer(SeededRandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
+):
+    def __call__(
+        self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
+    ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
+        if not isinstance(learner, LearnerSequence):
+            return super().__call__(learner)
+        docs = self.get_initialization_sample(learner)
+        for sublearner in learner.learners:
+            assert isinstance(sublearner, AutoStopLearner)
+            for doc in docs:
+                if doc not in sublearner.env.dataset:
+                    sublearner.env.dataset.add(sublearner.env.all_instances[doc])
+                self.add_doc(sublearner, doc)
+                self.add_doc(learner, doc)
+            sublearner.key_seq = tuple(sublearner.env.dataset)
         return learner
 
 

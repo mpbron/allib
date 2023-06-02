@@ -1,36 +1,17 @@
 import collections
 from math import ceil
-from typing import (
-    Any,
-    Callable,
-    Deque,
-    Dict,
-    FrozenSet,
-    Generic,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import (Any, Callable, Deque, Dict, FrozenSet, Generic, Optional, Sequence, Tuple)
 
 import instancelib as il
 import numpy as np
 import numpy.typing as npt
 from instancelib.typehints import DT, KT, LT, RT, VT
-
-from allib.activelearning.base import ActiveLearner
-from allib.environment.base import AbstractEnvironment
-from allib.environment.memory import MemoryEnvironment
-from allib.stopcriterion.base import AbstractStopCriterion
+from instancelib.utils.chunks import divide_iterable_in_lists
 
 from ..environment.base import AbstractEnvironment
 from ..typehints import IT
 from ..utils.func import list_unzip
 from .autotar import AutoTarLearner
-from .learnersequence import LearnerSequence
-from instancelib.utils.chunks import divide_iterable_in_lists
-
-from typing_extensions import Self
 
 
 def calc_ap_prior_distribution(
@@ -235,48 +216,3 @@ class AutoStopLearner(
         return next(iter(self.env.unlabeled.values()))
 
 
-def divide_dataset(
-    env: AbstractEnvironment[IT, KT, Any, Any, Any, Any],
-    size: int = 2000,
-    rng: np.random.Generator = np.random.default_rng(),
-) -> Sequence[Tuple[FrozenSet[KT], FrozenSet[KT]]]:
-    keys = env.dataset.key_list
-    rng.shuffle(keys)  # type: ignore
-    chunks = divide_iterable_in_lists(keys, size)
-    return [(frozenset(unl), frozenset()) for unl in chunks]
-
-
-class AutoStopLarge(
-    LearnerSequence[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
-):
-    def __init__(
-        self,
-        env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
-        learners: Sequence[ActiveLearner[IT, KT, DT, VT, RT, LT]],
-        stopcriteria: Sequence[AbstractStopCriterion[LT]],
-        *_,
-        identifier: Optional[str] = None,
-        **__,
-    ) -> None:
-        super().__init__(env, learners, stopcriteria, *_, identifier=identifier, **__)
-
-    @classmethod
-    def builder(
-        cls,
-        autostop_params: Mapping[str, Any],
-        size: int = 2000,
-        **__: Any,
-    ) -> Callable[..., Self]:
-        def wrap_func(
-            env: AbstractEnvironment[IT, KT, DT, VT, RT, LT], *args, **kwargs
-        ):
-            assert isinstance(env, MemoryEnvironment)
-            parts = divide_dataset(env, size)
-            envs = MemoryEnvironment.divide_in_parts(env, parts)
-            learners = [
-                AutoStopLearner.builder(**autostop_params)(part_env, *args, **kwargs)
-                for part_env in envs
-            ]
-            return cls(env, learners, stop_criteria)
-
-        return wrap_func

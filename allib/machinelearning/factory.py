@@ -40,13 +40,11 @@ class BinaryTARBuilder(AbstractBuilder):
         filename=None,
         **kwargs
     ):
-        vectorizer = self._factory.create(
-            Component.FEATURE_EXTRACTION, **feature_extraction
-        )
-        built_balancer = self._factory.create(Component.BALANCER, **balancer)
-        classifier = self._factory.create(sklearn_model, **model_configuration)
-
         def builder(env):
+            vectorizer = self._factory.create(
+            Component.FEATURE_EXTRACTION, **feature_extraction)
+            built_balancer = self._factory.create(Component.BALANCER, **balancer)
+            classifier = self._factory.create(sklearn_model, **model_configuration)
             return ALSklearn.build(
                 classifier,
                 env,

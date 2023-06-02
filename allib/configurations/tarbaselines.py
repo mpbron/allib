@@ -1,4 +1,7 @@
 from typing import Any, Dict
+from ..estimation.catalog import EstimatorCatalog
+
+from ..stopcriterion.catalog import StopCriterionCatalog
 from ..module import ModuleCatalog as Cat
 from .ensemble import tar_classifier, tf_idf_autotar
 
@@ -27,3 +30,20 @@ autostop = {
     "k_sample": 100,
     "batch_size": 1,
 }
+
+
+def autostop_large(
+    stop_criterion: StopCriterionCatalog,
+    estimator: EstimatorCatalog,
+    target_recall: float,
+):
+    return {
+        "paradigm": Cat.AL.Paradigm.CUSTOM,
+        "method": Cat.AL.CustomMethods.AUTOSTOP_LARGE,
+        "machinelearning": LR,
+        "k_sample": 100,
+        "batch_size": 1,
+        "estimator": estimator,
+        "stopcriterion": stop_criterion,
+        "target": target_recall,
+    }

@@ -5,6 +5,7 @@ import numpy.typing as npt
 from instancelib.utils.func import flatten_dicts
 
 from ..analysis.initialization import (
+    AutoStopLargeInitializer,
     Initializer,
     PriorInitializer,
     RandomInitializer,
@@ -13,6 +14,7 @@ from ..analysis.initialization import (
 )
 from ..estimation.autostop import HorvitzThompsonVar2
 from ..estimation.base import AbstractEstimator
+from ..estimation.catalog import EstimatorCatalog
 from ..estimation.mhmodel import ChaoAlternative, ChaoEstimator, LogLinear
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
 from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
@@ -20,6 +22,7 @@ from ..estimation.rasch_parametric import ParametricRaschPython
 from ..estimation.rasch_python import EMRaschRidgePython
 from ..module import ModuleCatalog as Cat
 from ..stopcriterion.base import AbstractStopCriterion
+from ..stopcriterion.catalog import StopCriterionCatalog
 from ..stopcriterion.estimation import Conservative, Optimistic
 from ..stopcriterion.heuristic import AprioriRecallTarget
 from ..stopcriterion.others import (
@@ -31,6 +34,7 @@ from ..stopcriterion.others import (
     Rule2399StoppingRule,
     StopAfterKNegative,
 )
+from ..stopcriterion.sequence import LastSequence
 from ..stopcriterion.target import TargetCriterion
 from ..typehints import LT
 from .catalog import (
@@ -58,7 +62,7 @@ from .ensemble import (
     targetmethod,
     tf_idf5000,
 )
-from .tarbaselines import autostop, autotar
+from .tarbaselines import autostop, autostop_large, autotar
 
 _K = TypeVar("_K")
 _T = TypeVar("_T")
@@ -86,6 +90,9 @@ AL_REPOSITORY = {
     ALConfiguration.TARGET: targetmethod(),
     ALConfiguration.PRIOR: chao_ensemble_prior(
         1, method=Cat.AL.CustomMethods.INCREASING_BATCH, nneg=50, nirel=10
+    ),
+    ALConfiguration.AUTOSTOP_LARGE: autostop_large(
+        StopCriterionCatalog.CONSERVATIVE, EstimatorCatalog.HorvitzThompson2, 0.95
     ),
 }
 
@@ -232,6 +239,12 @@ def target_builder(
     return dict(), {"TARGET": TargetCriterion(pos_label)}
 
 
+def last_seq_builder(
+    pos_label: LT, neg_label: LT
+) -> Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]]:
+    return dict(), {"TARGET": LastSequence()}
+
+
 STOP_BUILDER_REPOSITORY = {
     StopBuilderConfiguration.CHAO_CONS_OPT: conservative_optimistic_builder(
         {"Chao": ChaoEstimator()}, TARGETS
@@ -252,6 +265,7 @@ STOP_BUILDER_REPOSITORY = {
         {"AUTOSTOP": HorvitzThompsonVar2()}, TARGETS
     ),
     StopBuilderConfiguration.TARGET: target_builder,
+    StopBuilderConfiguration.LASTSEQUENCE: last_seq_builder,
 }
 
 
@@ -349,10 +363,10 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ExperimentCombination.AUTOSTOP_LARGE: TarExperimentParameters(
         ALConfiguration.AUTOSTOP_LARGE,
         None,
-        RandomInitializer.builder(5),
-        (StopBuilderConfiguration.AUTOTAR,),
+        AutoStopLargeInitializer.builder(5, None),
+        (StopBuilderConfiguration.LASTSEQUENCE,),
         10,
         10,
         10,
-    )
+    ),
 }

@@ -1,39 +1,46 @@
-from typing import Any, Callable, FrozenSet, Generic, Mapping, Optional, Sequence, Tuple
+from typing import (Any, Callable, FrozenSet, Generic, Iterable, Optional,
+                    Sequence, Tuple)
 
+import instancelib as il
 import numpy as np
+import numpy.typing as npt
 from instancelib.typehints import DT, KT, LT, RT, VT
-from instancelib.utils.chunks import divide_iterable_in_lists
 from typing_extensions import Self
 
 from ..activelearning.autostop import AutoStopLearner
-
 from ..environment.base import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
-from ..estimation.autostop import HorvitzThompsonVar2
 from ..estimation.base import AbstractEstimator
 from ..stopcriterion.base import AbstractStopCriterion
 from ..typehints import IT
 from .base import ActiveLearner
 from .learnersequence import LearnerSequence
-from ..stopcriterion.estimation import Conservative
-import instancelib as il
-import numpy.typing as npt
+from typing import TypeVar, Iterator
+from math import floor
 
+_T = TypeVar("_T")
+
+def divide_iterable_in_lists(iterable: Iterable[_T], batch_size: int) -> Iterator[Sequence[_T]]:
+    return map(list, divide_iterable(iterable, batch_size)) # type: ignore
 
 def divide_dataset(
     env: AbstractEnvironment[IT, KT, Any, Any, Any, Any],
-    size: int = 2000,
+    size: int = 3000,
     rng: np.random.Generator = np.random.default_rng(),
 ) -> Sequence[Tuple[FrozenSet[KT], FrozenSet[KT]]]:
     keys = env.dataset.key_list
     rng.shuffle(keys)  # type: ignore
-    chunks = divide_iterable_in_lists(keys, size)
-    return [(frozenset(unl), frozenset()) for unl in chunks]
+    lk = len(keys)
+    n = floor(lk/size)
+    k, m = divmod(lk, n)
+    return [(frozenset(keys[i*k+min(i, m):(i+1)*k+min(i+1, m)]), frozenset()) for i in range(n)]
 
 
 class AutoStopLarge(
     LearnerSequence[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
+    _name = "AUTOSTOP_LARGE"
+    
     def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         """Internal functions that selects the next active learner for the next query
 
@@ -99,9 +106,3 @@ class AutoStopLarge(
             return cls(env, learners, stopcriteria)
 
         return builder_func
-
-    @classmethod
-    def build_conservative(cls, threshold=0.95) -> Callable[..., Self]:
-        return cls.builder(
-            {}, HorvitzThompsonVar2, Conservative.builder, threshold, 2000
-        )

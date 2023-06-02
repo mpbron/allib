@@ -39,3 +39,4 @@ class ALCatalog:
         INCREASING_BATCH = "IncreasingBatch"
         PRIORAUTOTAR = "PriorAUTOTAR"
         TARGET = "TARGET"
+        AUTOSTOP_LARGE = "AUTOSTOP_LARGE"

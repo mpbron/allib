@@ -2,59 +2,25 @@ from __future__ import annotations
 
 import collections
 from math import ceil
-from typing import (
-    Any,
-    Callable,
-    Deque,
-    Dict,
-    Generic,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-)
-from typing_extensions import Self
+from typing import (Any, Callable, Deque, Dict, Generic, Mapping, Optional,
+                    Sequence, Tuple)
 from uuid import uuid4
 
 import instancelib as il
 import numpy as np
 import numpy.typing as npt
-from instancelib.ingest.qrel import TrecDataset
 from instancelib.typehints import DT, KT, LT, RT, VT
+from typing_extensions import Self
 
-from ..analysis.base import AbstractStatistics, AnnotationStatisticsSlim, StatsMixin
-from ..analysis.initialization import Initializer
+from ..analysis.base import (AbstractStatistics, AnnotationStatisticsSlim,
+                             StatsMixin)
 from ..environment.base import AbstractEnvironment
 from ..typehints import IT
 from ..utils.func import list_unzip, sort_on
 from ..utils.numpy import raw_proba_chainer
-from .base import ActiveLearner
 from .poolbased import PoolBasedAL
 
 PSEUDO_INS_PROVIDER = "PSEUDO_INSTANCES"
-
-
-class PseudoInstanceInitializer(Initializer[IT, KT, LT], Generic[IT, KT, DT, LT]):
-    def __init__(self, pseudo_data: DT, pseudo_label: LT):
-        self.pseudo_data = pseudo_data
-        self.pseudo_label = pseudo_label
-        self.pseudo_id = uuid4()
-
-    def __call__(
-        self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
-    ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
-        ins = learner.env.create(data=self.pseudo_data, vector=None)
-        learner.env.create_named_provider(PSEUDO_INS_PROVIDER, [ins.identifier])
-        return learner
-
-    @classmethod
-    def from_trec(
-        cls, trec: TrecDataset, topic_id: str
-    ) -> PseudoInstanceInitializer[IT, str, str, str]:
-        topic_df = trec.topics.set_index("id")
-        topic_row = topic_df.xs(topic_id)
-        pseudo_data: str = topic_row.title + " " + topic_row.query  # type: ignore
-        return cls(pseudo_data, trec.pos_label)  # type: ignore
 
 
 class BinaryTarLearner(
