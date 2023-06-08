@@ -4,7 +4,7 @@ import itertools
 import logging
 import random
 from abc import ABC, abstractmethod
-from typing import (Any, Callable, Generic, Mapping, Optional, Sequence, TypeVar, Union)
+from typing import Any, Callable, Generic, Mapping, Optional, Sequence, TypeVar, Union
 from uuid import uuid4
 
 import numpy as np  # type: ignore
@@ -39,7 +39,6 @@ class Initializer(ABC, Generic[IT, KT, LT]):
             return cls()
 
         return builder_func
-    
 
 
 class PseudoInstanceInitializer(Initializer[IT, KT, LT], Generic[IT, KT, DT, LT]):
@@ -63,6 +62,7 @@ class PseudoInstanceInitializer(Initializer[IT, KT, LT], Generic[IT, KT, DT, LT]
         topic_row = topic_df.xs(topic_id)
         pseudo_data: str = topic_row.title + " " + topic_row.query  # type: ignore
         return cls(pseudo_data, trec.pos_label)  # type: ignore
+
 
 class IdentityInitializer(Initializer[IT, KT, LT], Generic[IT, KT, LT]):
     def __call__(
@@ -128,7 +128,7 @@ class SeededRandomInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
     def __init__(
         self,
         sample_size: int = 1,
-        seed: Optional[Union[int, np.random.BitGenerator, np.random.Generator]] = 42,
+        seed: Optional[Union[int, np.random.BitGenerator, np.random.Generator]] = None,
     ) -> None:
         super().__init__(sample_size)
         self.seed = seed
@@ -144,9 +144,18 @@ class SeededRandomInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
 
     @classmethod
     def builder(
-        cls, sample_size: int, seed: Optional[Union[int, np.random.BitGenerator, np.random.Generator]], *args, **kwargs
+        cls,
+        sample_size: int,
+        *args,
+        **kwargs,
     ) -> Callable[..., Self]:
-        def builder_func(*args, **kwargs) -> Self:
+        def builder_func(
+            *args,
+            seed: Optional[
+                Union[int, np.random.BitGenerator, np.random.Generator]
+            ] = None,
+            **kwargs,
+        ) -> Self:
             return cls(sample_size, seed)
 
         return builder_func
@@ -189,8 +198,10 @@ class SeededEnsembleInitializer(
                 self.add_doc(sublearner, doc)
                 self.add_doc(learner, doc)
         return learner
-    
-class AutoStopLargeInitializer(SeededRandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
+
+
+class AutoStopLargeInitializer(
+    SeededRandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
 ):
     def __call__(
         self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
@@ -199,13 +210,13 @@ class AutoStopLargeInitializer(SeededRandomInitializer[IT, KT, LT], Generic[IT, 
             return super().__call__(learner)
         docs = self.get_initialization_sample(learner)
         for sublearner in learner.learners:
-            assert isinstance(sublearner, AutoStopLearner)
-            for doc in docs:
-                if doc not in sublearner.env.dataset:
-                    sublearner.env.dataset.add(sublearner.env.all_instances[doc])
-                self.add_doc(sublearner, doc)
-                self.add_doc(learner, doc)
-            sublearner.key_seq = tuple(sublearner.env.dataset)
+            if isinstance(sublearner, AutoStopLearner):
+                for doc in docs:
+                    if doc not in sublearner.env.dataset:
+                        sublearner.env.dataset.add(sublearner.env.all_instances[doc])
+                    self.add_doc(sublearner, doc)
+                    self.add_doc(learner, doc)
+                sublearner.key_seq = tuple(sublearner.env.dataset)
         return learner
 
 

@@ -34,7 +34,7 @@ from ..stopcriterion.others import (
     Rule2399StoppingRule,
     StopAfterKNegative,
 )
-from ..stopcriterion.sequence import LastSequence
+from ..stopcriterion.sequence import LastSequence, PriorToLast
 from ..stopcriterion.target import TargetCriterion
 from ..typehints import LT
 from .catalog import (
@@ -91,8 +91,17 @@ AL_REPOSITORY = {
     ALConfiguration.PRIOR: chao_ensemble_prior(
         1, method=Cat.AL.CustomMethods.INCREASING_BATCH, nneg=50, nirel=10
     ),
-    ALConfiguration.AUTOSTOP_LARGE: autostop_large(
+    ALConfiguration.AUTOSTOP_LARGE_CONS_95: autostop_large(
         StopCriterionCatalog.CONSERVATIVE, EstimatorCatalog.HorvitzThompson2, 0.95
+    ),
+    ALConfiguration.AUTOSTOP_LARGE_CONS_100: autostop_large(
+        StopCriterionCatalog.CONSERVATIVE, EstimatorCatalog.HorvitzThompson2, 1.0
+    ),
+    ALConfiguration.AUTOSTOP_LARGE_OPT_95: autostop_large(
+        StopCriterionCatalog.OPTIMISTIC, EstimatorCatalog.HorvitzThompson2, 0.95
+    ),
+    ALConfiguration.AUTOSTOP_LARGE_OPT_100: autostop_large(
+        StopCriterionCatalog.OPTIMISTIC, EstimatorCatalog.HorvitzThompson2, 1.0
     ),
 }
 
@@ -242,7 +251,7 @@ def target_builder(
 def last_seq_builder(
     pos_label: LT, neg_label: LT
 ) -> Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]]:
-    return dict(), {"TARGET": LastSequence()}
+    return dict(), {"AUTOSTOP": PriorToLast()}
 
 
 STOP_BUILDER_REPOSITORY = {
@@ -360,8 +369,35 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
         10,
         10,
     ),
-    ExperimentCombination.AUTOSTOP_LARGE: TarExperimentParameters(
-        ALConfiguration.AUTOSTOP_LARGE,
+    ExperimentCombination.AUTOSTOP_LARGE_CONS_95: TarExperimentParameters(
+        ALConfiguration.AUTOSTOP_LARGE_CONS_95,
+        None,
+        AutoStopLargeInitializer.builder(5, None),
+        (StopBuilderConfiguration.LASTSEQUENCE,),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.AUTOSTOP_LARGE_CONS_100: TarExperimentParameters(
+        ALConfiguration.AUTOSTOP_LARGE_CONS_100,
+        None,
+        AutoStopLargeInitializer.builder(5, None),
+        (StopBuilderConfiguration.LASTSEQUENCE,),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.AUTOSTOP_LARGE_OPT_95: TarExperimentParameters(
+        ALConfiguration.AUTOSTOP_LARGE_OPT_95,
+        None,
+        AutoStopLargeInitializer.builder(5, None),
+        (StopBuilderConfiguration.LASTSEQUENCE,),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.AUTOSTOP_LARGE_OPT_100: TarExperimentParameters(
+        ALConfiguration.AUTOSTOP_LARGE_OPT_100,
         None,
         AutoStopLargeInitializer.builder(5, None),
         (StopBuilderConfiguration.LASTSEQUENCE,),

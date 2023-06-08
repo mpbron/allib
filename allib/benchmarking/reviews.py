@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Callable, Mapping, TypeVar, Union, Optional
+from typing import Any, Callable, Mapping, Tuple, TypeVar, Union, Optional
 from uuid import UUID
 
 import numpy as np
@@ -10,6 +10,8 @@ import instancelib as il
 from instancelib import TextInstance
 from instancelib.ingest.spreadsheet import read_csv_dataset
 from instancelib.typehints.typevars import KT, LT
+
+from allib.activelearning.base import ActiveLearner
 from ..typehints.typevars import IT
 
 from ..analysis.experiments import ExperimentIterator
@@ -96,9 +98,11 @@ def benchmark(
     stop_interval: Union[int, Mapping[str, int]] = 10,
     estimation_interval: Union[int, Mapping[str, int]] = 10,
     enable_plots=True,
-) -> TarExperimentPlotter[str]:
+    seed: Optional[int] = None,
+    max_it: Optional[int] = None
+) -> Tuple[ActiveLearner[Any, Any, Any, Any, Any, str],TarExperimentPlotter[str]]:
     factory = MainFactory()
-    initializer = initializer_builder(pos_label=pos_label, neg_label=neg_label)
+    initializer = initializer_builder(pos_label=pos_label, neg_label=neg_label, seed=seed)
     al, _ = initialize_tar_simulation(
         factory, al_config, fe_config, initializer, env, pos_label, neg_label
     )
@@ -119,10 +123,11 @@ def benchmark(
         output_path=output_path,
         output_pdf_path=output_pdf_path,
         plot_enabled=enable_plots,
+        max_it = max_it
     )
     try:
         simulator.simulate()
     except Exception as e:
         LOGGER.error("Exited with %s", e)
         pass
-    return plotter
+    return al, plotter

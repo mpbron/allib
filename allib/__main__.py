@@ -11,6 +11,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="allib", description="Active Learning Library (allib) - Benchmarking tool"
     )
+    parser.add_argument("-r", "--seed", type=int, default=None)
     parser.add_argument("-m", "--datasettype", type=DatasetType, help="Dataset Type")
     parser.add_argument("-v", "--verboseplotting", type=bool, default=False)
     parser.add_argument("-s", "--stopinterval", type=int, default=None)
@@ -53,6 +54,7 @@ if __name__ == "__main__":
             args.neg_label,
             args.stopinterval,
             args.verboseplotting,
+            args.seed
         )
     else:
         raise NotImplementedError("Other tasks have no Benchmark procedure yet")

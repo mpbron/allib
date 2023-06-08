@@ -1,11 +1,13 @@
 import logging
 import pickle
-from typing import Optional
+from typing import Any, Optional, Tuple
 from lenses import lens
 from pathlib import Path
 from uuid import uuid4
 
 from instancelib.utils.func import list_unzip
+
+from allib.activelearning.base import ActiveLearner
 
 from .analysis.tarplotter import TarExperimentPlotter
 from .benchmarking.datasets import TarDataset, DatasetType
@@ -31,7 +33,9 @@ def tar_benchmark(
     neg_label: str,
     stop_interval: Optional[int] = None,
     enable_plots=True,
-) -> None:
+    seed: Optional[int] = None,
+    max_it: Optional[int] = None
+) -> Tuple[ActiveLearner[Any, Any, Any, Any, Any, str],TarExperimentPlotter[str]]:
     LOGGER.info(
         f"Start Experiment on {dataset.path.stem} for topic ´{dataset.topic}´ with {exp_choice}"
     )
@@ -72,7 +76,7 @@ def tar_benchmark(
 
     # Load the dataset
     create_dir_if_not_exists(dataset_dir)
-    plot = benchmark(
+    al, plot = benchmark(
         dataset.env,
         plot_filename_pkl,
         plot_filename_pdf,
@@ -87,7 +91,10 @@ def tar_benchmark(
         stop_interval=exp.stop_interval,
         estimation_interval=exp.estimation_interval,
         enable_plots=enable_plots,
+        seed=seed,
+        max_it=max_it
     )
     with plot_filename_pkl.open("wb") as fh:
         pickle.dump(plot, fh)
     plot.show(filename=plot_filename_pdf)
+    return 

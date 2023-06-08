@@ -1,11 +1,23 @@
-from typing import (Any, Callable, FrozenSet, Generic, Iterable, Optional,
-                    Sequence, Tuple)
+from typing import (
+    Any,
+    Callable,
+    FrozenSet,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 import instancelib as il
 import numpy as np
 import numpy.typing as npt
 from instancelib.typehints import DT, KT, LT, RT, VT
 from typing_extensions import Self
+
+from ..activelearning.random import RandomSampling
+from ..stopcriterion.sequence import DummyFalse
 
 from ..activelearning.autostop import AutoStopLearner
 from ..environment.base import AbstractEnvironment
@@ -20,8 +32,12 @@ from math import floor
 
 _T = TypeVar("_T")
 
-def divide_iterable_in_lists(iterable: Iterable[_T], batch_size: int) -> Iterator[Sequence[_T]]:
-    return map(list, divide_iterable(iterable, batch_size)) # type: ignore
+
+def divide_iterable_in_lists(
+    iterable: Iterable[_T], batch_size: int
+) -> Iterator[Sequence[_T]]:
+    return map(list, divide_iterable(iterable, batch_size))  # type: ignore
+
 
 def divide_dataset(
     env: AbstractEnvironment[IT, KT, Any, Any, Any, Any],
@@ -31,16 +47,19 @@ def divide_dataset(
     keys = env.dataset.key_list
     rng.shuffle(keys)  # type: ignore
     lk = len(keys)
-    n = floor(lk/size)
+    n = floor(lk / size)
     k, m = divmod(lk, n)
-    return [(frozenset(keys[i*k+min(i, m):(i+1)*k+min(i+1, m)]), frozenset()) for i in range(n)]
+    return [
+        (frozenset(keys[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)]), frozenset())
+        for i in range(n)
+    ]
 
 
 class AutoStopLarge(
     LearnerSequence[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
     _name = "AUTOSTOP_LARGE"
-    
+
     def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         """Internal functions that selects the next active learner for the next query
 
@@ -96,13 +115,17 @@ class AutoStopLarge(
                 stopcriterion_builder(estimator_builder(), target)(pos_label, neg_label)
                 for _ in envs
             ]
-            learners = [
+            stopcriteria.append(DummyFalse())
+            random_sampling = RandomSampling.builder()(
+                env.from_environment(env, shared_labels=False)
+            )
+            learners: List[ActiveLearner[IT, KT, DT, VT, RT, LT]] = [
                 AutoStopLearner.builder(classifier_builder, k_sample, batch_size)(
                     part_env, pos_label, neg_label
                 )
                 for part_env in envs
             ]
-
+            learners.append(random_sampling)
             return cls(env, learners, stopcriteria)
 
         return builder_func

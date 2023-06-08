@@ -45,9 +45,7 @@ class LearnerSequence(
     def __init__(
         self,
         env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
-        learners: Sequence[
-            ActiveLearner[IT, KT, DT, VT, RT, LT],
-        ],
+        learners: Sequence[ActiveLearner[IT, KT, DT, VT, RT, LT],],
         stopcriteria: Sequence[AbstractStopCriterion[LT]],
         *_,
         identifier: Optional[str] = None,
@@ -95,6 +93,9 @@ class LearnerSequence(
             # This instance has already been labeled my another learner.
             # Skip it and mark as labeled
             learner.set_as_labeled(ins)
+            learner.env.labels.set_labels(
+                ins.identifier, *self.env.labels[ins.identifier]
+            )
             LOGGER.info(
                 "The document with key %s was already labeled. Skipping", ins.identifier
             )
@@ -136,7 +137,6 @@ class LearnerSequence(
         def wrap_func(
             env: AbstractEnvironment[IT, KT, DT, VT, RT, LT], *args, **kwargs
         ):
-
             learners = [
                 builder(env.from_environment(env), *args, **kwargs)
                 for builder in learner_builders

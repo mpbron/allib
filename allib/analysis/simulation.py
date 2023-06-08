@@ -79,9 +79,9 @@ def initialize_tar_simulation(
         vectorizer: BaseVectorizer[
             Instance[KT, DT, npt.NDArray[Any], RT]
         ] = factory.create(Component.FEATURE_EXTRACTION, **fe_config)
-        vectorize(vectorizer, env, True, 2000)
+        vectorize(vectorizer, env, True, 2000)  # type: ignore
     else:
-        vectorizer = None
+        vectorizer = None  # type: ignore
     ## Copy the data to memory
     start_env = MemoryEnvironment.from_environment_only_data(env)
 
@@ -111,7 +111,7 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         output_pdf_path: Optional[Path] = None,
         plot_interval: int = 20,
         plot_enabled=True,
-        stop_when_found_all = False
+        stop_when_found_all=False,
     ) -> None:
         self.experiment = experiment
         self.plotter = plotter
@@ -128,13 +128,17 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         if self.max_it is None:
             return False
         return self.experiment.it > self.max_it
-    
+
     @property
     def stop_all_found(self) -> bool:
         if self.stop_when_found_all:
             pos_label = self.experiment.pos_label
-            truth_pos = self.experiment.learner.env.truth.get_instances_by_label(pos_label)
-            current_pos = self.experiment.learner.env.truth.get_instances_by_label(pos_label).intersection(self.experiment.learner.env.labeled)
+            truth_pos = self.experiment.learner.env.truth.get_instances_by_label(
+                pos_label
+            )
+            current_pos = self.experiment.learner.env.truth.get_instances_by_label(
+                pos_label
+            ).intersection(self.experiment.learner.env.labeled)
             diff = truth_pos.difference(current_pos)
             return not diff
         return False
@@ -142,7 +146,11 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
     def simulate(self) -> None:
         with tqdm(total=len(self.experiment.learner.env.dataset)) as pbar:
             pbar.update(self.experiment.learner.len_labeled)
-            while not self.experiment.finished and not self._debug_finished and not self.stop_all_found:
+            while (
+                not self.experiment.finished
+                and not self._debug_finished
+                and not self.stop_all_found
+            ):
                 result = self.experiment()
                 self.plotter.update(self.experiment, result)
                 pbar.update(1)
