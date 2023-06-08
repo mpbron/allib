@@ -9,6 +9,8 @@ from ..analysis.initialization import (
     Initializer,
     PriorInitializer,
     RandomInitializer,
+    SeededEnsembleInitializer,
+    SeededRandomInitializer,
     SeparateInitializer,
     TargetInitializer,
 )
@@ -282,7 +284,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ExperimentCombination.CHAO: TarExperimentParameters(
         ALConfiguration.CHAO_ENSEMBLE,
         None,
-        SeparateInitializer.builder(1),
+        SeededEnsembleInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
@@ -291,7 +293,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ExperimentCombination.CHAO_ALT: TarExperimentParameters(
         ALConfiguration.CHAO_ENSEMBLE,
         None,
-        SeparateInitializer.builder(1),
+        SeededEnsembleInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT_ALT, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
@@ -300,7 +302,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ExperimentCombination.CHAO_BOTH: TarExperimentParameters(
         ALConfiguration.CHAO_ENSEMBLE,
         None,
-        SeparateInitializer.builder(1),
+        SeededEnsembleInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_BOTH, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
@@ -309,7 +311,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ExperimentCombination.AUTOTAR: TarExperimentParameters(
         ALConfiguration.AUTOTAR,
         None,
-        RandomInitializer.builder(5),
+        SeededRandomInitializer.builder(5),
         (StopBuilderConfiguration.AUTOTAR,),
         10,
         10,
@@ -318,7 +320,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ExperimentCombination.AUTOSTOP: TarExperimentParameters(
         ALConfiguration.AUTOSTOP,
         None,
-        RandomInitializer.builder(5),
+        SeededRandomInitializer.builder(5),
         (StopBuilderConfiguration.AUTOSTOP, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
@@ -327,7 +329,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ExperimentCombination.CHAO_AT: TarExperimentParameters(
         ALConfiguration.CHAO_AT_ENSEMBLE,
         None,
-        SeparateInitializer.builder(1),
+        SeededEnsembleInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_BOTH, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
@@ -336,7 +338,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ExperimentCombination.CHAO_IB: TarExperimentParameters(
         ALConfiguration.CHAO_IB_ENSEMBLE,
         None,
-        SeparateInitializer.builder(1),
+        SeededEnsembleInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
@@ -345,7 +347,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ExperimentCombination.RCAPTURE: TarExperimentParameters(
         ALConfiguration.CHAO_IB_ENSEMBLE,
         None,
-        SeparateInitializer.builder(1),
+        SeededEnsembleInitializer.builder(1),
         (StopBuilderConfiguration.RCAPTURE_ALL, StopBuilderConfiguration.AUTOTAR),
         10,
         10,

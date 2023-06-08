@@ -62,7 +62,7 @@ def tar_benchmark(
     stop_criteria = flatten_dicts(*stop_criteria_dicts)
 
     # Specify benchmark targets and outputs
-    uuid = uuid4()
+    run_id = uuid4()
     target_path = Path(target_path)
     dataset_name = (
         dataset.path.stem
@@ -71,9 +71,10 @@ def tar_benchmark(
     )
     # File locations for the plotter object
     dataset_dir = target_path / dataset_name
-    plot_filename_pkl = dataset_dir / f"run_{uuid}.pkl"
-    plot_filename_pdf = dataset_dir / f"run_{uuid}.pdf"
-
+    method_dir = dataset_dir / str(exp_choice)
+    create_dir_if_not_exists(method_dir)
+    plot_filename_pkl = method_dir / f"run_{run_id}_{seed}.pkl"
+    plot_filename_pdf = method_dir / f"run_{run_id}_{seed}.pdf"
     # Load the dataset
     create_dir_if_not_exists(dataset_dir)
     al, plot = benchmark(
@@ -96,5 +97,6 @@ def tar_benchmark(
     )
     with plot_filename_pkl.open("wb") as fh:
         pickle.dump(plot, fh)
-    plot.show(filename=plot_filename_pdf)
-    return 
+    if plot.it > 1:
+        plot.show(filename=plot_filename_pdf)
+    return al, plot

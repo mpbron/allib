@@ -1,7 +1,9 @@
+import itertools
+import operator
 import pickle
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Sequence, Optional
+from typing import Any, Iterable, Iterator, Mapping, Sequence, Optional, Tuple, TypeVar
 from uuid import UUID
 
 import pandas as pd
@@ -13,6 +15,7 @@ from ..utils.func import hn
 from .statistics import TarDatasetStats
 from .tarplotter import TarExperimentPlotter
 
+_T = TypeVar("_T")
 
 @dataclass
 class BenchmarkResult:
@@ -47,6 +50,40 @@ def read_datasets(root_path: Path) -> Mapping[str, Mapping[UUID, TarExperimentPl
     dss = {ds_path.stem: dict(read_ds(ds_path)) for ds_path in root_path.iterdir()}
     return dss
 
+def nest(tupiter: Iterable[Tuple[_T,...]]) -> Mapping[_T, Any]:
+    def value(k, iterable: Iterable[Tuple[_T, ...]]) -> Tuple[_T, Any]:
+        tuplist = tuple(iterable)
+        if len(tuplist[0]) > 2:
+            return k, nest(tup[1:] for tup in tuplist)
+        return tuplist[-1]
+
+    structured = dict(
+        (
+            value(k, tups)
+            for (k, tups) in itertools.groupby(tupiter, operator.itemgetter(0))
+        )
+    )
+    return structured
+
+
+def read_results(
+    root_path: Path,
+) -> Mapping[str, Mapping[str, Mapping[UUID, Mapping[int, TarExperimentPlotter]]]]:
+    def read_ds() -> Iterator[Tuple[str, str, UUID, int, TarExperimentPlotter]]:
+        for ds_path in root_path.iterdir():
+            for method in ds_path.iterdir():
+                for file in method.iterdir():
+                    if file.suffix == ".pkl":
+                        with file.open("rb") as fh:
+                            plotter: TarExperimentPlotter = pickle.load(fh)
+                        splitted = file.stem.split("_")
+                        run_id = UUID(splitted[1])
+                        seed = int(splitted[2])
+                        yield (ds_path.stem, method.stem, run_id, seed, plotter)
+    tuples = list(read_ds())
+    dss = nest(tuples)
+    return dss # type: ignore
+
 
 def extract_results(
     dataset: str,
@@ -78,13 +115,28 @@ def extract_results(
     )
 
 
-def extract_information(
+def extract_information_old_format(
     run_dict: Mapping[str, Mapping[UUID, TarExperimentPlotter]]
 ) -> Sequence[BenchmarkResult]:
     records = [
         extract_results(dataset, run_id, plotter, crit_name)
         for (dataset, runs) in run_dict.items()
         for (run_id, plotter) in runs.items()
+        for crit_name in plotter.criterion_names
+    ]
+    return records
+
+def extract_information(
+    run_dict: Mapping[
+        str, Mapping[str, Mapping[UUID, Mapping[int, TarExperimentPlotter]]]
+    ]
+) -> Sequence[BenchmarkResult]:
+    records = [
+        extract_results(dataset, run_id, plotter, crit_name, seed=seed)
+        for (dataset, learner_method) in run_dict.items()
+        for (learner, runs) in learner_method.items()
+        for (run_id, run_seeds) in runs.items()
+        for (seed, plotter) in run_seeds.items()
         for crit_name in plotter.criterion_names
     ]
     return records
