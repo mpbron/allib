@@ -17,7 +17,7 @@ from ..analysis.initialization import (
 from ..estimation.autostop import HorvitzThompsonVar2
 from ..estimation.base import AbstractEstimator
 from ..estimation.catalog import EstimatorCatalog
-from ..estimation.mhmodel import ChaoAlternative, ChaoEstimator, LogLinear
+from ..estimation.mhmodel import ChaoAlternative, ChaoEstimator, FastChaoEstimator, LogLinear
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
 from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
 from ..estimation.rasch_parametric import ParametricRaschPython
@@ -257,8 +257,11 @@ def last_seq_builder(
 
 
 STOP_BUILDER_REPOSITORY = {
-    StopBuilderConfiguration.CHAO_CONS_OPT: conservative_optimistic_builder(
-        {"Chao": ChaoEstimator()}, TARGETS
+    StopBuilderConfiguration.CHAO_CONS_OPT: combine_builders(
+        conservative_optimistic_builder(
+        {"Chao": ChaoEstimator()}, TARGETS),
+        conservative_optimistic_builder(
+        {"ChaoFast": FastChaoEstimator()}, TARGETS)
     ),
     StopBuilderConfiguration.CHAO_CONS_OPT_ALT: conservative_optimistic_builder(
         {"ChaoALT": ChaoAlternative()}, TARGETS

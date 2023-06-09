@@ -47,6 +47,8 @@ class KneeStoppingRule(StatsStoppingCriterion[KT, LT]):
     def stop_criterion(self) -> bool:
         if self.stats.rounds < 1:
             return False
+        if self.stats.current_annotated < 1000:
+            return False
 
         pos_per_round = np.array(self.stats.label_per_round(self.pos_label))
         pos_found = pos_per_round.cumsum()

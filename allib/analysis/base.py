@@ -1,27 +1,17 @@
 import collections
 from abc import ABC, abstractmethod
-from typing import (
-    Any,
-    Deque,
-    FrozenSet,
-    Generic,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import (Any, Deque, FrozenSet, Generic, List, Mapping, Optional,
+                    Sequence, Tuple)
 
+import numpy as np
 from instancelib import Instance
+from instancelib.utils.func import union, value_map
 
 from ..activelearning.base import ActiveLearner
 from ..environment import AbstractEnvironment
 from ..environment.base import AbstractEnvironment
 from ..typehints import DT, IT, KT, LT, RT, VT
 from .base import ActiveLearner
-import numpy as np
-
-from instancelib.utils.func import value_map
 
 
 class AbstractStatistics(ABC, Generic[KT, LT]):
@@ -209,10 +199,12 @@ class AnnotationStatistics(AbstractStatistics[KT, LT]):
 class AnnotationStatisticsSlim(AbstractStatistics[KT, LT]):
     labelwise: List[Mapping[LT, int]]
     per_round: List[Mapping[LT, int]]
+    previous_round: FrozenSet[KT]
     annotated_per_round: List[int]
     annotated: List[int]
     unlabeled: List[int]
     dataset: List[int]
+    previous_rounds: FrozenSet[KT]
 
     def __init__(self) -> None:
         self.labelwise = list()
@@ -249,8 +241,7 @@ class AnnotationStatisticsSlim(AbstractStatistics[KT, LT]):
         self.unlabeled.append(len(unlabeled))
         self.per_round.append(current_round_new_counts)
         self.dataset.append(len(learner.env.dataset))
-        self.previous_round = current_round
-
+        self.previous_round = annotated
     @property
     def dataset_size(self) -> int:
         return 0 if not self.dataset else self.dataset[-1]

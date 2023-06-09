@@ -9,8 +9,10 @@ from typing import (
     Dict,
     FrozenSet,
     Generic,
+    Mapping,
     Optional,
     Sequence,
+    Set,
     Tuple,
 )
 import warnings
@@ -18,7 +20,10 @@ import warnings
 import numpy as np
 import numpy.typing as npt
 
-import pandas as pd  # type: ignore
+import pandas as pd
+
+from allib.activelearning.base import ActiveLearner
+from allib.estimation.base import Estimate  # type: ignore
 from ..activelearning.autotarensemble import AutoTARFirstMethod
 from ..activelearning.base import ActiveLearner
 from ..activelearning.estimator import Estimator
@@ -29,6 +34,7 @@ from ..utils.func import (
     union,
 )
 from .base import AbstractEstimator, Estimate
+from instancelib.utils.func import value_map
 
 try:
     import rpy2.robjects as ro  # type: ignore
@@ -58,6 +64,60 @@ def _check_R():
     if not R_AVAILABLE:
         raise ImportError("Install rpy2 interop")
 
+
+class FastChaoEstimator(AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
+    def __init__(self):
+        self.est = Estimate.empty()
+
+    def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT], label: LT) -> Estimate:
+        if not isinstance(learner, (Estimator, AutoTARFirstMethod)):
+            return Estimate(float("nan"), float("nan"), float("nan"))
+        if isinstance(learner, AutoTARFirstMethod):
+            l2 = learner.learners[2]
+            assert isinstance(l2, Estimator)
+            if l2.env.labeled:
+                estimate = self.calculate_abundance(l2, label)
+            else:
+                estimate = Estimate.empty()
+        else:
+            estimate = self.calculate_abundance(learner, label)
+        return estimate
+
+    def get_fstats(
+        self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT
+    ) -> Mapping[int, FrozenSet[KT]]:
+        t = len(estimator.learners)
+        fstats_mut: Dict[int, Set[KT]] = {fs: set() for fs in range(1, t+1)}
+        for ins_key in estimator.env.labels.get_instances_by_label(label):
+            f = sum([int(ins_key in learner.env.labeled) for learner in estimator.learners])
+            fstats_mut[f].add(ins_key)
+        fstats = value_map(frozenset, fstats_mut)
+        return fstats
+
+    def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
+        f1 = len(fstats[1])
+        f2 = len(fstats[2])
+        if f2 == 0:
+            return Estimate.empty()
+        n = sum(map(len, fstats.values()))
+        nhat = n + (f1 ** 2) / (2 * f2)
+        variance = f2 * (0.25 * (f1/f2) ** 4 + (f1/f2) ** 3 + 0.5 * (f1/f2) ** 2)
+        qZ = 1.96
+        try:
+            C = np.exp(qZ * np.sqrt(np.log(1 + variance/(nhat - n)**2)))
+            inf_cl = n + (nhat - n) / C
+            sup_cl = n + (nhat - n) * C
+        except ZeroDivisionError:
+            inf_cl = float("nan")
+            sup_cl = float("nan")       
+        return Estimate(nhat, inf_cl, sup_cl)
+
+    def calculate_abundance(
+        self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT
+    ) -> Estimate:
+        fstats = self.get_fstats(estimator, label)
+        self.est = self.chao(fstats)
+        return self.est
 
 class ChaoEstimator(
     AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
