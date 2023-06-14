@@ -42,6 +42,19 @@ class KneeStoppingRule(StatsStoppingCriterion[KT, LT]):
                *Proceedings of the 39th International ACM SIGIR conference on Research and Development in Information Retrieval.* 2016.
                `<https://dl.acm.org/doi/10.1145/2911451.2911510>`__
     """
+    @property
+    def rho(self) -> float:
+        pos_per_round = np.array(self.stats.label_per_round(self.pos_label))
+        Lp = pos_per_round.cumsum()
+        annotated_per_round = np.array(self.stats.annotations_per_round)
+        L = annotated_per_round.cumsum()
+        rho_s = -1
+        for i in range(self.stats.rounds):
+            rho = (Lp[i] / L[-1]) * (
+                (L[-1] - L[i]) / (1 + Lp[-1] - Lp[i])
+            )
+            rho_s = max(rho_s, rho)
+        return rho_s     
 
     @property
     def stop_criterion(self) -> bool:
@@ -51,48 +64,34 @@ class KneeStoppingRule(StatsStoppingCriterion[KT, LT]):
             return False
 
         pos_per_round = np.array(self.stats.label_per_round(self.pos_label))
-        pos_found = pos_per_round.cumsum()
-
-        rho_s = -1
-        for i in range(self.stats.rounds):
-            rho = (pos_found[i] / (i + 1)) / (
-                (1 + pos_found[-1] - pos_found[i]) / (self.stats.rounds - i)
-            )
-            rho_s = max(rho_s, rho)
-
-        return rho_s >= 156 - min(pos_found[-1], 150)
+        Lp = pos_per_round.cumsum()
+        return self.rho >= (156 - min(Lp[-1], 150))
 
 
-class BudgetStoppingRule(StatsStoppingCriterion[KT, LT]):
+class BudgetStoppingRule(KneeStoppingRule[KT, LT], Generic[KT, LT]):
     """
     .. seealso::
         .. [2] Gordon V. Cormack, and Maura R. Grossman. "Engineering quality and reliability in technology-assisted review."
                *Proceedings of the 39th International ACM SIGIR conference on Research and Development in Information Retrieval.* 2016.
                `<https://dl.acm.org/doi/10.1145/2911451.2911510>`__
     """
+    def __init__(self, pos_label: LT, target_size: int = 10) -> None:
+        super().__init__(pos_label)
+        self.target_size = target_size
+
 
     @property
     def stop_criterion(self) -> bool:
         if self.stats.rounds < 1:
             return False
 
-        batchsize = self.stats.annotations_per_round[-1]
-        pos_per_round = np.array([self.stats.label_per_round(self.pos_label)])
-        pos_found = pos_per_round.cumsum()
+        pos_per_round = np.array(self.stats.label_per_round(self.pos_label))
+        Lp = pos_per_round.cumsum()
         n_docs = self.stats.dataset_size
-        n_rounds = self.stats.rounds
-        rho_s = -1
-        for i in range(n_rounds):
-            rho = (pos_found[i] / (i + 1)) / (
-                (1 + pos_found[-1] - pos_found[i]) / (n_rounds - i)
-            )
-            rho_s = max(rho_s, rho)
-
-        return (
-            rho_s >= 6
-            and batchsize * self.stats.rounds + 1
-            >= 10 * n_docs / pos_found[n_rounds - 1]
-        ) or (self.stats.current_annotated >= n_docs * 0.75)
+        condition_one = (self.stats.current_annotated >= n_docs * 0.75)
+        condition_two_a = self.rho >= 6
+        condition_two_b = self.stats.current_annotated >= self.target_size * (n_docs / Lp[-1])
+        return condition_one or (condition_two_a and condition_two_b)
 
 
 class ReviewHalfStoppingRule(StatsStoppingCriterion[KT, LT]):
