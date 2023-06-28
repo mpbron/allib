@@ -9,6 +9,7 @@ from uuid import UUID
 import pandas as pd
 
 from allib.analysis.analysis import loss_er
+from allib.configurations.base import ExperimentCombination
 
 from ..utils.func import hn
 
@@ -16,6 +17,7 @@ from .statistics import TarDatasetStats
 from .tarplotter import TarExperimentPlotter
 
 _T = TypeVar("_T")
+
 
 @dataclass
 class BenchmarkResult:
@@ -50,7 +52,8 @@ def read_datasets(root_path: Path) -> Mapping[str, Mapping[UUID, TarExperimentPl
     dss = {ds_path.stem: dict(read_ds(ds_path)) for ds_path in root_path.iterdir()}
     return dss
 
-def nest(tupiter: Iterable[Tuple[_T,...]]) -> Mapping[_T, Any]:
+
+def nest(tupiter: Iterable[Tuple[_T, ...]]) -> Mapping[_T, Any]:
     def value(k, iterable: Iterable[Tuple[_T, ...]]) -> Tuple[_T, Any]:
         tuplist = tuple(iterable)
         if len(tuplist[0]) > 2:
@@ -80,9 +83,31 @@ def read_results(
                         run_id = UUID(splitted[1])
                         seed = int(splitted[2])
                         yield (ds_path.stem, method.stem, run_id, seed, plotter)
+
     tuples = list(read_ds())
     dss = nest(tuples)
-    return dss # type: ignore
+    return dss  # type: ignore
+
+def read_results_memsafe(
+    root_path: Path,
+) -> pd.DataFrame:
+    def read_ds() -> Iterator[BenchmarkResult]:
+        for ds_path in root_path.iterdir():
+            for method in ds_path.iterdir():
+                for file in method.iterdir():
+                    if file.suffix == ".pkl":
+                        with file.open("rb") as fh:
+                            plotter: TarExperimentPlotter = pickle.load(fh)
+                        splitted = file.stem.split("_")
+                        run_id = UUID(splitted[1])
+                        seed = int(splitted[2])
+                        for crit_name in plotter.criterion_names:
+                            yield extract_results(ds_path.stem, run_id, plotter,crit_name, seed=seed)
+    records = list(read_ds())
+    df = pd.DataFrame(records)
+    df = pd.concat((df, df.dataset_stats.apply(pd.Series)), axis=1)
+    df = df.drop("dataset_stats", axis=1)
+    return df
 
 
 def extract_results(
@@ -96,7 +121,6 @@ def extract_results(
     stop_it = plotter._it_at_stop(crit_name) or plotter.it
     rs = plotter.recall_stats[stop_it]
     ds = plotter.dataset_stats[stop_it]
-    l_er = loss_er(rs.pos_docs_found, rs.effort, ds.pos_count, ds.size)
     re = abs(target_recall - rs.recall) / target_recall
     return BenchmarkResult(
         dataset,
@@ -106,7 +130,7 @@ def extract_results(
         crit_name,
         rs.wss,
         rs.recall,
-        l_er,
+        rs.loss_er,
         rs.pos_docs_found,
         rs.effort,
         rs.proportional_effort,
@@ -125,6 +149,7 @@ def extract_information_old_format(
         for crit_name in plotter.criterion_names
     ]
     return records
+
 
 def extract_information(
     run_dict: Mapping[
@@ -147,3 +172,26 @@ def results_to_pandas(results: Sequence[BenchmarkResult]) -> pd.DataFrame:
     df = pd.concat((df, df.dataset_stats.apply(pd.Series)), axis=1)
     df = df.drop("dataset_stats", axis=1)
     return df
+
+
+def read_plot(
+    source: Path,
+    dataset: str,
+    method: ExperimentCombination,
+    seed: int,
+    uuid: Optional[UUID] = None,
+) -> TarExperimentPlotter:
+    if uuid is not None:
+        filepath = source / dataset / str(method) / f"run_{uuid}_{seed}.pkl"
+    else:
+        exp_dir = source / dataset / str(method)
+        files = (
+            file
+            for file in exp_dir.iterdir()
+            if int(file.stem.split("_")[-1]) == seed and file.suffix == ".pkl"
+        )
+        # pick first
+        filepath = next(files)
+    with filepath.open("rb") as fh:
+        obj: TarExperimentPlotter = pickle.load(fh)
+    return obj

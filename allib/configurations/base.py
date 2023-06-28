@@ -17,7 +17,13 @@ from ..analysis.initialization import (
 from ..estimation.autostop import HorvitzThompsonVar2
 from ..estimation.base import AbstractEstimator
 from ..estimation.catalog import EstimatorCatalog
-from ..estimation.mhmodel import ChaoAlternative, ChaoEstimator, FastChaoEstimator, LogLinear
+from ..estimation.mhmodel import (
+    ChaoAlternative,
+    ChaoEstimator,
+    FastChao1989Estimator,
+    FastChaoEstimator,
+    LogLinear,
+)
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
 from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
 from ..estimation.rasch_parametric import ParametricRaschPython
@@ -226,11 +232,10 @@ def standoff_builder(
     rule2399 = Rule2399StoppingRule(pos_label)
     stop200 = StopAfterKNegative(pos_label, 200)
     stop400 = StopAfterKNegative(pos_label, 400)
-    quants = dict()  # {f"Quant_{t}": QuantStoppingRule(pos_label, t) for t in TARGETS}
-    chm = dict()
-    # chm = {
-    #     f"CHM_{t}": CHMHeuristicsStoppingRule(pos_label, t, alpha=0.95) for t in TARGETS
-    # }
+    quants = {f"Quant_{t}": QuantStoppingRule(pos_label, t) for t in TARGETS}
+    chm = {
+        f"CHM_{t}": CHMHeuristicsStoppingRule(pos_label, t, alpha=0.95) for t in TARGETS
+    }
     criteria = {
         "Perfect95": recall95,
         "Perfect100": recall100,
@@ -241,7 +246,7 @@ def standoff_builder(
         "Stop200": stop200,
         "Stop400": stop400,
     }
-    return dict(), {**criteria}
+    return dict(), {**criteria, **quants, **chm}
 
 
 def target_builder(
@@ -259,9 +264,12 @@ def last_seq_builder(
 STOP_BUILDER_REPOSITORY = {
     StopBuilderConfiguration.CHAO_CONS_OPT: combine_builders(
         conservative_optimistic_builder(
-        {"Chao": ChaoEstimator()}, TARGETS),
-        conservative_optimistic_builder(
-        {"ChaoFast": FastChaoEstimator()}, TARGETS)
+            {"ChaoFast1989": FastChao1989Estimator()}, TARGETS
+        ),
+        combine_builders(
+            conservative_optimistic_builder({"Chao": ChaoEstimator()}, TARGETS),
+            conservative_optimistic_builder({"ChaoFast": FastChaoEstimator()}, TARGETS),
+        ),
     ),
     StopBuilderConfiguration.CHAO_CONS_OPT_ALT: conservative_optimistic_builder(
         {"ChaoALT": ChaoAlternative()}, TARGETS

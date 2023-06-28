@@ -65,11 +65,15 @@ def _check_R():
         raise ImportError("Install rpy2 interop")
 
 
-class FastChaoEstimator(AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
+class FastChaoEstimator(
+    AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
     def __init__(self):
         self.est = Estimate.empty()
 
-    def __call__(self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT], label: LT) -> Estimate:
+    def __call__(
+        self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT], label: LT
+    ) -> Estimate:
         if not isinstance(learner, (Estimator, AutoTARFirstMethod)):
             return Estimate(float("nan"), float("nan"), float("nan"))
         if isinstance(learner, AutoTARFirstMethod):
@@ -87,9 +91,11 @@ class FastChaoEstimator(AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, K
         self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT
     ) -> Mapping[int, FrozenSet[KT]]:
         t = len(estimator.learners)
-        fstats_mut: Dict[int, Set[KT]] = {fs: set() for fs in range(1, t+1)}
+        fstats_mut: Dict[int, Set[KT]] = {fs: set() for fs in range(1, t + 1)}
         for ins_key in estimator.env.labels.get_instances_by_label(label):
-            f = sum([int(ins_key in learner.env.labeled) for learner in estimator.learners])
+            f = sum(
+                [int(ins_key in learner.env.labeled) for learner in estimator.learners]
+            )
             fstats_mut[f].add(ins_key)
         fstats = value_map(frozenset, fstats_mut)
         return fstats
@@ -100,16 +106,16 @@ class FastChaoEstimator(AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, K
         if f2 == 0:
             return Estimate.empty()
         n = sum(map(len, fstats.values()))
-        nhat = n + (f1 ** 2) / (2 * f2)
-        variance = f2 * (0.25 * (f1/f2) ** 4 + (f1/f2) ** 3 + 0.5 * (f1/f2) ** 2)
+        nhat = n + (f1**2) / (2 * f2)
+        variance = f2 * (0.25 * (f1 / f2) ** 4 + (f1 / f2) ** 3 + 0.5 * (f1 / f2) ** 2)
         qZ = 1.96
         try:
-            C = np.exp(qZ * np.sqrt(np.log(1 + variance/(nhat - n)**2)))
+            C = np.exp(qZ * np.sqrt(np.log(1 + variance / (nhat - n) ** 2)))
             inf_cl = n + (nhat - n) / C
             sup_cl = n + (nhat - n) * C
         except ZeroDivisionError:
             inf_cl = float("nan")
-            sup_cl = float("nan")       
+            sup_cl = float("nan")
         return Estimate(nhat, inf_cl, sup_cl)
 
     def calculate_abundance(
@@ -118,6 +124,30 @@ class FastChaoEstimator(AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, K
         fstats = self.get_fstats(estimator, label)
         self.est = self.chao(fstats)
         return self.est
+
+
+class FastChao1989Estimator(
+    FastChaoEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
+    def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
+        f1 = len(fstats[1])
+        f2 = len(fstats[2])
+        t = max(fstats.keys())
+        if f2 == 0:
+            return Estimate.empty()
+        n = sum(map(len, fstats.values()))
+        nhat = n + ((t - 1) * (f1**2)) / (2 * t * f2)
+        variance = f2 * (0.25 * (f1 / f2) ** 4 + (f1 / f2) ** 3 + 0.5 * (f1 / f2) ** 2)
+        qZ = 1.96
+        try:
+            C = np.exp(qZ * np.sqrt(np.log(1 + variance / (nhat - n) ** 2)))
+            inf_cl = n + (nhat - n) / C
+            sup_cl = n + (nhat - n) * C
+        except ZeroDivisionError:
+            inf_cl = float("nan")
+            sup_cl = float("nan")
+        return Estimate(nhat, inf_cl, sup_cl)
+
 
 class ChaoEstimator(
     AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]

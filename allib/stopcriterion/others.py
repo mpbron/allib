@@ -3,7 +3,7 @@ from ..analysis.base import AbstractStatistics, StatsMixin, AnnotationStatistics
 from ..activelearning.base import ActiveLearner
 from ..typehints.typevars import KT, LT
 from .base import AbstractStopCriterion
-from scipy.stats import hypergeom
+from scipy.stats import hypergeom  # type: ignore
 import numpy as np
 import numpy.typing as npt
 import instancelib as il
@@ -42,6 +42,7 @@ class KneeStoppingRule(StatsStoppingCriterion[KT, LT]):
                *Proceedings of the 39th International ACM SIGIR conference on Research and Development in Information Retrieval.* 2016.
                `<https://dl.acm.org/doi/10.1145/2911451.2911510>`__
     """
+
     @property
     def rho(self) -> float:
         pos_per_round = np.array(self.stats.label_per_round(self.pos_label))
@@ -50,11 +51,9 @@ class KneeStoppingRule(StatsStoppingCriterion[KT, LT]):
         L = annotated_per_round.cumsum()
         rho_s = -1
         for i in range(self.stats.rounds):
-            rho = (Lp[i] / L[-1]) * (
-                (L[-1] - L[i]) / (1 + Lp[-1] - Lp[i])
-            )
+            rho = (Lp[i] / L[-1]) * ((L[-1] - L[i]) / (1 + Lp[-1] - Lp[i]))
             rho_s = max(rho_s, rho)
-        return rho_s     
+        return rho_s
 
     @property
     def stop_criterion(self) -> bool:
@@ -75,10 +74,10 @@ class BudgetStoppingRule(KneeStoppingRule[KT, LT], Generic[KT, LT]):
                *Proceedings of the 39th International ACM SIGIR conference on Research and Development in Information Retrieval.* 2016.
                `<https://dl.acm.org/doi/10.1145/2911451.2911510>`__
     """
+
     def __init__(self, pos_label: LT, target_size: int = 10) -> None:
         super().__init__(pos_label)
         self.target_size = target_size
-
 
     @property
     def stop_criterion(self) -> bool:
@@ -88,9 +87,11 @@ class BudgetStoppingRule(KneeStoppingRule[KT, LT], Generic[KT, LT]):
         pos_per_round = np.array(self.stats.label_per_round(self.pos_label))
         Lp = pos_per_round.cumsum()
         n_docs = self.stats.dataset_size
-        condition_one = (self.stats.current_annotated >= n_docs * 0.75)
+        condition_one = self.stats.current_annotated >= n_docs * 0.75
         condition_two_a = self.rho >= 6
-        condition_two_b = self.stats.current_annotated >= self.target_size * (n_docs / Lp[-1])
+        condition_two_b = self.stats.current_annotated >= self.target_size * (
+            n_docs / Lp[-1]
+        )
         return condition_one or (condition_two_a and condition_two_b)
 
 

@@ -29,6 +29,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
     stop_interval: Mapping[str, int]
     stopping_criteria: Mapping[str, AbstractStopCriterion[LT]]
     estimators: Mapping[str, AbstractEstimator[IT, KT, DT, VT, RT, LT]]
+    stop_tracker: Dict[str, bool]
 
     def __init__(
         self,
@@ -62,6 +63,7 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
         self.estimation_tracker: Dict[str, Estimate] = dict()
         self.iteration_hooks = iteration_hooks
         self.estimator_hooks = estimator_hooks
+        self.stop_tracker = dict()
 
         # Batch sizes
         self.batch_size = batch_size
@@ -81,12 +83,12 @@ class ExperimentIterator(Generic[IT, KT, DT, VT, RT, LT]):
             self.learner.update_ordering()
 
     def determine_stop(self) -> Mapping[str, bool]:
-        result: Dict[str, bool] = dict()
         for k, crit in self.stopping_criteria.items():
             if self.it % self.stop_interval[k] == 0:
-                crit.update(self.learner)
-            result[k] = crit.stop_criterion
-        return result
+                if k not in self.stop_tracker or not self.stop_tracker[k]:
+                    crit.update(self.learner)
+                    self.stop_tracker[k] = crit.stop_criterion
+        return dict(self.stop_tracker)
 
     def _estimate_recall(self) -> Mapping[str, Estimate]:
         for k, estimator in self.estimators.items():
