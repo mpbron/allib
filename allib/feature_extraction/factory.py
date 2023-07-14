@@ -7,8 +7,8 @@ from .base import SeparateContextVectorizer, StackVectorizer
 from .catalog import FECatalog as FE
 #from .contextinstance import ContextVectorizer
 from .doc2vec import Doc2VecVectorizer
-from .textinstance import TextInstanceVectorizer
 from .textsklearn import SklearnVectorizer
+from .abstracts import CombinedVectorizer
 
 
 class FeatureExtractorBuilder(AbstractBuilder):
@@ -22,7 +22,7 @@ class VectorizerBuilder(AbstractBuilder):
 class TextInstanceVectorizerBuilder(AbstractBuilder):
     def __call__(self, **kwargs):
         vectorizer = self._factory.create(Component.VECTORIZER, **kwargs)
-        return TextInstanceVectorizer(vectorizer)
+        return CombinedVectorizer(vectorizer)
 
 # class ContextInstanceVectorizerBuilder(AbstractBuilder):
 #     def __call__(self, **kwargs):

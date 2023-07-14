@@ -11,7 +11,8 @@ from instancelib import TextInstance
 from instancelib.ingest.spreadsheet import read_csv_dataset
 from instancelib.typehints.typevars import KT, LT
 
-from allib.activelearning.base import ActiveLearner
+from ..environment.abstracts import PaperAbstractEnvironment
+from ..activelearning.base import ActiveLearner
 from ..typehints.typevars import IT
 
 from ..analysis.experiments import ExperimentIterator
@@ -23,7 +24,9 @@ from ..environment.memory import MemoryEnvironment
 from ..estimation.base import AbstractEstimator
 from ..module.factory import MainFactory
 from ..stopcriterion.base import AbstractStopCriterion
-from ..utils.func import list_unzip3
+from ..instances.abstracts import PaperAbstractInstance
+
+import yaml
 
 POS = "Relevant"
 NEG = "Irrelevant"
@@ -80,6 +83,52 @@ def read_review_dataset(
             rng = np.random.default_rng(42)
         env = env.shuffle(env, rng=rng)
     al_env = MemoryEnvironment.from_instancelib_simulation(env)
+    return al_env  # type: ignore
+
+def read_metadata(metadata_file: Path) -> Mapping[str, Any]:
+    if metadata_file.exists():
+        with metadata_file.open() as fh:
+            metadata = yaml.safe_load(fh)
+        return metadata
+    return dict()
+
+def read_review_dataset_new(
+    path: Path,
+    pos_label: LT,
+    neg_label: LT,
+    rng: Optional[np.random.Generator] = None
+) -> AbstractEnvironment[
+    PaperAbstractInstance[int, Any],
+    Union[int, UUID],
+    Mapping[str, str],
+    Any,
+    str,
+    LT,
+]:
+    """Convert a CSV file with a Systematic Review dataset to a MemoryEnvironment.
+
+    Parameters
+    ----------
+    path : Path
+        The path to the CSV file
+
+    Returns
+    -------
+    MemoryEnvironment[int, str, npt.NDArray[Any], str]
+        A MemoryEnvironment. The labels that
+    """
+    df = pd.read_csv(path)
+    metadata_file = path.parent / f"{path.stem}.yaml"
+    metadata = read_metadata(metadata_file)
+    if "label_included" in df.columns:
+        env = PaperAbstractEnvironment.from_pandas(df, "title", "abstract", "label_included", pos_label, neg_label)
+    else:
+        env = PaperAbstractEnvironment.from_pandas(df, "title", "abstract", "included", pos_label, neg_label)
+    if isinstance(env, il.TextEnvironment):
+        if rng is None:
+            rng = np.random.default_rng(42)
+        env = env.shuffle(env, rng=rng)
+    al_env = MemoryEnvironment.from_instancelib_simulation(env, metadata=metadata)
     return al_env  # type: ignore
 
 

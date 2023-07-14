@@ -27,10 +27,10 @@ class TextInstanceVectorizer(BaseVectorizer[Instance[Any, str, npt.NDArray[Any],
         self.innermodel.fit(texts)
         return self
 
-    def transform(self, x_data: InstanceList, **kwargs: Any) -> npt.NDArray[Any][Any]:
+    def transform(self, x_data: InstanceList, **kwargs: Any) -> npt.NDArray[Any]:
         texts = [x.data for x in x_data]
         return self.innermodel.transform(texts) # type: ignore
 
-    def fit_transform(self, x_data: InstanceList, **kwargs: Any) -> npt.NDArray[Any][Any]:
+    def fit_transform(self, x_data: InstanceList, **kwargs: Any) -> npt.NDArray[Any]:
         texts = [x.data for x in x_data]
         return self.innermodel.fit_transform(texts) # type: ignore

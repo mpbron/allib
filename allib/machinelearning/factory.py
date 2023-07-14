@@ -35,7 +35,7 @@ class BinaryTARBuilder(AbstractBuilder):
         feature_extraction: Mapping[str, Any],
         model_configuration: Mapping[str, Any],
         balancer: Mapping[str, Any],
-        vectorstorage=SparseVectorStorage(),
+        vectorstorage=SparseVectorStorage,
         storage_location=None,
         filename=None,
         **kwargs

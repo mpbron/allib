@@ -307,3 +307,44 @@ class AutoTarLearner(
             self.batch_size += ceil(self.batch_size / 10)
             self.it += 1
         return self.current_sample
+
+
+    @classmethod
+    def builder(
+        cls,
+        classifier_builder: Callable[
+            [AbstractEnvironment[IT, KT, DT, VT, RT, LT]],
+            il.AbstractClassifier[
+                IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]
+            ],
+        ],
+        k_sample: int,
+        batch_size: int,
+        chunk_size: int = 2000,
+        identifier: Optional[str] = None,
+    ) -> Callable[..., Self]:
+        def builder_func(
+            env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+            pos_label: LT,
+            neg_label: LT,
+            *_,
+            identifier: Optional[str] = identifier,
+            **__,
+        ):
+            if "inclusion_criteria" in env.metadata:
+                pseudo_article = {"title": "", "abstract": env.metadata["inclusion_criteria"]}
+                ins = env.create(data=pseudo_article, vector=None)
+                env.create_named_provider(PSEUDO_INS_PROVIDER, [ins.identifier])
+            classifier = classifier_builder(env)
+            return cls(
+                env,
+                classifier,
+                pos_label,
+                neg_label,
+                k_sample,
+                batch_size,
+                chunk_size=chunk_size,
+                identifier=identifier,
+            )
+
+        return builder_func

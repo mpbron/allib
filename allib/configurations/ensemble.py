@@ -432,6 +432,65 @@ def chao_ensemble(
         ],
     }
 
+def chao_ensemble2(
+    batch_size: int,
+    tf_idf: Mapping[str, Any] = tf_idf_autotar,
+    method=Cat.AL.CustomMethods.BINARYTAR,
+) -> Mapping[str, Any]:
+    return {
+        "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+        "learners": [
+            add_identifier(
+                sk_btar(NB, batch_size, tf_idf, DOUBLEBALANCER, method=method),
+                "NaiveBayes",
+            ),
+            add_identifier(
+                sk_btar(RF, batch_size, tf_idf, DOUBLEBALANCER, method=method),
+                "RandomForest",
+            ),
+            add_identifier(
+                sk_btar(LGBM, batch_size, tf_idf, DOUBLEBALANCER, method=method), "LGBM"
+            ),
+            add_identifier(
+                sk_btar(LR, batch_size, tf_idf, DOUBLEBALANCER, method=method),
+                "LogisticRegression",
+            ),
+            add_identifier(
+                sk_btar(LR, batch_size, tf_idf, DOUBLEBALANCER, method=method),
+                "LogisticRegression2",
+            ),
+        ],
+    }
+
+def chao_ensemble_same(
+    batch_size: int,
+    tf_idf: Mapping[str, Any] = tf_idf_autotar,
+    clf: Mapping[str, Any] = LR,
+    name: str = "CLF",
+    method=Cat.AL.CustomMethods.BINARYTAR,
+) -> Mapping[str, Any]:
+    return {
+        "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+        "learners": [
+            add_identifier(
+                sk_btar(clf, batch_size, tf_idf, DOUBLEBALANCER, method=method),
+                f"{name}_{i}",
+            )
+            for i in range(1,6)]
+        }
+
+def chao_ensemble_same_random(
+    batch_size: int,
+    tf_idf: Mapping[str, Any] = tf_idf_autotar,
+    method=Cat.AL.CustomMethods.BINARYTAR,
+) -> Mapping[str, Any]:
+    return {
+        "paradigm": Cat.AL.Paradigm.ESTIMATOR,
+        "learners": [
+            set_batch_size(add_identifier(al_config_random, f"Random_{i}"), batch_size)
+            for i in range(1,6)]
+        }
+
 
 def chao_ensemble_prior(
     batch_size: int,

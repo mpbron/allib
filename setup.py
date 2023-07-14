@@ -55,6 +55,9 @@ setuptools.setup(  # type: ignore
         "typing_extensions>=4.4.0",
         "pylatex",
         "scienceplots",
+        "seaborn",
+        "lenses",
+        "pyyaml"
     ],
     extras_require={"doc2vec": ["gensim"]},
 )

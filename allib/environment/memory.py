@@ -8,6 +8,7 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
+    Mapping,
     MutableMapping,
     Sequence,
     Tuple,
@@ -48,6 +49,7 @@ class AbstractMemoryEnvironment(
     _truth: LabelProvider[KT, LT]
     _logger: BaseLogger[KT, LT, Any]
     _named_providers: MutableMapping[str, InstanceProvider[IT, KT, DT, VT, RT]]
+    _metadata: Mapping[str, Any]
 
     def __contains__(self, __o: object) -> bool:
         return __o in self._named_providers
@@ -111,6 +113,10 @@ class AbstractMemoryEnvironment(
     ) -> InstanceProvider[IT, KT, DT, VT, RT]:
         self._named_providers[name] = self.create_bucket(keys)
         return self._named_providers[name]
+    
+    @property
+    def metadata(self) -> Mapping[str, Any]:
+        return self._metadata
 
 
 class MemoryEnvironment(
@@ -126,6 +132,7 @@ class MemoryEnvironment(
         labelprovider: LabelProvider[KT, LT],
         logger: BaseLogger[KT, LT, Any],
         truth: LabelProvider[KT, LT],
+        metadata: Mapping[str, Any] = dict()
     ):
         self._dataset = dataset
         self._unlabeled = unlabeled
@@ -135,6 +142,7 @@ class MemoryEnvironment(
         self._logger = logger
         self._truth = truth
         self._public_dataset = public_dataset
+        self._metadata = metadata
 
     @classmethod
     def from_environment(
@@ -233,7 +241,8 @@ class MemoryEnvironment(
 
     @classmethod
     def from_instancelib_simulation(
-        cls, environment: il.AbstractEnvironment[IT, KT, DT, VT, RT, LT]
+        cls, environment: il.AbstractEnvironment[IT, KT, DT, VT, RT, LT], 
+        metadata: Mapping[str, Any] = dict()
     ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
         dataset = environment.all_instances
         unlabeled = MemoryBucketProvider(dataset, dataset.key_list)
@@ -257,6 +266,7 @@ class MemoryEnvironment(
             labels,
             logger,
             truth,
+            metadata = metadata
         )
 
     @classmethod

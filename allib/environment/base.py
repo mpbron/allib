@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, Iterable, TypeVar, Any
+from typing import Generic, Iterable, Mapping, TypeVar, Any
 from abc import ABC, abstractmethod, abstractclassmethod
 from ..history import BaseLogger
 from instancelib import InstanceProvider, Instance
@@ -9,7 +9,7 @@ from instancelib.labels import LabelProvider
 
 import instancelib as ins
 
-IT = TypeVar("IT", bound="Instance[Any, Any, Any, Any]", covariant=True)
+IT = TypeVar("IT", bound="Instance[Any, Any, Any, Any]")
 
 
 class AbstractEnvironment(
@@ -92,4 +92,9 @@ class AbstractEnvironment(
         AbstractEnvironment[KT, DT, VT, RT, LT]
             A new independent with the same state
         """
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def metadata(self) -> Mapping[str, Any]:
         raise NotImplementedError

@@ -130,7 +130,7 @@ def fill_training(src_idx: npt.NDArray[Any], n_train: int, rng: np.random.Genera
     """Copy/sample until there are n_train indices sampled/copied.
     """
     # Number of copies needed.
-    n_copy = np.int(n_train / len(src_idx)) # type: ignore
+    n_copy = int(n_train / len(src_idx)) # type: ignore
     # For the remainder, use sampling.
     n_sample = n_train - n_copy * len(src_idx)
 

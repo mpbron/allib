@@ -53,11 +53,15 @@ from .catalog import (
     StopBuilderConfiguration,
 )
 from .ensemble import (
+    LGBM,
     al_config_ensemble_prob,
     al_config_entropy,
     autotar_ensemble,
     chao_ensemble,
+    chao_ensemble2,
+    chao_ensemble_same,
     chao_ensemble_prior,
+    chao_ensemble_same_random,
     naive_bayes_estimator,
     rasch_estimator,
     rasch_lr,
@@ -94,6 +98,9 @@ AL_REPOSITORY = {
     ALConfiguration.CHAO_AT_ENSEMBLE: autotar_ensemble,
     ALConfiguration.CHAO_IB_ENSEMBLE: chao_ensemble(
         1, method=Cat.AL.CustomMethods.INCREASING_BATCH
+    ),
+    ALConfiguration.CHAO_SAME: chao_ensemble_same(
+        1, method=Cat.AL.CustomMethods.INCREASING_BATCH, clf=LGBM
     ),
     ALConfiguration.TARGET: targetmethod(),
     ALConfiguration.PRIOR: chao_ensemble_prior(
@@ -348,6 +355,15 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ),
     ExperimentCombination.CHAO_IB: TarExperimentParameters(
         ALConfiguration.CHAO_IB_ENSEMBLE,
+        None,
+        SeededEnsembleInitializer.builder(1),
+        (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.CHAO_SAME: TarExperimentParameters(
+        ALConfiguration.CHAO_SAME,
         None,
         SeededEnsembleInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),

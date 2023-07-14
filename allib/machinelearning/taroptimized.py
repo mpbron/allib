@@ -3,6 +3,7 @@ import logging
 from os import PathLike
 from typing import (
     Any,
+    Callable,
     FrozenSet,
     Generic,
     Iterable,
@@ -250,7 +251,6 @@ class ALSklearn(
             itertools.chain.from_iterable(provider.instance_chunker(chunk_size))
         )
         vectorizer.fit(instances)
-        matrix = vectorizer.transform(instances)
         total_it = math.ceil(len(instances) / chunk_size)
         chunks = divide_iterable_in_lists(instances, chunk_size)
         for instance_chunk in tqdm(chunks, total=total_it):
@@ -265,7 +265,7 @@ class ALSklearn(
         estimator: Union[ClassifierMixin, Pipeline],
         env: il.Environment[IT, KT, DT, VT, Any, LT],
         vectorizer: il.BaseVectorizer[IT],
-        vectorstorage: VectorStorage[KT, npt.NDArray[DType], npt.NDArray[DType]],
+        vectorstorage_builder: Callable[[],VectorStorage[KT, npt.NDArray[DType], npt.NDArray[DType]]],
         balancer: BaseBalancer = IdentityBalancer(),
         chunk_size: int = 2000,
         storage_location: "Optional[PathLike[str]]" = None,
@@ -292,7 +292,7 @@ class ALSklearn(
         """
         sklearn_encoder: TransformerMixin = SKLabelEncoder()
         il_encoder = SklearnLabelEncoder(sklearn_encoder, env.labels.labelset)
-        vectorstorage = cls.vectorize(env, vectorizer, vectorstorage, chunk_size)
+        vectorstorage = cls.vectorize(env, vectorizer, vectorstorage_builder(), chunk_size)
         return cls(
             estimator,
             il_encoder,
