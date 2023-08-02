@@ -20,20 +20,14 @@ from instancelib import Instance
 from instancelib.typehints.typevars import LMT, PMT
 
 from ..activelearning.insclass import ILMLBased
-from ..environment.base import IT, AbstractEnvironment
+from ..environment.base import AbstractEnvironment
 from ..machinelearning import AbstractClassifier
 from ..utils import get_random_generator
 from .base import ActiveLearner
 from .ml_based import MLBased
 from .poolbased import PoolBasedAL
 
-DT = TypeVar("DT")
-VT = TypeVar("VT")
-KT = TypeVar("KT")
-LT = TypeVar("LT")
-RT = TypeVar("RT")
-LVT = TypeVar("LVT")
-PVT = TypeVar("PVT")
+from ..typehints.typevars import IT, KT, DT, VT, RT, LT, LVT, PVT
 
 LOGGER = logging.getLogger(__name__)
 
@@ -95,9 +89,7 @@ class ManualEnsemble(
     def __init__(
         self,
         env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
-        learners: Sequence[
-            ActiveLearner[IT, KT, DT, VT, RT, LT],
-        ],
+        learners: Sequence[ActiveLearner[IT, KT, DT, VT, RT, LT],],
         probabilities: Sequence[float],
         rng: Any = None,
         *_,
@@ -173,7 +165,6 @@ class ManualEnsemble(
         def wrap_func(
             env: AbstractEnvironment[IT, KT, DT, VT, RT, LT], *args, **kwargs
         ):
-
             learners = [
                 builder(env.from_environment(env), *args, **kwargs)
                 for builder in learner_builders
@@ -194,9 +185,7 @@ class StrategyEnsemble(
         self,
         env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         classifier: AbstractClassifier[KT, VT, LT, LVT, PVT],
-        learners: Sequence[
-            ActiveLearner[IT, KT, DT, VT, RT, LT],
-        ],
+        learners: Sequence[ActiveLearner[IT, KT, DT, VT, RT, LT],],
         fallback: ActiveLearner[IT, KT, DT, VT, RT, LT],
         probabilities: Sequence[float],
         rng: Any = None,
@@ -245,9 +234,7 @@ class ILStrategyEnsemble(
         self,
         env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         classifier: il.AbstractClassifier[IT, KT, DT, VT, RT, LT, LMT, PMT],
-        learners: Sequence[
-            ActiveLearner[IT, KT, DT, VT, RT, LT],
-        ],
+        learners: Sequence[ActiveLearner[IT, KT, DT, VT, RT, LT],],
         fallback: ActiveLearner[IT, KT, DT, VT, RT, LT],
         probabilities: Sequence[float],
         rng: Any = None,

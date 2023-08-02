@@ -40,7 +40,6 @@ from typing_extensions import Self
 class AbstractMemoryEnvironment(
     AbstractEnvironment[IT, KT, DT, VT, RT, LT], ABC, Generic[IT, KT, DT, VT, RT, LT]
 ):
-
     _public_dataset: InstanceProvider[IT, KT, DT, VT, RT]
     _dataset: InstanceProvider[IT, KT, DT, VT, RT]
     _unlabeled: InstanceProvider[IT, KT, DT, VT, RT]
@@ -113,7 +112,7 @@ class AbstractMemoryEnvironment(
     ) -> InstanceProvider[IT, KT, DT, VT, RT]:
         self._named_providers[name] = self.create_bucket(keys)
         return self._named_providers[name]
-    
+
     @property
     def metadata(self) -> Mapping[str, Any]:
         return self._metadata
@@ -132,7 +131,7 @@ class MemoryEnvironment(
         labelprovider: LabelProvider[KT, LT],
         logger: BaseLogger[KT, LT, Any],
         truth: LabelProvider[KT, LT],
-        metadata: Mapping[str, Any] = dict()
+        metadata: Mapping[str, Any] = dict(),
     ):
         self._dataset = dataset
         self._unlabeled = unlabeled
@@ -168,6 +167,7 @@ class MemoryEnvironment(
             for key, prov in environment.items()
         }
         public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        metadata = dict(environment.metadata)
         return cls(
             dataset,
             unlabeled,
@@ -177,6 +177,7 @@ class MemoryEnvironment(
             labels,
             logger,
             truth,
+            metadata,
         )
 
     @classmethod
@@ -241,8 +242,9 @@ class MemoryEnvironment(
 
     @classmethod
     def from_instancelib_simulation(
-        cls, environment: il.AbstractEnvironment[IT, KT, DT, VT, RT, LT], 
-        metadata: Mapping[str, Any] = dict()
+        cls,
+        environment: il.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+        metadata: Mapping[str, Any] = dict(),
     ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
         dataset = environment.all_instances
         unlabeled = MemoryBucketProvider(dataset, dataset.key_list)
@@ -266,7 +268,7 @@ class MemoryEnvironment(
             labels,
             logger,
             truth,
-            metadata = metadata
+            metadata=metadata,
         )
 
     @classmethod
@@ -278,7 +280,7 @@ class MemoryEnvironment(
         dataset = environment.all_instances
         unlabeled = MemoryBucketProvider(dataset, train_set.key_list)
         labeled = MemoryBucketProvider(dataset, [])
-        
+
         labels = MemoryLabelProvider[KT, LT].from_data(
             environment.labels.labelset, [], []
         )
@@ -299,29 +301,35 @@ class MemoryEnvironment(
             logger,
             truth,
         )
-        
+
     @classmethod
-    def create_part(cls, environment: Self, unlabeled: FrozenSet[KT], labeled: FrozenSet[KT]) -> Self:
-            labels = MemoryLabelProvider[KT, LT].from_data(
+    def create_part(
+        cls, environment: Self, unlabeled: FrozenSet[KT], labeled: FrozenSet[KT]
+    ) -> Self:
+        labels = MemoryLabelProvider[KT, LT].from_data(
             environment.labels.labelset, [], []
-            )
-            unl_prov = MemoryBucketProvider(environment.all_instances, unlabeled)
-            dts_prov = MemoryBucketProvider(environment.all_instances, union(unlabeled, labeled))
-            lbl_prov = MemoryBucketProvider(environment.all_instances, labeled)
-            return cls(environment.all_instances,
-                unl_prov,
-                lbl_prov,
-                {},
-                dts_prov,
-                labels,
-                MemoryLogger(labels),
-                environment.truth,
-            )
-        
+        )
+        unl_prov = MemoryBucketProvider(environment.all_instances, unlabeled)
+        dts_prov = MemoryBucketProvider(
+            environment.all_instances, union(unlabeled, labeled)
+        )
+        lbl_prov = MemoryBucketProvider(environment.all_instances, labeled)
+        return cls(
+            environment.all_instances,
+            unl_prov,
+            lbl_prov,
+            {},
+            dts_prov,
+            labels,
+            MemoryLogger(labels),
+            environment.truth,
+        )
+
     @classmethod
-    def divide_in_parts(cls, environment: Self, parts: Sequence[Tuple[FrozenSet[KT], FrozenSet[KT]]]) -> Sequence[Self]:
-        return [cls.create_part(environment, unl, lbl) for unl, lbl in parts]            
-        
+    def divide_in_parts(
+        cls, environment: Self, parts: Sequence[Tuple[FrozenSet[KT], FrozenSet[KT]]]
+    ) -> Sequence[Self]:
+        return [cls.create_part(environment, unl, lbl) for unl, lbl in parts]
 
 
 class DataPointEnvironment(

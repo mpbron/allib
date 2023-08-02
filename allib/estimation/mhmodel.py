@@ -100,26 +100,28 @@ class FastChaoEstimator(
             fstats_mut[f].add(ins_key)
         fstats = value_map(frozenset, fstats_mut)
         return fstats
-    
+
     def mk(self, fstats: Mapping[int, FrozenSet], k: int) -> float:
-        assert k+1 in fstats
-        fkp1 = fstats[k+1]
-        f1 = fstats[1]
-        return math.factorial(k+1) * (fkp1 / f1)
+        assert k + 1 in fstats
+        fkp1 = len(fstats[k + 1])
+        f1 = len(fstats[1])
+        return math.factorial(k + 1) * (fkp1 / f1)
 
     def n1(self, fstats: Mapping[int, FrozenSet[KT]]) -> Optional[float]:
-        f1 = len(fstats[1])
-        f2 = len(fstats[2])
-        t = max(fstats.keys())
-        m1 = self.mk(fstats, 1)
-        m2 = self.mk(fstats, 2)
-        n = sum(map(len, fstats.values()))
-        if t ** 2 > t * m1 and t * m1 > m2 and m2 > m1 ** 2:
-            nhat = n + ((f1**2) / (2 * f2)) * ((1 - m1 / t)/(1 - m2/(t*m2)))
-            return nhat
-        return None 
+        try:
+            f1 = len(fstats[1])
+            f2 = len(fstats[2])
+            t = max(fstats.keys())
+            m1 = self.mk(fstats, 1)
+            m2 = self.mk(fstats, 2)
+            n = sum(map(len, fstats.values()))
+            if t**2 > t * m1 and t * m1 > m2 and m2 > m1**2:
+                nhat = n + ((f1**2) / (2 * f2)) * ((1 - m1 / t) / (1 - m2 / (t * m2)))
+                return nhat
+        except ZeroDivisionError:
+            pass
+        return None
 
-    
     def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
         f1 = len(fstats[1])
         f2 = len(fstats[2])
@@ -149,14 +151,14 @@ class FastChaoEstimator(
 class FastChaoNMinEstimator(
     FastChaoEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
-    
     def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
         f1 = len(fstats[1])
         f2 = len(fstats[2])
-        if f2 == 0:
-            return Estimate.empty()
         n = sum(map(len, fstats.values()))
-        nhat =  n1 if (n1 := self.n1(fstats)) is not None else n + (f1**2) / (2 * f2)
+        if f2 == 0:
+            est = (f1 * (f1 - 1)) / 2
+            return Estimate(n + est, n + est, n + est)
+        nhat = n1 if (n1 := self.n1(fstats)) is not None else n + (f1**2) / (2 * f2)
         variance = f2 * (0.25 * (f1 / f2) ** 4 + (f1 / f2) ** 3 + 0.5 * (f1 / f2) ** 2)
         qZ = 1.96
         try:
@@ -167,17 +169,19 @@ class FastChaoNMinEstimator(
             inf_cl = float("nan")
             sup_cl = float("nan")
         return Estimate(nhat, inf_cl, sup_cl)
-    
+
+
 class FastChao1989Estimator(
     FastChaoEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
     def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
         f1 = len(fstats[1])
         f2 = len(fstats[2])
+        n = sum(map(len, fstats.values()))
         t = max(fstats.keys())
         if f2 == 0:
-            return Estimate.empty()
-        n = sum(map(len, fstats.values()))
+            est = (f1 * (f1 - 1)) / 2
+            return Estimate(n + est, n + est, n + est)
         nhat = n + ((t - 1) * (f1**2)) / (2 * t * f2)
         variance = f2 * (0.25 * (f1 / f2) ** 4 + (f1 / f2) ** 3 + 0.5 * (f1 / f2) ** 2)
         qZ = 1.96

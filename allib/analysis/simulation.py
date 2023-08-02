@@ -100,6 +100,9 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
     output_pdf_path: Optional[Path]
     plot_interval: int
     stop_when_found_all: bool
+    stop_when_satisified: bool
+    current_result: Mapping[str, bool]
+
 
     def __init__(
         self,
@@ -112,6 +115,7 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         plot_interval: int = 20,
         plot_enabled=True,
         stop_when_found_all=False,
+        stop_when_satisfied=False,
     ) -> None:
         self.experiment = experiment
         self.plotter = plotter
@@ -121,7 +125,10 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
         self.output_pdf_path = output_pdf_path
         self.plot_interval = plot_interval
         self.plot_enabled = plot_enabled
+        
         self.stop_when_found_all = stop_when_found_all
+        self.stop_when_satisified = stop_when_satisfied
+        self.current_result = {"dummy": False}
 
     @property
     def _debug_finished(self) -> bool:
@@ -142,6 +149,12 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
             diff = truth_pos.difference(current_pos)
             return not diff
         return False
+    
+    @property
+    def criteria_satisified(self) -> bool:
+        if self.stop_when_satisified:
+            return all(self.current_result.values())
+        return False
 
     def simulate(self) -> None:
         with tqdm(total=len(self.experiment.learner.env.dataset)) as pbar:
@@ -150,9 +163,10 @@ class TarSimulator(Generic[IT, KT, DT, VT, RT, LT]):
                 not self.experiment.finished
                 and not self._debug_finished
                 and not self.stop_all_found
+                and not self.criteria_satisified
             ):
-                result = self.experiment()
-                self.plotter.update(self.experiment, result)
+                self.current_result = self.experiment()
+                self.plotter.update(self.experiment, self.current_result)
                 pbar.update(1)
                 found = self.plotter.recall_stats[self.plotter.it].pos_docs_found
                 estimates = [

@@ -1,4 +1,4 @@
-from typing import Any, Generic, Mapping, Optional
+from typing import Any, Callable, Generic, Mapping, Optional
 from ..analysis.base import AbstractStatistics, StatsMixin, AnnotationStatisticsSlim
 from ..activelearning.base import ActiveLearner
 from ..typehints.typevars import KT, LT
@@ -7,6 +7,7 @@ from scipy.stats import hypergeom  # type: ignore
 import numpy as np
 import numpy.typing as npt
 import instancelib as il
+from typing_extensions import Self
 
 
 class StatsStoppingCriterion(AbstractStopCriterion[LT], Generic[KT, LT]):
@@ -33,6 +34,13 @@ class StopAfterKNegative(StatsStoppingCriterion[KT, LT]):
     def stop_criterion(self) -> bool:
         annotated_since_last_pos = self.stats.annotations_since_last(self.pos_label)
         return annotated_since_last_pos >= self.k
+
+    @classmethod
+    def builder(cls, k: int) -> Callable[[LT, LT], Self]:
+        def func(pos_label: LT, neg_label: LT) -> Self:
+            return cls(pos_label, k)
+
+        return func
 
 
 class KneeStoppingRule(StatsStoppingCriterion[KT, LT]):
@@ -81,7 +89,7 @@ class BudgetStoppingRule(KneeStoppingRule[KT, LT], Generic[KT, LT]):
 
     @property
     def stop_criterion(self) -> bool:
-        if self.stats.rounds < 1:
+        if self.stats.rounds < 1 or self.stats.current_label_count(self.pos_label) < 1:
             return False
 
         pos_per_round = np.array(self.stats.label_per_round(self.pos_label))
@@ -98,7 +106,7 @@ class BudgetStoppingRule(KneeStoppingRule[KT, LT], Generic[KT, LT]):
 class ReviewHalfStoppingRule(StatsStoppingCriterion[KT, LT]):
     @property
     def stop_criterion(self) -> bool:
-        if self.stats.rounds < 1:
+        if self.stats.rounds < 1 or self.stats.current_label_count(self.pos_label) < 1:
             return False
         return self.stats.current_annotated >= self.stats.dataset_size // 2
 
@@ -166,7 +174,7 @@ class QuantStoppingRule(StatsStoppingCriterion[KT, LT]):
             self.unknown_ps = sum([self.scores[k] for k in learner.env.unlabeled])
             self.known_ps = sum([self.scores[k] for k in learner.env.labeled])
             self.unknown_var = sum(
-                [self.scores[k] * (1 - self.scores[k]) for k in learner.env.labeled]
+                [self.scores[k] * (1 - self.scores[k]) for k in learner.env.unlabeled]
             )
             self.all_var = sum([s * (1 - s) for s in self.scores.values()])
 
@@ -192,7 +200,7 @@ class QuantStoppingRule(StatsStoppingCriterion[KT, LT]):
         return est_recall - self.nstd * np.sqrt(est_var) >= self.target_recall
 
 
-class CHMHeuristicsStoppingRule(StatsStoppingCriterion[KT, LT]):
+class CMH_HeuristicStoppingRule(StatsStoppingCriterion[KT, LT]):
     """
     .. seealso::
         .. [4] Max W. Callaghan, and Finn Müller-Hansen. "Statistical stopping criteria for automated screening in systematic reviews."

@@ -40,3 +40,4 @@ class ALCatalog:
         PRIORAUTOTAR = "PriorAUTOTAR"
         TARGET = "TARGET"
         AUTOSTOP_LARGE = "AUTOSTOP_LARGE"
+        CMH = "CMH"

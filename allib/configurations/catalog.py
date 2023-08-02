@@ -19,6 +19,7 @@ class ALConfiguration(Enum):
     AUTOSTOP = "AUTOSTOP"
     CHAO_AT_ENSEMBLE = "CHAO_AT_ENSEMBLE"
     CHAO_IB_ENSEMBLE = "CHAO_IB_ENSEMBLE"
+    CHAO_IB_ENSEMBLE_20 = "CHAO_IB_ENSEMBLE_20"
     CHAO_SAME = "CHAO_SAME"
     TARGET = "TARGET"
     PRIOR = "PRIOR"
@@ -26,6 +27,7 @@ class ALConfiguration(Enum):
     AUTOSTOP_LARGE_CONS_100 = "AUTOSTOP_LARGE_CONS_100"
     AUTOSTOP_LARGE_OPT_95 = "AUTOSTOP_LARGE_OPT_95"
     AUTOSTOP_LARGE_OPT_100 = "AUTOSTOP_LARGE_OPT_100"
+    CMH = "CMH"
 
 
 class INITConfiguration(Enum):
@@ -60,16 +62,21 @@ class StopBuilderConfiguration(str, Enum):
     AUTOSTOP = "AUTOSTOP"
     TARGET = "Target"
     LASTSEQUENCE = "LastSequence"
+    QUANT = "QUANT"
+    CMH = "CMH"
 
 
 class ExperimentCombination(str, Enum):
+    CMH = "CMH"
     CHAO = "CHAO"
     CHAO_ALT = "CHAO_ALT"
     CHAO_BOTH = "CHAO_BOTH"
     AUTOTAR = "AUTOTAR"
+    AUTOTAR_QUANT = "AUTOTAR_QUANT"
     AUTOSTOP = "AUTOSTOP"
     CHAO_AT = "CHAO_AT"
     CHAO_IB = "CHAO_IB"
+    CHAO_IB_20 = "CHAO_IB_20"
     CHAO_SAME = "CHAO_SAME"
     RCAPTURE = "RCAPTURE"
     TARGET = "TARGET"

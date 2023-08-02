@@ -2,8 +2,17 @@ from __future__ import annotations
 
 import collections
 from math import ceil
-from typing import (Any, Callable, Deque, Dict, Generic, Mapping, Optional,
-                    Sequence, Tuple)
+from typing import (
+    Any,
+    Callable,
+    Deque,
+    Dict,
+    Generic,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 from uuid import uuid4
 
 import instancelib as il
@@ -12,8 +21,7 @@ import numpy.typing as npt
 from instancelib.typehints import DT, KT, LT, RT, VT
 from typing_extensions import Self
 
-from ..analysis.base import (AbstractStatistics, AnnotationStatisticsSlim,
-                             StatsMixin)
+from ..analysis.base import AbstractStatistics, AnnotationStatisticsSlim, StatsMixin
 from ..environment.base import AbstractEnvironment
 from ..typehints import IT
 from ..utils.func import list_unzip, sort_on
@@ -21,6 +29,16 @@ from ..utils.numpy import raw_proba_chainer
 from .poolbased import PoolBasedAL
 
 PSEUDO_INS_PROVIDER = "PSEUDO_INSTANCES"
+
+
+def pseudo_from_metadata(
+    env: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
+) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
+    if "inclusion_criteria" in env.metadata:
+        pseudo_article = {"title": "", "abstract": env.metadata["inclusion_criteria"]}
+        ins = env.create(data=pseudo_article, vector=None)
+        env.create_named_provider(PSEUDO_INS_PROVIDER, [ins.identifier])
+    return env
 
 
 class BinaryTarLearner(
@@ -159,8 +177,7 @@ class BinaryTarLearner(
                 IT, KT, DT, VT, RT, LT, npt.NDArray[Any], npt.NDArray[Any]
             ],
         ],
-        k_sample: int,
-        batch_size: int,
+        batch_size: int = 1,
         chunk_size: int = 2000,
         identifier: Optional[str] = None,
     ) -> Callable[..., Self]:
@@ -178,7 +195,6 @@ class BinaryTarLearner(
                 classifier,
                 pos_label,
                 neg_label,
-                k_sample,
                 batch_size,
                 chunk_size=chunk_size,
                 identifier=identifier,
@@ -308,7 +324,6 @@ class AutoTarLearner(
             self.it += 1
         return self.current_sample
 
-
     @classmethod
     def builder(
         cls,
@@ -321,6 +336,10 @@ class AutoTarLearner(
         k_sample: int,
         batch_size: int,
         chunk_size: int = 2000,
+        initializer: Callable[
+            [AbstractEnvironment[IT, KT, DT, VT, RT, LT]],
+            AbstractEnvironment[IT, KT, DT, VT, RT, LT],
+        ] = pseudo_from_metadata,
         identifier: Optional[str] = None,
     ) -> Callable[..., Self]:
         def builder_func(
@@ -331,10 +350,7 @@ class AutoTarLearner(
             identifier: Optional[str] = identifier,
             **__,
         ):
-            if "inclusion_criteria" in env.metadata:
-                pseudo_article = {"title": "", "abstract": env.metadata["inclusion_criteria"]}
-                ins = env.create(data=pseudo_article, vector=None)
-                env.create_named_provider(PSEUDO_INS_PROVIDER, [ins.identifier])
+            env = initializer(env)
             classifier = classifier_builder(env)
             return cls(
                 env,

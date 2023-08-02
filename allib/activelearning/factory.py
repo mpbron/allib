@@ -14,6 +14,7 @@ from ..estimation.autostop import (
 )
 from ..stopcriterion.estimation import Conservative, Optimistic
 
+from .cmh import CMHMethod
 from ..stopcriterion.heuristic import LabelCount
 
 from ..environment.base import AbstractEnvironment
@@ -280,19 +281,29 @@ class BinaryTarBuilder(AbstractBuilder):
         **kwargs,
     ):
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
-        return BinaryTarLearner.builder(classifier, batch_size, chunk_size, **kwargs)
+        return BinaryTarLearner.builder(
+            classifier_builder=classifier,
+            batch_size=batch_size,
+            chunk_size=chunk_size,
+            **kwargs,
+        )
 
 
 class IncreasingBatchBuilder(AbstractBuilder):
     def __call__(
         self,
         machinelearning: Mapping[str, Any],
-        batch_size: int,
+        batch_size: int = 1,
         chunk_size: int = 2000,
         **kwargs,
     ):
         classifier = self._factory.create(Component.CLASSIFIER, **machinelearning)
-        return IncreasingBatch.builder(classifier, batch_size, chunk_size, **kwargs)
+        return IncreasingBatch.builder(
+            classifier_builder=classifier,
+            batch_size=batch_size,
+            chunk_size=chunk_size,
+            **kwargs,
+        )
 
 
 class AutoTARBuilder(AbstractBuilder):
@@ -335,6 +346,19 @@ class TargetBuilder(AbstractBuilder):
     ):
         tarbuilder = self._factory.create(Component.ACTIVELEARNER, **tarmethod)
         builder = TargetMethod.builder(tarbuilder, nrel)  # type: ignore
+        return builder
+
+
+class CMHBuilder(AbstractBuilder):
+    def __call__(
+        self,
+        tarmethod: Mapping[str, Any],
+        target_recall: float = 0.95,
+        alpha: float = 0.05,
+        **kwargs,
+    ):
+        tarbuilder = self._factory.create(Component.ACTIVELEARNER, **tarmethod)
+        builder = CMHBuilder.builder(tarbuilder, target_recall=target_recall, alpha=alpha)  # type: ignore
         return builder
 
 
@@ -414,6 +438,7 @@ class ActiveLearningFactory(ObjectFactory):
         )
         self.register_builder(AL.CustomMethods.PRIORAUTOTAR, PriorAutoTARBuilder())
         self.register_builder(AL.CustomMethods.TARGET, TargetBuilder())
+        self.register_builder(AL.CustomMethods.CMH, CMHBuilder())
         self.register_builder(AL.CustomMethods.AUTOTAR, AutoTARBuilder())
         self.register_builder(AL.CustomMethods.BINARYTAR, BinaryTarBuilder())
         self.register_builder(

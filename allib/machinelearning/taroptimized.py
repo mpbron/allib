@@ -74,7 +74,7 @@ class ALSklearn(
         self.balancer = balancer
 
     def encode_x(
-        self, instances: Iterable[il.Instance[KT, Any, npt.NDArray[Any], Any]]
+        self, instances: Iterable[il.Instance[KT, DT, VT, Any]]
     ) -> Tuple[Sequence[KT], npt.NDArray[DType]]:
         ins_keys = [ins.identifier for ins in instances]
         or_keys, x_fm = self.vectorstorage.get_matrix(ins_keys)
@@ -82,7 +82,7 @@ class ALSklearn(
 
     def encode_xy(
         self,
-        instances: Iterable[il.Instance[KT, Any, npt.NDArray[Any], Any]],
+        instances: Iterable[il.Instance[KT, DT, VT, Any]],
         labelings: Iterable[Iterable[LT]],
     ) -> Tuple[Sequence[KT], npt.NDArray[DType], npt.NDArray[Any]]:
         ins_keys = [ins.identifier for ins in instances]
@@ -150,7 +150,7 @@ class ALSklearn(
 
     def predict_proba_provider_raw(
         self,
-        provider: il.InstanceProvider[IT, KT, Any, npt.NDArray[Any], Any],
+        provider: il.InstanceProvider[IT, KT, DT, VT, Any],
         batch_size: int = 200,
     ) -> Iterator[Tuple[Sequence[KT], npt.NDArray[Any]]]:
         matrices = self.vectorstorage.get_matrix_chunked(provider.key_list, batch_size)
@@ -163,7 +163,7 @@ class ALSklearn(
 
     def predict_provider(
         self,
-        provider: il.InstanceProvider[IT, KT, Any, npt.NDArray[Any], Any],
+        provider: il.InstanceProvider[IT, KT, DT, VT, Any],
         batch_size: int = 200,
     ) -> Sequence[Tuple[KT, FrozenSet[LT]]]:
         matrices = self.vectorstorage.get_matrix_chunked(provider.key_list, batch_size)
@@ -177,7 +177,7 @@ class ALSklearn(
 
     def fit_provider(
         self,
-        provider: il.InstanceProvider[IT, KT, Any, npt.NDArray[Any], Any],
+        provider: il.InstanceProvider[IT, KT, DT, VT, Any],
         labels: il.LabelProvider[KT, LT],
         batch_size: int = 200,
     ) -> None:
@@ -265,12 +265,14 @@ class ALSklearn(
         estimator: Union[ClassifierMixin, Pipeline],
         env: il.Environment[IT, KT, DT, VT, Any, LT],
         vectorizer: il.BaseVectorizer[IT],
-        vectorstorage_builder: Callable[[],VectorStorage[KT, npt.NDArray[DType], npt.NDArray[DType]]],
+        vectorstorage_builder: Callable[
+            [], VectorStorage[KT, npt.NDArray[DType], npt.NDArray[DType]]
+        ],
         balancer: BaseBalancer = IdentityBalancer(),
         chunk_size: int = 2000,
         storage_location: "Optional[PathLike[str]]" = None,
         filename: "Optional[PathLike[str]]" = None,
-    ) -> SkLearnClassifier[IT, KT, DT, VT, LT]:
+    ) -> Self:
         """Construct a Sklearn model from an :class:`~instancelib.Environment`.
         The estimator is a classifier for a binary or multiclass classification problem.
 
@@ -292,7 +294,9 @@ class ALSklearn(
         """
         sklearn_encoder: TransformerMixin = SKLabelEncoder()
         il_encoder = SklearnLabelEncoder(sklearn_encoder, env.labels.labelset)
-        vectorstorage = cls.vectorize(env, vectorizer, vectorstorage_builder(), chunk_size)
+        vectorstorage = cls.vectorize(
+            env, vectorizer, vectorstorage_builder(), chunk_size
+        )
         return cls(
             estimator,
             il_encoder,

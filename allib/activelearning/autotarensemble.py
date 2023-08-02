@@ -14,10 +14,10 @@ import random
 
 
 def add_doc(
-    learner: ActiveLearner[IT, KT, Any, Any, Any, LT], identifier: KT, label: LT
+    learner: ActiveLearner[IT, KT, Any, Any, Any, LT], identifier: KT, *label: LT
 ):
     doc = learner.env.dataset[identifier]
-    learner.env.labels.set_labels(doc, label)
+    learner.env.labels.set_labels(doc, *label)
     learner.set_as_labeled(doc)
 
 
@@ -27,9 +27,7 @@ class AutoTARFirstMethod(LearnerSequence[IT, KT, DT, VT, RT, LT]):
     def __init__(
         self,
         env: AbstractEnvironment[IT, KT, DT, VT, RT, LT],
-        learners: Sequence[
-            ActiveLearner[IT, KT, DT, VT, RT, LT],
-        ],
+        learners: Sequence[ActiveLearner[IT, KT, DT, VT, RT, LT],],
         stopcriteria: Sequence[AbstractStopCriterion[LT]],
         pos_label: LT,
         neg_label: LT,

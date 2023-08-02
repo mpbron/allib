@@ -4,6 +4,8 @@ from typing import Any, Callable, Generic, Mapping, Optional, Sequence, Tuple, T
 import numpy.typing as npt
 from instancelib.utils.func import flatten_dicts
 
+from ..estimation.quant import QuantEstimator
+
 from ..analysis.initialization import (
     AutoStopLargeInitializer,
     Initializer,
@@ -22,6 +24,7 @@ from ..estimation.mhmodel import (
     ChaoEstimator,
     FastChao1989Estimator,
     FastChaoEstimator,
+    FastChaoNMinEstimator,
     LogLinear,
 )
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
@@ -35,7 +38,7 @@ from ..stopcriterion.estimation import Conservative, Optimistic
 from ..stopcriterion.heuristic import AprioriRecallTarget
 from ..stopcriterion.others import (
     BudgetStoppingRule,
-    CHMHeuristicsStoppingRule,
+    CMH_HeuristicStoppingRule,
     KneeStoppingRule,
     QuantStoppingRule,
     ReviewHalfStoppingRule,
@@ -98,6 +101,9 @@ AL_REPOSITORY = {
     ALConfiguration.CHAO_AT_ENSEMBLE: autotar_ensemble,
     ALConfiguration.CHAO_IB_ENSEMBLE: chao_ensemble(
         1, method=Cat.AL.CustomMethods.INCREASING_BATCH
+    ),
+    ALConfiguration.CHAO_IB_ENSEMBLE_20: chao_ensemble(
+        20, method=Cat.AL.CustomMethods.INCREASING_BATCH
     ),
     ALConfiguration.CHAO_SAME: chao_ensemble_same(
         1, method=Cat.AL.CustomMethods.INCREASING_BATCH, clf=LGBM
@@ -241,7 +247,7 @@ def standoff_builder(
     stop400 = StopAfterKNegative(pos_label, 400)
     quants = {f"Quant_{t}": QuantStoppingRule(pos_label, t) for t in TARGETS}
     chm = {
-        f"CHM_{t}": CHMHeuristicsStoppingRule(pos_label, t, alpha=0.95) for t in TARGETS
+        f"CHM_{t}": CMH_HeuristicStoppingRule(pos_label, t, alpha=0.95) for t in TARGETS
     }
     criteria = {
         "Perfect95": recall95,
@@ -275,8 +281,13 @@ STOP_BUILDER_REPOSITORY = {
         ),
         combine_builders(
             conservative_optimistic_builder({"Chao": ChaoEstimator()}, TARGETS),
-            conservative_optimistic_builder({"ChaoFast": FastChaoEstimator()}, TARGETS),
+            conservative_optimistic_builder(
+                {"ChaoFast": FastChaoNMinEstimator()}, TARGETS
+            ),
         ),
+    ),
+    StopBuilderConfiguration.QUANT: conservative_optimistic_builder(
+        {"Quant": QuantEstimator(2.0)}, TARGETS
     ),
     StopBuilderConfiguration.CHAO_CONS_OPT_ALT: conservative_optimistic_builder(
         {"ChaoALT": ChaoAlternative()}, TARGETS
@@ -335,6 +346,15 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
         10,
         10,
     ),
+    ExperimentCombination.AUTOTAR_QUANT: TarExperimentParameters(
+        ALConfiguration.AUTOTAR,
+        None,
+        SeededRandomInitializer.builder(5),
+        (StopBuilderConfiguration.QUANT,),
+        10,
+        10,
+        10,
+    ),
     ExperimentCombination.AUTOSTOP: TarExperimentParameters(
         ALConfiguration.AUTOSTOP,
         None,
@@ -355,6 +375,15 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ),
     ExperimentCombination.CHAO_IB: TarExperimentParameters(
         ALConfiguration.CHAO_IB_ENSEMBLE,
+        None,
+        SeededEnsembleInitializer.builder(1),
+        (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.CHAO_IB_20: TarExperimentParameters(
+        ALConfiguration.CHAO_IB_ENSEMBLE_20,
         None,
         SeededEnsembleInitializer.builder(1),
         (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
@@ -430,6 +459,15 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
         None,
         AutoStopLargeInitializer.builder(5, None),
         (StopBuilderConfiguration.LASTSEQUENCE,),
+        10,
+        10,
+        10,
+    ),
+    ExperimentCombination.CMH: TarExperimentParameters(
+        ALConfiguration.CMH,
+        None,
+        TargetInitializer.builder(1),
+        (StopBuilderConfiguration.CMH,),
         10,
         10,
         10,

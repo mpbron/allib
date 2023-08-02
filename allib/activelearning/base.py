@@ -26,15 +26,9 @@ from typing import (
 )
 
 
-from ..environment.base import AbstractEnvironment, IT
+from ..environment.base import AbstractEnvironment
+from ..typehints.typevars import IT, KT, DT, VT, RT, LT
 
-DT = TypeVar("DT")
-VT = TypeVar("VT")
-KT = TypeVar("KT")
-LT = TypeVar("LT")
-RT = TypeVar("RT")
-LVT = TypeVar("LVT")
-PVT = TypeVar("PVT")
 FT = TypeVar("FT")
 F = TypeVar("F", bound=Callable[..., Any])
 

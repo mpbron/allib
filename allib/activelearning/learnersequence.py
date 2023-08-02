@@ -1,32 +1,17 @@
 from __future__ import annotations
 
 import logging
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    Optional,
-    Sequence,
-    TypeVar,
-)
-from typing_extensions import Self
+from typing import Any, Callable, Dict, Generic, Optional, Sequence, TypeVar
 
 from instancelib import Instance
+from typing_extensions import Self
 
-from ..environment.base import IT, AbstractEnvironment
-from .base import ActiveLearner
-from .poolbased import PoolBasedAL
-from .ensembles import AbstractEnsemble
+from ..environment.base import AbstractEnvironment
 from ..stopcriterion.base import AbstractStopCriterion
-
-DT = TypeVar("DT")
-VT = TypeVar("VT")
-KT = TypeVar("KT")
-LT = TypeVar("LT")
-RT = TypeVar("RT")
-LVT = TypeVar("LVT")
-PVT = TypeVar("PVT")
+from ..typehints.typevars import DT, IT, KT, LT, RT, VT
+from .base import ActiveLearner
+from .ensembles import AbstractEnsemble
+from .poolbased import PoolBasedAL
 
 LOGGER = logging.getLogger(__name__)
 

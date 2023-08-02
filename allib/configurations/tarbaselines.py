@@ -21,6 +21,7 @@ autotar = {
     "machinelearning": LR,
     "k_sample": 100,
     "batch_size": 20,
+    "initializer": lambda x: x,
 }
 
 autostop = {

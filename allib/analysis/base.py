@@ -1,7 +1,16 @@
 import collections
 from abc import ABC, abstractmethod
-from typing import (Any, Deque, FrozenSet, Generic, List, Mapping, Optional,
-                    Sequence, Tuple)
+from typing import (
+    Any,
+    Deque,
+    FrozenSet,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 import numpy as np
 from instancelib import Instance
@@ -54,11 +63,13 @@ class AbstractStatistics(ABC, Generic[KT, LT]):
         raise NotImplementedError
 
     def annotations_since_last(self, label: LT) -> int:
-        last_pos_it = max(
-            [it for it, count in enumerate(self.label_per_round(label)) if count > 0]
-        )
-        annotated_at = np.array(self.annotations_per_round).cumsum()[last_pos_it]
-        return self.current_annotated - annotated_at
+        label_enumerator = list(enumerate(self.label_per_round(label)))
+        pos_iterations = [it for it, count in label_enumerator if count > 0]
+        if pos_iterations:
+            last_pos_it = max(pos_iterations)
+            annotated_at = np.array(self.annotations_per_round).cumsum()[last_pos_it]
+            return self.current_annotated - annotated_at
+        return 0
 
 
 class StatsMixin(ABC, Generic[KT, LT]):
@@ -242,6 +253,7 @@ class AnnotationStatisticsSlim(AbstractStatistics[KT, LT]):
         self.per_round.append(current_round_new_counts)
         self.dataset.append(len(learner.env.dataset))
         self.previous_round = annotated
+
     @property
     def dataset_size(self) -> int:
         return 0 if not self.dataset else self.dataset[-1]
