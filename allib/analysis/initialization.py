@@ -18,6 +18,7 @@ from ..activelearning.autotarensemble import AutoTARFirstMethod
 from ..activelearning.base import ActiveLearner
 from ..activelearning.estimator import Estimator
 from ..activelearning.target import TargetMethod
+from ..activelearning.cmh import CMHMethod
 from ..typehints import DT, IT, KT, LT, RT, VT
 from instancelib.ingest.qrel import TrecDataset
 
@@ -227,6 +228,20 @@ class TargetInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
         if not isinstance(learner, TargetMethod):
             return super().__call__(learner)
         sublearner = learner.learners[1]
+        docs = self.get_initialization_sample(learner)
+        for doc in docs:
+            self.add_doc(sublearner, doc)
+            self.add_doc(learner, doc)
+        return learner
+
+
+class CMHInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]):
+    def __call__(
+        self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT]
+    ) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
+        if not isinstance(learner, CMHMethod):
+            return super().__call__(learner)
+        sublearner = learner.learners[0]
         docs = self.get_initialization_sample(learner)
         for doc in docs:
             self.add_doc(sublearner, doc)

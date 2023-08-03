@@ -77,6 +77,3 @@ class CMH_HeuristicMethodRuleTwoPhase(
                 super().update(learner.learners[0])
         else:
             self.stats.update(learner)
-
-    def stop_criterion(self) -> bool:
-        return super().stop_criterion

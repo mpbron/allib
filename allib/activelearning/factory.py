@@ -358,7 +358,7 @@ class CMHBuilder(AbstractBuilder):
         **kwargs,
     ):
         tarbuilder = self._factory.create(Component.ACTIVELEARNER, **tarmethod)
-        builder = CMHBuilder.builder(tarbuilder, target_recall=target_recall, alpha=alpha)  # type: ignore
+        builder = CMHMethod.builder(tarbuilder, target_recall=target_recall, alpha=alpha)  # type: ignore
         return builder
 
 

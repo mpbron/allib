@@ -432,6 +432,7 @@ def chao_ensemble(
         ],
     }
 
+
 def chao_ensemble2(
     batch_size: int,
     tf_idf: Mapping[str, Any] = tf_idf_autotar,
@@ -462,6 +463,7 @@ def chao_ensemble2(
         ],
     }
 
+
 def chao_ensemble_same(
     batch_size: int,
     tf_idf: Mapping[str, Any] = tf_idf_autotar,
@@ -476,8 +478,10 @@ def chao_ensemble_same(
                 sk_btar(clf, batch_size, tf_idf, DOUBLEBALANCER, method=method),
                 f"{name}_{i}",
             )
-            for i in range(1,6)]
-        }
+            for i in range(1, 6)
+        ],
+    }
+
 
 def chao_ensemble_same_random(
     batch_size: int,
@@ -488,8 +492,9 @@ def chao_ensemble_same_random(
         "paradigm": Cat.AL.Paradigm.ESTIMATOR,
         "learners": [
             set_batch_size(add_identifier(al_config_random, f"Random_{i}"), batch_size)
-            for i in range(1,6)]
-        }
+            for i in range(1, 6)
+        ],
+    }
 
 
 def chao_ensemble_prior(
@@ -514,6 +519,22 @@ def targetmethod(tf_idf: Mapping[str, Any] = tf_idf_autotar) -> Mapping[str, Any
         "paradigm": Cat.AL.Paradigm.CUSTOM,
         "method": Cat.AL.CustomMethods.TARGET,
         "tarmethod": autotar(tar_classifier(LR[0], LR[1], tf_idf), 100, 20),
+    }
+
+
+def cmhmethod(
+    tf_idf: Mapping[str, Any] = tf_idf_autotar,
+    target_recall=0.95,
+    alpha=0.05,
+    **kwargs: Any,
+) -> Mapping[str, Any]:
+    return {
+        "paradigm": Cat.AL.Paradigm.CUSTOM,
+        "method": Cat.AL.CustomMethods.CMH,
+        "tarmethod": autotar(tar_classifier(LR[0], LR[1], tf_idf), 100, 20),
+        "target_recall": target_recall,
+        "alpha": alpha,
+        **kwargs,
     }
 
 

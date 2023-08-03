@@ -48,7 +48,7 @@ class CMHMethod(LearnerSequence[IT, KT, DT, VT, RT, LT]):
         ):
             stop_criteria = [
                 CMH_HeuristicStoppingRule(
-                    pos_label, target_recall, alpha / 2
+                    pos_label, target_recall, 0.5
                 )  ## See figure 3 CMH
             ]
             learners = [

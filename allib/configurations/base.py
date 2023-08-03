@@ -8,6 +8,7 @@ from ..estimation.quant import QuantEstimator
 
 from ..analysis.initialization import (
     AutoStopLargeInitializer,
+    CMHInitializer,
     Initializer,
     PriorInitializer,
     RandomInitializer,
@@ -76,8 +77,10 @@ from .ensemble import (
     svm_estimator,
     targetmethod,
     tf_idf5000,
+    cmhmethod,
 )
 from .tarbaselines import autostop, autostop_large, autotar
+from ..stopcriterion.cmh import CMH_CertificationRule, CMH_HeuristicMethodRuleTwoPhase
 
 _K = TypeVar("_K")
 _T = TypeVar("_T")
@@ -124,6 +127,7 @@ AL_REPOSITORY = {
     ALConfiguration.AUTOSTOP_LARGE_OPT_100: autostop_large(
         StopCriterionCatalog.OPTIMISTIC, EstimatorCatalog.HorvitzThompson2, 1.0
     ),
+    ALConfiguration.CMH: cmhmethod(),
 }
 
 FE_REPOSITORY = {FEConfiguration.TFIDF5000: tf_idf5000}
@@ -246,8 +250,8 @@ def standoff_builder(
     stop200 = StopAfterKNegative(pos_label, 200)
     stop400 = StopAfterKNegative(pos_label, 400)
     quants = {f"Quant_{t}": QuantStoppingRule(pos_label, t) for t in TARGETS}
-    chm = {
-        f"CHM_{t}": CMH_HeuristicStoppingRule(pos_label, t, alpha=0.95) for t in TARGETS
+    cmh = {
+        f"CMH_{t}": CMH_HeuristicStoppingRule(pos_label, t, alpha=0.05) for t in TARGETS
     }
     criteria = {
         "Perfect95": recall95,
@@ -259,13 +263,30 @@ def standoff_builder(
         "Stop200": stop200,
         "Stop400": stop400,
     }
-    return dict(), {**criteria, **quants, **chm}
+    return dict(), {**criteria, **quants, **cmh}
 
 
 def target_builder(
     pos_label: LT, neg_label: LT
 ) -> Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]]:
     return dict(), {"TARGET": TargetCriterion(pos_label)}
+
+
+def cmhs(
+    pos_label: LT,
+    neg_label: LT,
+    recall_targets: Sequence[float] = TARGETS,
+    alpha: float = 0.05,
+) -> Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]]:
+    cmh_certs = {
+        f"CMH_CERT_{target}": CMH_CertificationRule(pos_label, target, alpha)
+        for target in recall_targets
+    }
+    cmh_heurs = {
+        f"CMH_HEUR_{target}": CMH_HeuristicMethodRuleTwoPhase(pos_label, target, alpha)
+        for target in recall_targets
+    }
+    return dict(), {**cmh_certs, **cmh_heurs}
 
 
 def last_seq_builder(
@@ -306,6 +327,7 @@ STOP_BUILDER_REPOSITORY = {
     ),
     StopBuilderConfiguration.TARGET: target_builder,
     StopBuilderConfiguration.LASTSEQUENCE: last_seq_builder,
+    StopBuilderConfiguration.CMH: cmhs,
 }
 
 
@@ -466,7 +488,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
     ExperimentCombination.CMH: TarExperimentParameters(
         ALConfiguration.CMH,
         None,
-        TargetInitializer.builder(1),
+        CMHInitializer.builder(5),
         (StopBuilderConfiguration.CMH,),
         10,
         10,
