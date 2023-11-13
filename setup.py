@@ -19,7 +19,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setuptools.setup(  # type: ignore
     name="python-allib",
-    version="0.4.0.0",  # NOSONAR
+    version="0.4.1.0",  # NOSONAR
     description="A typed Active Learning Library",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -57,7 +57,7 @@ setuptools.setup(  # type: ignore
         "scienceplots",
         "seaborn",
         "lenses",
-        "pyyaml"
+        "pyyaml",
     ],
     extras_require={"doc2vec": ["gensim"]},
 )
