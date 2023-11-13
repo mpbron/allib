@@ -17,7 +17,7 @@ from ..analysis.initialization import (
     SeparateInitializer,
     TargetInitializer,
 )
-from ..estimation.autostop import HorvitzThompsonVar2
+from ..estimation.autostop import HorvitzThompsonVar2, HorvitzThompsonVar1
 from ..estimation.base import AbstractEstimator
 from ..estimation.catalog import EstimatorCatalog
 from ..estimation.mhmodel import (
@@ -146,7 +146,7 @@ ESTIMATION_REPOSITORY = {
         int, str, npt.NDArray[Any], str, str
     ](),
     EstimationConfiguration.CHAO: ChaoEstimator[Any, Any, Any, Any, Any, str](),
-    EstimationConfiguration.AUTOSTOP: HorvitzThompsonVar2(),
+    EstimationConfiguration.AUTOSTOP: HorvitzThompsonVar1(),
     EstimationConfiguration.LOGLINEAR: LogLinear[Any, Any, Any, Any, Any, str](),
 }
 

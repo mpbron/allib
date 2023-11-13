@@ -6,4 +6,4 @@ from typing import Union
 def create_dir_if_not_exists(path: Union[str, Path]) -> None:
     path = Path(path)
     if not path.exists():
-       path.mkdir(parents=True)
+        path.mkdir(parents=True, exist_ok=True)

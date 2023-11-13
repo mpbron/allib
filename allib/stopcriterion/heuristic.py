@@ -7,6 +7,7 @@ from ..activelearning import ActiveLearner
 from ..analysis.analysis import process_performance
 from ..typehints import LT
 from .base import AbstractStopCriterion
+from typing_extensions import Self, Callable
 
 
 class AllDocsCriterion(AbstractStopCriterion[LT], Generic[LT]):
@@ -67,6 +68,13 @@ class SameStateCount(AbstractStopCriterion[LT], Generic[LT]):
         if len(self.pos_history) < self.same_state_count:
             return False
         return self.has_been_different and self.same_count
+    
+    @classmethod
+    def builder(cls, k: int) -> Callable[[LT, LT], Self]:
+        def builder_func(pos_label: LT, neg_label: LT) -> Self:
+            return cls(pos_label, k)
+        return builder_func
+
 
 
 class AprioriRecallTarget(AbstractStopCriterion[LT]):

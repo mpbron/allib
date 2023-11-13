@@ -166,7 +166,7 @@ class MemoryEnvironment(
             key: MemoryBucketProvider(dataset, prov.key_list)
             for key, prov in environment.items()
         }
-        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        public_dataset = MemoryBucketProvider(dataset, environment.dataset.key_list)
         metadata = dict(environment.metadata)
         return cls(
             dataset,
@@ -185,7 +185,7 @@ class MemoryEnvironment(
         cls, environment: AbstractEnvironment[IT, KT, DT, VT, RT, LT]
     ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
         dataset = environment.all_instances
-        unlabeled = MemoryBucketProvider(dataset, dataset.key_list)
+        unlabeled = MemoryBucketProvider(dataset, environment.dataset.key_list)
         labeled = MemoryBucketProvider(dataset, [])
         labels = MemoryLabelProvider[KT, LT](environment.labels.labelset, {}, {})
         logger = MemoryLogger[KT, LT, Any](labels)
@@ -194,7 +194,7 @@ class MemoryEnvironment(
             key: MemoryBucketProvider(dataset, prov.key_list)
             for key, prov in environment.items()
         }
-        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        public_dataset = MemoryBucketProvider(dataset, environment.dataset.key_list)
         return cls(
             dataset,
             unlabeled,
@@ -218,7 +218,7 @@ class MemoryEnvironment(
             )
         )
         unlabeled_docs = frozenset(dataset.key_list).difference(labeled_docs)
-        unlabeled = MemoryBucketProvider(dataset, unlabeled_docs)
+        unlabeled = MemoryBucketProvider(dataset, environment.dataset.key_list)
         labeled = MemoryBucketProvider(dataset, labeled_docs)
         labels = MemoryLabelProvider[KT, LT].from_provider(environment.labels)
         environment.labels
@@ -228,7 +228,7 @@ class MemoryEnvironment(
             key: MemoryBucketProvider(dataset, prov.key_list)
             for key, prov in environment.items()
         }
-        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        public_dataset = MemoryBucketProvider(dataset, environment.dataset.key_list)
         return cls(
             dataset,
             unlabeled,
@@ -247,7 +247,7 @@ class MemoryEnvironment(
         metadata: Mapping[str, Any] = dict(),
     ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
         dataset = environment.all_instances
-        unlabeled = MemoryBucketProvider(dataset, dataset.key_list)
+        unlabeled = MemoryBucketProvider(dataset, environment.dataset.key_list)
         labeled = MemoryBucketProvider(dataset, [])
         labels = MemoryLabelProvider[KT, LT].from_data(
             environment.labels.labelset, [], []
@@ -258,7 +258,7 @@ class MemoryEnvironment(
             key: MemoryBucketProvider(dataset, prov.key_list)
             for key, prov in environment.items()
         }
-        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        public_dataset = MemoryBucketProvider(dataset, environment.dataset.key_list)
         return cls(
             dataset,
             unlabeled,
@@ -290,7 +290,7 @@ class MemoryEnvironment(
             key: MemoryBucketProvider(dataset, prov.key_list)
             for key, prov in environment.items()
         }
-        public_dataset = MemoryBucketProvider(dataset, dataset.key_list)
+        public_dataset = MemoryBucketProvider(dataset, environment.dataset.key_list)
         return cls(
             dataset,
             unlabeled,
