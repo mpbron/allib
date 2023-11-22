@@ -7,7 +7,8 @@ from uuid import uuid4
 
 from instancelib.utils.func import list_unzip
 
-from allib.activelearning.base import ActiveLearner
+from .activelearning.base import ActiveLearner
+from .analysis.summarize import read_plot
 
 from .analysis.tarplotter import TarExperimentPlotter
 from .benchmarking.datasets import TarDataset, DatasetType
@@ -35,10 +36,7 @@ def tar_benchmark(
     enable_plots=True,
     seed: Optional[int] = None,
     max_it: Optional[int] = None
-) -> Tuple[ActiveLearner[Any, Any, Any, Any, Any, str],TarExperimentPlotter[str]]:
-    LOGGER.info(
-        f"Start Experiment on {dataset.path.stem} for topic ´{dataset.topic}´ with {exp_choice}"
-    )
+) -> Tuple[Optional[ActiveLearner[Any, Any, Any, Any, Any, str]],TarExperimentPlotter[str]]:
     exp = EXPERIMENT_REPOSITORY[exp_choice]
     # Overrride stop and estimation intervals if desired
     if stop_interval is not None:
@@ -72,11 +70,15 @@ def tar_benchmark(
     # File locations for the plotter object
     dataset_dir = target_path / dataset_name
     method_dir = dataset_dir / str(exp_choice)
+    finished_file = method_dir / f"run_{seed}.finished"
+    if finished_file.exists() and seed is not None:
+        return None, read_plot(target_path, dataset_name, exp_choice, seed)
     create_dir_if_not_exists(method_dir)
     plot_filename_pkl = method_dir / f"run_{run_id}_{seed}.pkl"
     plot_filename_pdf = method_dir / f"run_{run_id}_{seed}.pdf"
     # Load the dataset
     create_dir_if_not_exists(dataset_dir)
+    print(f"Starting simulation for method {exp_choice} on dataset {dataset_name} with seed {seed}. Run id = {run_id}")
     al, plot = benchmark(
         dataset.env,
         plot_filename_pkl,
@@ -99,4 +101,6 @@ def tar_benchmark(
         pickle.dump(plot, fh)
     if plot.it > 1:
         plot.show(filename=plot_filename_pdf)
+    if seed is not None and len(al.env.labeled) == len(al.env.dataset):
+        finished_file.touch()
     return al, plot

@@ -66,11 +66,12 @@ def _check_R():
         raise ImportError("Install rpy2 interop")
 
 
-class FastChaoEstimator(
+class Chao1987Estimator(
     AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
-    def __init__(self):
+    def __init__(self, qZ=1.96):
         self.est = Estimate.empty()
+        self.qZ = qZ
 
     def __call__(
         self, learner: ActiveLearner[IT, KT, DT, VT, RT, LT], label: LT
@@ -108,10 +109,10 @@ class FastChaoEstimator(
         return math.factorial(k + 1) * (fkp1 / f1)
 
     def n1(self, fstats: Mapping[int, FrozenSet[KT]]) -> Optional[float]:
+        f1 = len(fstats[1])
+        f2 = len(fstats[2])
+        t = max(fstats.keys())
         try:
-            f1 = len(fstats[1])
-            f2 = len(fstats[2])
-            t = max(fstats.keys())
             m1 = self.mk(fstats, 1)
             m2 = self.mk(fstats, 2)
             n = sum(map(len, fstats.values()))
@@ -122,23 +123,75 @@ class FastChaoEstimator(
             pass
         return None
 
-    def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
+    def nhat(self, fstats: Mapping[int, FrozenSet[KT]]) -> Optional[float]:
+        try:
+            f1 = len(fstats[1])
+            f2 = len(fstats[2])
+            n = sum(map(len, fstats.values()))
+            nhat = n + (f1**2) / (2 * f2)
+        except ZeroDivisionError:
+            return None
+        return nhat
+
+    def nhat_bias(self, fstats: Mapping[int, FrozenSet[KT]]) -> float:
         f1 = len(fstats[1])
         f2 = len(fstats[2])
-        if f2 == 0:
-            return Estimate.empty()
         n = sum(map(len, fstats.values()))
-        nhat = n + (f1**2) / (2 * f2)
-        variance = f2 * (0.25 * (f1 / f2) ** 4 + (f1 / f2) ** 3 + 0.5 * (f1 / f2) ** 2)
-        qZ = 1.96
+        nhat = n + ((f1 * (f1 - 1)) / (2 * (f2 + 1)))
+        return nhat
+
+    def variance(self, fstats: Mapping[int, FrozenSet[KT]]) -> Optional[float]:
         try:
-            C = np.exp(qZ * np.sqrt(np.log(1 + variance / (nhat - n) ** 2)))
-            inf_cl = n + (nhat - n) / C
-            sup_cl = n + (nhat - n) * C
+            f1 = len(fstats[1])
+            f2 = len(fstats[2])
+            variance = f2 * (
+                0.25 * (f1 / f2) ** 4 + (f1 / f2) ** 3 + 0.5 * (f1 / f2) ** 2
+            )
         except ZeroDivisionError:
+            return None
+        return variance
+
+    def variance_bias(self, fstats: Mapping[int, FrozenSet[KT]]) -> Optional[float]:
+        try:
+            f1 = len(fstats[1])
+            t = max(fstats.keys())
+            tc = ((t - 1) ** 2) / t**2
+            variance = (
+                0.25 * tc * f1 * (2 * f1 - 1) ** 2
+                + 0.5 * (f1 * (f1 - 1))
+                - 0.25 * (f1**4 / self.nhat_bias(fstats))
+            )
+        except ZeroDivisionError:
+            return None
+        return variance
+
+    def calc_ci(
+        self, n: int, nhat: float, fstats: Mapping[int, FrozenSet[KT]]
+    ) -> Estimate:
+        variance = (
+            var1
+            if (var1 := self.variance(fstats)) is not None
+            else self.variance_bias(fstats)
+        )
+        f0_hat = nhat - n
+        # if f0_hat == 0:
+        #     inf_cl = n
+        #     sup_cl = n
+        if variance is not None:
+            C: float = np.exp(self.qZ * np.sqrt(np.log(1 + variance / max(f0_hat, 0.01)**2)))
+            inf_cl = n + f0_hat / C
+            sup_cl = n + f0_hat * C
+        else:
             inf_cl = float("nan")
             sup_cl = float("nan")
         return Estimate(nhat, inf_cl, sup_cl)
+
+    def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
+        n = sum(map(len, fstats.values()))
+        nhat = self.nhat(fstats)
+        if nhat is None:
+            return Estimate.empty()
+        return self.calc_ci(n, nhat, fstats)
 
     def calculate_abundance(
         self, estimator: Estimator[Any, KT, DT, VT, RT, LT], label: LT
@@ -148,58 +201,93 @@ class FastChaoEstimator(
         return self.est
 
 
-class FastChaoNMinEstimator(
-    FastChaoEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+class BiasCorrectedEstimator(
+    Chao1987Estimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
     def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
-        f1 = len(fstats[1])
-        f2 = len(fstats[2])
         n = sum(map(len, fstats.values()))
-        if f2 == 0:
-            est = (f1 * (f1 - 1)) / 2
-            return Estimate(n + est, n + est, n + est)
-        nhat = n1 if (n1 := self.n1(fstats)) is not None else n + (f1**2) / (2 * f2)
-        variance = f2 * (0.25 * (f1 / f2) ** 4 + (f1 / f2) ** 3 + 0.5 * (f1 / f2) ** 2)
-        qZ = 1.96
-        try:
-            C = np.exp(qZ * np.sqrt(np.log(1 + variance / (nhat - n) ** 2)))
-            inf_cl = n + (nhat - n) / C
-            sup_cl = n + (nhat - n) * C
-        except ZeroDivisionError:
-            inf_cl = float("nan")
-            sup_cl = float("nan")
-        return Estimate(nhat, inf_cl, sup_cl)
+        nhat = self.nhat_bias(fstats)
+        if nhat is None:
+            return Estimate.empty()
+        return self.calc_ci(n, nhat, fstats)
 
 
-class FastChao1989Estimator(
-    FastChaoEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+class OnlyNMin(
+    Chao1987Estimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
     def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
+        n = sum(map(len, fstats.values()))
+        nhat = self.n1(fstats)
+        if nhat is None:
+            return Estimate.empty()
+        return self.calc_ci(n, nhat, fstats)
+
+
+class NMinWhenAvailable(
+    Chao1987Estimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
+    def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
+        n = sum(map(len, fstats.values()))
+        nhat = (
+            n1
+            if (n1 := self.n1(fstats)) is not None
+            else (
+                chao1987
+                if (chao1987 := self.nhat(fstats)) is not None
+                else self.nhat_bias(fstats)
+            )
+        )
+        if nhat is None:
+            return Estimate.empty()
+        return self.calc_ci(n, nhat, fstats)
+
+
+class BiasFallback(
+    Chao1987Estimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
+    def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
+        n = sum(map(len, fstats.values()))
+        nhat = (
+            chao1987
+            if (chao1987 := self.nhat(fstats)) is not None
+            else self.nhat_bias(fstats)
+        )
+        if nhat is None:
+            return Estimate.empty()
+        return self.calc_ci(n, nhat, fstats)
+
+
+class Chao1989Estimator(
+    Chao1987Estimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
+    def nhat_1989(self, fstats: Mapping[int, FrozenSet[KT]]) -> Optional[float]:
         f1 = len(fstats[1])
         f2 = len(fstats[2])
         n = sum(map(len, fstats.values()))
         t = max(fstats.keys())
-        if f2 == 0:
-            est = (f1 * (f1 - 1)) / 2
-            return Estimate(n + est, n + est, n + est)
-        nhat = n + ((t - 1) * (f1**2)) / (2 * t * f2)
-        variance = f2 * (0.25 * (f1 / f2) ** 4 + (f1 / f2) ** 3 + 0.5 * (f1 / f2) ** 2)
-        qZ = 1.96
         try:
-            C = np.exp(qZ * np.sqrt(np.log(1 + variance / (nhat - n) ** 2)))
-            inf_cl = n + (nhat - n) / C
-            sup_cl = n + (nhat - n) * C
+            nhat = n + ((t - 1) * (f1**2)) / (2 * t * f2)
         except ZeroDivisionError:
-            inf_cl = float("nan")
-            sup_cl = float("nan")
-        return Estimate(nhat, inf_cl, sup_cl)
+            return None
+        return nhat
+
+    def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
+        n = sum(map(len, fstats.values()))
+        nhat = (
+            chao1989
+            if (chao1989 := self.nhat_1989(fstats)) is not None
+            else self.nhat_bias(fstats)
+        )
+        if nhat is None:
+            return Estimate.empty()
+        return self.calc_ci(n, nhat, fstats)
 
 
-class ChaoEstimator(
+class ChaoRivestEstimator(
     AbstractEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
     r_loaded: bool
-    name = "Mh Chao Estimator"
+    name = "Chao (Rivest) Estimator"
 
     def __init__(self):
         self.matrix_history: Deque[pd.DataFrame] = collections.deque()
@@ -378,14 +466,16 @@ class ChaoEstimator(
 
 
 class ChaoAlternative(
-    ChaoEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+    ChaoRivestEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
 ):
     def __init__(self):
         super().__init__()
         self.rfunc = "get_abundance_eta"
 
 
-class LogLinear(ChaoEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
+class LogLinear(
+    ChaoRivestEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
     def __init__(self):
         super().__init__()
         self.rfunc = "get_abundance_ll"

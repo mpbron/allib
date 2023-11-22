@@ -139,7 +139,7 @@ class SeededRandomInitializer(RandomInitializer[IT, KT, LT], Generic[IT, KT, LT]
         self, learner: ActiveLearner[IT, KT, Any, Any, Any, LT], label: LT
     ) -> Sequence[KT]:
         docs = self.rng.choice(
-            list(learner.env.truth.get_instances_by_label(label)), self.sample_size  # type: ignore
+            list(learner.env.truth.get_instances_by_label(label)), self.sample_size, replace=False  # type: ignore
         )
         return docs
 
@@ -169,7 +169,7 @@ class SeededEnsembleInitializer(
         self, learner: ActiveLearner[IT, KT, Any, Any, Any, LT], label: LT, size: int
     ) -> Sequence[KT]:
         docs = self.rng.choice(
-            list(learner.env.truth.get_instances_by_label(label)), size  # type: ignore
+            list(learner.env.truth.get_instances_by_label(label)), size, replace=False  # type: ignore
         )
         return docs
 

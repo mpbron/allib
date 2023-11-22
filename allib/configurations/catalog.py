@@ -55,6 +55,7 @@ class EstimationConfiguration(str, Enum):
 
 class StopBuilderConfiguration(str, Enum):
     CHAO_CONS_OPT = "Chao_CONS_OPT"
+    CHAO_LEAN = "Chao_LEAN"
     CHAO_CONS_OPT_ALT = "Chao_CONS_OPT_ALT"
     CHAO_BOTH = "CHAOBOTH"
     RCAPTURE_ALL = "RCAPTURE_ALL"

@@ -261,6 +261,7 @@ class Conservative(AbstractStopCriterion[LT], Generic[LT]):
         calculator: AbstractEstimator[Any, Any, Any, Any, Any, LT],
         label: LT,
         target: float,
+        min_read_docs=100,
     ):
         super().__init__()
         self.label = label
@@ -268,9 +269,12 @@ class Conservative(AbstractStopCriterion[LT], Generic[LT]):
         self.estimate = None
         self.count_found = 0
         self.target = target
+        self.read_docs = 0
+        self.min_read_docs = min_read_docs
 
     def update(self, learner: ActiveLearner[Any, Any, Any, Any, Any, LT]):
         self.count_found = learner.env.labels.document_count(self.label)
+        self.read_docs = len(learner.env.labeled)
         estimate = self.get_estimate(learner)
         if estimate > len(learner.env.dataset) or estimate == float("nan"):
             self.estimate = None
@@ -293,7 +297,11 @@ class Conservative(AbstractStopCriterion[LT], Generic[LT]):
 
     @property
     def stop_criterion(self) -> bool:
-        if self.estimate is None or self.estimate < 1:
+        if (
+            self.estimate is None
+            or self.estimate < 1
+            or self.read_docs < self.min_read_docs
+        ):
             return False
         recall_estimate = self.count_found / self.estimate
         return round(recall_estimate, 2) >= self.target

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Tuple, TypeVar, Union, Optional
 from uuid import UUID
 
+import traceback
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -85,6 +86,7 @@ def read_review_dataset(
     al_env = MemoryEnvironment.from_instancelib_simulation(env)
     return al_env  # type: ignore
 
+
 def read_metadata(metadata_file: Path) -> Mapping[str, Any]:
     if metadata_file.exists():
         with metadata_file.open() as fh:
@@ -92,11 +94,9 @@ def read_metadata(metadata_file: Path) -> Mapping[str, Any]:
         return metadata
     return dict()
 
+
 def read_review_dataset_new(
-    path: Path,
-    pos_label: LT,
-    neg_label: LT,
-    rng: Optional[np.random.Generator] = None
+    path: Path, pos_label: LT, neg_label: LT, rng: Optional[np.random.Generator] = None
 ) -> AbstractEnvironment[
     PaperAbstractInstance[int, Any],
     Union[int, UUID],
@@ -121,9 +121,13 @@ def read_review_dataset_new(
     metadata_file = path.parent / f"{path.stem}.yaml"
     metadata = read_metadata(metadata_file)
     if "label_included" in df.columns:
-        env = PaperAbstractEnvironment.from_pandas(df, "title", "abstract", "label_included", pos_label, neg_label)
+        env = PaperAbstractEnvironment.from_pandas(
+            df, "title", "abstract", "label_included", pos_label, neg_label
+        )
     else:
-        env = PaperAbstractEnvironment.from_pandas(df, "title", "abstract", "included", pos_label, neg_label)
+        env = PaperAbstractEnvironment.from_pandas(
+            df, "title", "abstract", "included", pos_label, neg_label
+        )
     if isinstance(env, il.TextEnvironment):
         if rng is None:
             rng = np.random.default_rng(42)
@@ -148,10 +152,12 @@ def benchmark(
     estimation_interval: Union[int, Mapping[str, int]] = 10,
     enable_plots=True,
     seed: Optional[int] = None,
-    max_it: Optional[int] = None
-) -> Tuple[ActiveLearner[Any, Any, Any, Any, Any, str],TarExperimentPlotter[str]]:
+    max_it: Optional[int] = None,
+) -> Tuple[ActiveLearner[Any, Any, Any, Any, Any, str], TarExperimentPlotter[str]]:
     factory = MainFactory()
-    initializer = initializer_builder(pos_label=pos_label, neg_label=neg_label, seed=seed)
+    initializer = initializer_builder(
+        pos_label=pos_label, neg_label=neg_label, seed=seed
+    )
     al, _ = initialize_tar_simulation(
         factory, al_config, fe_config, initializer, env, pos_label, neg_label
     )
@@ -172,11 +178,12 @@ def benchmark(
         output_path=output_path,
         output_pdf_path=output_pdf_path,
         plot_enabled=enable_plots,
-        max_it = max_it
+        max_it=max_it,
     )
     try:
         simulator.simulate()
     except Exception as e:
+        traceback.print_exc()
         LOGGER.error("Exited with %s", e)
         pass
     return al, plotter

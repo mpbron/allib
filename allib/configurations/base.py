@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Generic, Mapping, Optional, Sequence, Tuple, TypeVar
 
 import numpy.typing as npt
-from instancelib.utils.func import flatten_dicts
+from instancelib.utils.func import flatten_dicts, list_unzip
 
 from ..estimation.quant import QuantEstimator
 
@@ -22,11 +22,14 @@ from ..estimation.base import AbstractEstimator
 from ..estimation.catalog import EstimatorCatalog
 from ..estimation.mhmodel import (
     ChaoAlternative,
-    ChaoEstimator,
-    FastChao1989Estimator,
-    FastChaoEstimator,
-    FastChaoNMinEstimator,
+    BiasFallback,
+    BiasCorrectedEstimator,
+    ChaoRivestEstimator,
+    Chao1989Estimator,
+    Chao1987Estimator,
+    NMinWhenAvailable,
     LogLinear,
+    OnlyNMin,
 )
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
 from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
@@ -145,7 +148,7 @@ ESTIMATION_REPOSITORY = {
     EstimationConfiguration.RaschApproxConvParametric: EMRaschRidgeParametricConvPython[
         int, str, npt.NDArray[Any], str, str
     ](),
-    EstimationConfiguration.CHAO: ChaoEstimator[Any, Any, Any, Any, Any, str](),
+    EstimationConfiguration.CHAO: ChaoRivestEstimator[Any, Any, Any, Any, Any, str](),
     EstimationConfiguration.AUTOSTOP: HorvitzThompsonVar1(),
     EstimationConfiguration.LOGLINEAR: LogLinear[Any, Any, Any, Any, Any, str](),
 }
@@ -204,6 +207,28 @@ def conservative_optimistic_builder(
             for target in targets
         }
         return estimators, flatten_dicts(conservatives, optimistics)
+
+    return builder
+
+
+def combine_builders_long(
+    *builders: Callable[
+        [LT, LT],
+        Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]],
+    ]
+) -> Callable[
+    [LT, LT],
+    Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]],
+]:
+    def builder(
+        pos_label: LT, neg_label: LT
+    ) -> Tuple[
+        Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]
+    ]:
+        estimators, criteria = list_unzip([bf(pos_label, neg_label) for bf in builders])
+        estimator_dict = flatten_dicts(*estimators)
+        criteria_dict = flatten_dicts(*criteria)
+        return estimator_dict, criteria_dict
 
     return builder
 
@@ -296,15 +321,29 @@ def last_seq_builder(
 
 
 STOP_BUILDER_REPOSITORY = {
-    StopBuilderConfiguration.CHAO_CONS_OPT: combine_builders(
+    StopBuilderConfiguration.CHAO_CONS_OPT: combine_builders_long(
         conservative_optimistic_builder(
-            {"ChaoFast1989": FastChao1989Estimator()}, TARGETS
+            {"Chao(Rivest)": ChaoRivestEstimator()}, TARGETS
         ),
-        combine_builders(
-            conservative_optimistic_builder({"Chao": ChaoEstimator()}, TARGETS),
-            conservative_optimistic_builder(
-                {"ChaoFast": FastChaoNMinEstimator()}, TARGETS
-            ),
+        conservative_optimistic_builder(
+            {"Chao(1987)NMIN": NMinWhenAvailable()}, TARGETS
+        ),
+        conservative_optimistic_builder({"Chao(1987)": BiasFallback()}, TARGETS),
+        conservative_optimistic_builder(
+            {"Chao(1987)STRICT": Chao1987Estimator()}, TARGETS
+        ),
+        conservative_optimistic_builder(
+            {"Chao(2005)": BiasCorrectedEstimator()}, TARGETS
+        ),
+        conservative_optimistic_builder({"Chao(1989)": Chao1989Estimator()}, TARGETS),
+        conservative_optimistic_builder({"Chao(1987)NMINONLY": OnlyNMin()}, TARGETS),
+    ),
+    StopBuilderConfiguration.CHAO_LEAN: combine_builders_long(
+        conservative_optimistic_builder(
+            {"Chao(Rivest)": ChaoRivestEstimator()}, TARGETS
+        ),
+        conservative_optimistic_builder(
+            {"Chao(1987)": BiasFallback()}, TARGETS
         ),
     ),
     StopBuilderConfiguration.QUANT: conservative_optimistic_builder(
@@ -314,11 +353,11 @@ STOP_BUILDER_REPOSITORY = {
         {"ChaoALT": ChaoAlternative()}, TARGETS
     ),
     StopBuilderConfiguration.CHAO_BOTH: combine_builders(
-        conservative_optimistic_builder({"Chao": ChaoEstimator()}, TARGETS),
+        conservative_optimistic_builder({"Chao": ChaoRivestEstimator()}, TARGETS),
         conservative_optimistic_builder({"ChaoALT": ChaoAlternative()}, TARGETS),
     ),
     StopBuilderConfiguration.RCAPTURE_ALL: combine_builders(
-        conservative_optimistic_builder({"Chao": ChaoEstimator()}, TARGETS),
+        conservative_optimistic_builder({"Chao": ChaoRivestEstimator()}, TARGETS),
         conservative_optimistic_builder({"LL": LogLinear()}, TARGETS),
     ),
     StopBuilderConfiguration.AUTOTAR: standoff_builder,
@@ -399,7 +438,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
         ALConfiguration.CHAO_IB_ENSEMBLE,
         None,
         SeededEnsembleInitializer.builder(1),
-        (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
+        (StopBuilderConfiguration.CHAO_LEAN,),
         10,
         10,
         10,
