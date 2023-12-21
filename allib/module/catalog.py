@@ -21,3 +21,8 @@ class ModuleCatalog:
 class ActiveLearningTasks(Enum):
     TAR = "TAR"
     CLASSIFICATION = "CLASS"
+
+class ApplicationModules(Enum):
+    BENCHMARK = "benchmark"
+    CREATE_JOBS = "create_jobs"
+

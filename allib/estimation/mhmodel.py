@@ -109,10 +109,10 @@ class Chao1987Estimator(
         return math.factorial(k + 1) * (fkp1 / f1)
 
     def n1(self, fstats: Mapping[int, FrozenSet[KT]]) -> Optional[float]:
-        f1 = len(fstats[1])
-        f2 = len(fstats[2])
-        t = max(fstats.keys())
         try:
+            f1 = len(fstats[1])
+            f2 = len(fstats[2])
+            t = max(fstats.keys())
             m1 = self.mk(fstats, 1)
             m2 = self.mk(fstats, 2)
             n = sum(map(len, fstats.values()))
@@ -140,7 +140,7 @@ class Chao1987Estimator(
         nhat = n + ((f1 * (f1 - 1)) / (2 * (f2 + 1)))
         return nhat
 
-    def variance(self, fstats: Mapping[int, FrozenSet[KT]]) -> Optional[float]:
+    def variance(self, fstats: Mapping[int, FrozenSet[KT]], nhat: float) -> Optional[float]:
         try:
             f1 = len(fstats[1])
             f2 = len(fstats[2])
@@ -150,35 +150,31 @@ class Chao1987Estimator(
         except ZeroDivisionError:
             return None
         return variance
+    def calc_ci_old(
+        self, n: int, nhat: float, fstats: Mapping[int, FrozenSet[KT]]
+    ) -> Estimate:
+        variance = self.variance(fstats, nhat)
+        f0_hat = nhat - n
+        if f0_hat == 0:
+            inf_cl = nhat
+            sup_cl = nhat
+        elif variance is not None:
+            C = np.exp(self.qZ * np.sqrt(np.log(1 + variance / (nhat - n) ** 2)))
+            inf_cl = n + (nhat - n) / C
+            sup_cl = n + (nhat - n) * C
+        else:
+            inf_cl = float("nan")
+            sup_cl = float("nan")
+        return Estimate(nhat, inf_cl, sup_cl)
 
-    def variance_bias(self, fstats: Mapping[int, FrozenSet[KT]]) -> Optional[float]:
-        try:
-            f1 = len(fstats[1])
-            t = max(fstats.keys())
-            tc = ((t - 1) ** 2) / t**2
-            variance = (
-                0.25 * tc * f1 * (2 * f1 - 1) ** 2
-                + 0.5 * (f1 * (f1 - 1))
-                - 0.25 * (f1**4 / self.nhat_bias(fstats))
-            )
-        except ZeroDivisionError:
-            return None
-        return variance
 
     def calc_ci(
         self, n: int, nhat: float, fstats: Mapping[int, FrozenSet[KT]]
     ) -> Estimate:
-        variance = (
-            var1
-            if (var1 := self.variance(fstats)) is not None
-            else self.variance_bias(fstats)
-        )
-        f0_hat = nhat - n
-        # if f0_hat == 0:
-        #     inf_cl = n
-        #     sup_cl = n
+        variance = self.variance(fstats, nhat)
+        f0_hat = max(0.01, nhat - n)
         if variance is not None:
-            C: float = np.exp(self.qZ * np.sqrt(np.log(1 + variance / max(f0_hat, 0.01)**2)))
+            C = np.exp(self.qZ * np.sqrt(np.log(1 + variance / f0_hat ** 2)))
             inf_cl = n + f0_hat / C
             sup_cl = n + f0_hat * C
         else:
@@ -252,6 +248,72 @@ class BiasFallback(
             if (chao1987 := self.nhat(fstats)) is not None
             else self.nhat_bias(fstats)
         )
+        if nhat is None:
+            return Estimate.empty()
+        return self.calc_ci(n, nhat, fstats)
+    
+class BiasFallbackVariance(
+    Chao1987Estimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
+    
+    def variance(self, fstats: Mapping[int, FrozenSet[KT]], nhat: float) -> Optional[float]:
+        try:
+            f1 = len(fstats[1])
+            f2 = len(fstats[2])
+            k = 1
+            if f2 > 0:
+                variance = f2 * (
+                    0.25 * k ** 2 * (f1 / f2) ** 4 + k ** 2 * (f1 / f2) ** 3 + (k / 2) * (f1 / f2) ** 2
+                )
+            else:
+                variance  = 0.5 * (k * f1 * (f1 - 1)) + 0.25 * (k **2 * f1 * (2 *f1 - 1)) - ((k ** 2 * f1 ** 4) / (4 *  nhat))
+        except ZeroDivisionError:
+            return None
+        return variance
+    
+    def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
+        n = sum(map(len, fstats.values()))
+        nhat = (
+            chao1987
+            if (chao1987 := self.nhat(fstats)) is not None
+            else self.nhat_bias(fstats)
+        )
+        if nhat is None:
+            return Estimate.empty()
+        return self.calc_ci(n, nhat, fstats)
+
+class Chao2006(BiasFallbackVariance[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
+    def variance(self, fstats: Mapping[int, FrozenSet[KT]], nhat: float) -> Optional[float]:
+        try:
+            f1 = len(fstats[1])
+            f2 = len(fstats[2])
+            t = max(fstats.keys())
+            k = 1 - (1 /t)
+            if f2 > 0:
+                variance = f2 * (
+                    0.25 * k ** 2 * (f1 / f2) ** 4 + k ** 2 * (f1 / f2) ** 3 + (k / 2) * (f1 / f2) ** 2
+                )
+            else:
+                variance  = 0.5 * (k * f1 * (f1 - 1)) + 0.25 * (k **2 * f1 * (2 *f1 - 1)) - ((k ** 2 * f1 ** 4) / (4 *  nhat))
+        except ZeroDivisionError:
+            return None
+        return variance
+
+    def nhat(self, fstats: Mapping[int, FrozenSet[KT]]) -> Optional[float]:
+        f1 = len(fstats[1])
+        f2 = len(fstats[2])
+        n = sum(map(len, fstats.values()))
+        t = max(fstats.keys())
+        k = (t-1) / t
+        if f2 > 0:
+            nhat = n + k * ((f1 ** 2) / (2 * f2))
+        else:
+            nhat = n + ((k * f1 * (f1 - 1)) / 2)
+        return nhat
+    
+    def chao(self, fstats: Mapping[int, FrozenSet[KT]]) -> Estimate:
+        n = sum(map(len, fstats.values()))
+        nhat = self.nhat(fstats)
         if nhat is None:
             return Estimate.empty()
         return self.calc_ci(n, nhat, fstats)
@@ -464,6 +526,12 @@ class ChaoRivestEstimator(
         df = pd.DataFrame.from_dict(rows, orient="index")  # type: ignore
         return df
 
+class ChaoRivestOriginalPoint(
+    ChaoRivestEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
+):
+    def __init__(self):
+        super().__init__()
+        self.rfunc = "get_abundance_orig_point"
 
 class ChaoAlternative(
     ChaoRivestEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
@@ -473,9 +541,7 @@ class ChaoAlternative(
         self.rfunc = "get_abundance_eta"
 
 
-class LogLinear(
-    ChaoRivestEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]
-):
+class LogLinear(ChaoRivestEstimator[IT, KT, DT, VT, RT, LT], Generic[IT, KT, DT, VT, RT, LT]):
     def __init__(self):
         super().__init__()
         self.rfunc = "get_abundance_ll"

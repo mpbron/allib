@@ -26,6 +26,7 @@ from .utils.io import create_dir_if_not_exists
 LOGGER = logging.getLogger(__name__)
 
 
+
 def tar_benchmark(
     dataset: TarDataset,
     target_path: Path,

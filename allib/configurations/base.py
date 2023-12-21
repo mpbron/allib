@@ -27,9 +27,12 @@ from ..estimation.mhmodel import (
     ChaoRivestEstimator,
     Chao1989Estimator,
     Chao1987Estimator,
+    ChaoRivestOriginalPoint,
     NMinWhenAvailable,
     LogLinear,
     OnlyNMin,
+    BiasFallbackVariance,
+    Chao2006,
 )
 from ..estimation.rasch_comb_parametric import EMRaschRidgeParametricPython
 from ..estimation.rasch_multiple import EMRaschRidgeParametricConvPython
@@ -330,31 +333,37 @@ STOP_BUILDER_REPOSITORY = {
         ),
         conservative_optimistic_builder({"Chao(1987)": BiasFallback()}, TARGETS),
         conservative_optimistic_builder(
+            {"Chao(1987)": BiasFallbackVariance()}, TARGETS
+        ),
+        conservative_optimistic_builder(
             {"Chao(1987)STRICT": Chao1987Estimator()}, TARGETS
         ),
         conservative_optimistic_builder(
-            {"Chao(2005)": BiasCorrectedEstimator()}, TARGETS
+            {"Chao(2006)": BiasCorrectedEstimator()}, TARGETS
         ),
         conservative_optimistic_builder({"Chao(1989)": Chao1989Estimator()}, TARGETS),
         conservative_optimistic_builder({"Chao(1987)NMINONLY": OnlyNMin()}, TARGETS),
     ),
-    StopBuilderConfiguration.CHAO_LEAN: combine_builders_long(
-        conservative_optimistic_builder(
-            {"Chao(Rivest)": ChaoRivestEstimator()}, TARGETS
-        ),
-        conservative_optimistic_builder(
-            {"Chao(1987)": BiasFallback()}, TARGETS
-        ),
-    ),
     StopBuilderConfiguration.QUANT: conservative_optimistic_builder(
         {"Quant": QuantEstimator(2.0)}, TARGETS
     ),
-    StopBuilderConfiguration.CHAO_CONS_OPT_ALT: conservative_optimistic_builder(
-        {"ChaoALT": ChaoAlternative()}, TARGETS
-    ),
-    StopBuilderConfiguration.CHAO_BOTH: combine_builders(
-        conservative_optimistic_builder({"Chao": ChaoRivestEstimator()}, TARGETS),
-        conservative_optimistic_builder({"ChaoALT": ChaoAlternative()}, TARGETS),
+    StopBuilderConfiguration.CHAO_CONS_OPT_ALT: combine_builders_long(
+        conservative_optimistic_builder(
+            {"Chao(1987)V": BiasFallbackVariance()}, TARGETS
+        ),
+        conservative_optimistic_builder(
+            {"Chao(2006)V": Chao2006()}, TARGETS
+        )),
+    StopBuilderConfiguration.CHAO_BOTH: combine_builders_long(
+        conservative_optimistic_builder(
+            {"Chao(1987)": BiasFallbackVariance()}, TARGETS
+        ),
+        conservative_optimistic_builder(
+            {"Chao(2006)": Chao2006()}, TARGETS
+        ),
+        conservative_optimistic_builder({"Chao(Rivest)": ChaoRivestEstimator()}, TARGETS),
+        conservative_optimistic_builder({"Chao(Rivest)O": ChaoRivestOriginalPoint()}, TARGETS),
+        conservative_optimistic_builder({"Chao(1987)OLD": BiasFallback()}, TARGETS),
     ),
     StopBuilderConfiguration.RCAPTURE_ALL: combine_builders(
         conservative_optimistic_builder({"Chao": ChaoRivestEstimator()}, TARGETS),
@@ -372,10 +381,10 @@ STOP_BUILDER_REPOSITORY = {
 
 EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] = {
     ExperimentCombination.CHAO: TarExperimentParameters(
-        ALConfiguration.CHAO_ENSEMBLE,
+        ALConfiguration.CHAO_IB_ENSEMBLE,
         None,
         SeededEnsembleInitializer.builder(1),
-        (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
+        (StopBuilderConfiguration.CHAO_BOTH,),
         10,
         10,
         10,
@@ -438,7 +447,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
         ALConfiguration.CHAO_IB_ENSEMBLE,
         None,
         SeededEnsembleInitializer.builder(1),
-        (StopBuilderConfiguration.CHAO_LEAN,),
+        (StopBuilderConfiguration.CHAO_CONS_OPT, StopBuilderConfiguration.AUTOTAR),
         10,
         10,
         10,

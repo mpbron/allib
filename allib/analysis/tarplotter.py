@@ -161,8 +161,8 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         points = np.array([self.estimates[it][key].point for it in self.it_axis])
         lows = np.array([self.estimates[it][key].lower_bound for it in self.it_axis])
         uppers = np.array([self.estimates[it][key].upper_bound for it in self.it_axis])
-        xs, ys = smooth_similar(effort_axis, points)
-        xrs, ls, us = smooth_similar3(effort_axis, lows, uppers)
+        xs, ys = effort_axis, points #smooth_similar(effort_axis, points)
+        xrs, ls, us = effort_axis, lows, uppers #smooth_similar3(effort_axis, lows, uppers)
         plt.plot(
             xs,
             ys,
