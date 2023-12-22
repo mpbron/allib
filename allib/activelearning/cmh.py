@@ -20,7 +20,7 @@ def transfer(
 
 
 class CMHMethod(LearnerSequence[IT, KT, DT, VT, RT, LT]):
-    _name = "CMH_TwoPhase"
+    _name = "CMH_Hybrid"
 
     def _choose_learner(self) -> ActiveLearner[IT, KT, DT, VT, RT, LT]:
         learner = super()._choose_learner()

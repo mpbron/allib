@@ -277,9 +277,8 @@ def standoff_builder(
     rule2399 = Rule2399StoppingRule(pos_label)
     stop200 = StopAfterKNegative(pos_label, 200)
     stop400 = StopAfterKNegative(pos_label, 400)
-    quants = {f"Quant_{t}": QuantStoppingRule(pos_label, t) for t in TARGETS}
     cmh = {
-        f"CMH_{t}": CMH_HeuristicStoppingRule(pos_label, t, alpha=0.05) for t in TARGETS
+        f"CMH_Standoff_{t}": CMH_HeuristicStoppingRule(pos_label, t, alpha=0.05) for t in TARGETS
     }
     criteria = {
         "Perfect95": recall95,
@@ -291,7 +290,7 @@ def standoff_builder(
         "Stop200": stop200,
         "Stop400": stop400,
     }
-    return dict(), {**criteria, **quants, **cmh}
+    return dict(), {**criteria, **cmh}
 
 
 def target_builder(
@@ -303,15 +302,15 @@ def target_builder(
 def cmhs(
     pos_label: LT,
     neg_label: LT,
-    recall_targets: Sequence[float] = TARGETS,
+    recall_targets: Sequence[float] = (0.95,),
     alpha: float = 0.05,
 ) -> Tuple[Mapping[str, AbstractEstimator], Mapping[str, AbstractStopCriterion[LT]]]:
     cmh_certs = {
-        f"CMH_CERT_{target}": CMH_CertificationRule(pos_label, target, alpha)
+        f"CMH_Hybrid_{target}": CMH_CertificationRule(pos_label, target, alpha)
         for target in recall_targets
     }
     cmh_heurs = {
-        f"CMH_HEUR_{target}": CMH_HeuristicMethodRuleTwoPhase(pos_label, target, alpha)
+        f"CMH_Standoff_{target}": CMH_HeuristicMethodRuleTwoPhase(pos_label, target, alpha)
         for target in recall_targets
     }
     return dict(), {**cmh_certs, **cmh_heurs}
@@ -411,7 +410,7 @@ EXPERIMENT_REPOSITORY: Mapping[ExperimentCombination, TarExperimentParameters] =
         ALConfiguration.AUTOTAR,
         None,
         SeededRandomInitializer.builder(5),
-        (StopBuilderConfiguration.AUTOTAR,),
+        (StopBuilderConfiguration.AUTOTAR,StopBuilderConfiguration.QUANT,),
         10,
         10,
         10,

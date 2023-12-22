@@ -16,7 +16,7 @@ from .reviews import read_review_dataset
 import numpy.typing as npt
 from ..utils.io import create_dir_if_not_exists
 
-class DatasetType(Enum):
+class DatasetType(str, Enum):
     REVIEW = "Review"
     TREC = "Trec"
 
@@ -72,8 +72,7 @@ class ReviewDatasets:
         return cls(paths)
 
 def detect_type(path: Path) -> DatasetType:
-    children = frozenset(path.iterdir())
-    if "qrels" in children:
+    if (path / "qrels").exists():
         return DatasetType.TREC
     return DatasetType.REVIEW
 
