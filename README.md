@@ -132,18 +132,20 @@ df.head(3)
     }
 </style>
 
-|      | data                                              | label      | prediction | p_Relevant | p_Irrelevant |
-|------|---------------------------------------------------|------------|------------|------------|--------------|
-| 1216 | Electronic Laboratory Medicine ordering with e... | Irrelevant | Irrelevant | 0.227442   | 0.772558     |
-| 907  | An administrative intervention to improve the ... | Irrelevant | Irrelevant | 0.219139   | 0.780861     |
-| 1752 | Oral quinolones in hospitalized patients: an e... | Relevant   | Irrelevant | 0.210115   | 0.789885     |
+|      | data                                              | label    | prediction | p_Irrelevant | p_Relevant |
+|------|---------------------------------------------------|----------|------------|--------------|------------|
+| 175  | A randomized trial of a computer-based interve... | Relevant | Irrelevant | 0.661173     | 0.338827   |
+| 1555 | Assessment of decision support for blood test ... | Relevant | Irrelevant | 0.716272     | 0.283728   |
+| 133  | Format change of a laboratory test order form ... | Relevant | Irrelevant | 0.734804     | 0.265196   |
 
 </div>
 
 </div>
 
-Although the predicition probabilities are below 0.50, the \### Active
-Learning
+Although the predicition probabilities are below 0.50, some of the top
+ranked documents have a ground truth label relevant.
+
+### Active Learning
 
 We can integrate the model in an Active Learning method. A simple TAR
 method is AutoTAR.
@@ -185,6 +187,24 @@ print(f"{next_instance.representation[:60]}...\nGround Truth Label: {al.env.trut
 
 Using the ground truth data, we can further simulate the TAR process in
 an automated fashion:
+
+``` python
+from allib.stopcriterion.heuristic import AprioriRecallTarget
+from allib.analysis.tarplotter import TarExperimentPlotter
+from allib.analysis.experiments import ExperimentIterator
+from allib.analysis.simulation import TarSimulator
+recall95 = AprioriRecallTarget(POS, 0.95)
+recall100 = AprioriRecallTarget(POS, 1.0)
+criteria = {
+    "Perfect95": recall95,
+    "Perfect100": recall100,
+}
+
+# Then we can specify our experiment
+exp = ExperimentIterator(al, POS, NEG, criteria, {})
+plotter = TarExperimentPlotter(POS, NEG)
+simulator = TarSimulator(exp, plotter, stop_when_found_all=True)
+```
 
 ``` python
 simulator.simulate()
@@ -229,7 +249,7 @@ plotter.show()
 
       0%|          | 0/5 [00:00<?, ?it/s]
 
-![](README_files/figure-commonmark/cell-13-output-20.png)
+![](README_files/figure-commonmark/cell-12-output-20.png)
 
 ## Commandline interface
 

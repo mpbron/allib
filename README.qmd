@@ -75,17 +75,17 @@ pipeline = Pipeline([
 model = il.SkLearnDataClassifier.build(pipeline, ds)
 model.fit_provider(train, ds.truth)
 ```
-```{python}
-#| include: false
-model._disable_tqdm = True
-```
+
 With the method `prediction_viewer` we can view the predictions as a Pandas dataframe.
+
 ```{python}
 # Show the three instances with the highest probability to be Relevant
 df = prediction_viewer(model, test, ds.truth).sort_values(by="p_Relevant", ascending=False)
 df.head(3)
 ```
-Although the predicition probabilities are below 0.50, the 
+Although the predicition probabilities are below 0.50, some of the top ranked documents have a ground truth label
+relevant.
+
 ### Active Learning
 
 We can integrate the model in an Active Learning method. A simple TAR method is AutoTAR.
@@ -121,7 +121,6 @@ print(f"{next_instance.representation[:60]}...\nGround Truth Label: {al.env.trut
 Using the ground truth data, we can further simulate the TAR process in an automated fashion:
 
 ```{python}
-#| echo: false
 from allib.stopcriterion.heuristic import AprioriRecallTarget
 from allib.analysis.tarplotter import TarExperimentPlotter
 from allib.analysis.experiments import ExperimentIterator
