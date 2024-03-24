@@ -11,7 +11,7 @@ import pandas as pd
 from allib.analysis.analysis import loss_er
 from allib.configurations.base import ExperimentCombination
 
-from ..utils.func import hn
+from tqdm.auto import tqdm
 
 from .statistics import TarDatasetStats
 from .tarplotter import TarExperimentPlotter
@@ -73,7 +73,7 @@ def read_results(
     root_path: Path,
 ) -> Mapping[str, Mapping[str, Mapping[UUID, Mapping[int, TarExperimentPlotter]]]]:
     def read_ds() -> Iterator[Tuple[str, str, UUID, int, TarExperimentPlotter]]:
-        for ds_path in root_path.iterdir():
+        for ds_path in tqdm(list(root_path.iterdir())):
             for method in ds_path.iterdir():
                 for file in method.iterdir():
                     if file.suffix == ".pkl":
@@ -92,7 +92,7 @@ def read_results_memsafe(
     root_path: Path,
 ) -> pd.DataFrame:
     def read_ds() -> Iterator[BenchmarkResult]:
-        for ds_path in root_path.iterdir():
+        for ds_path in tqdm(list(root_path.iterdir())):
             for method in ds_path.iterdir():
                 for file in method.iterdir():
                     if file.suffix == ".pkl":

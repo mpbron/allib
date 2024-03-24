@@ -22,6 +22,7 @@ from ..analysis.simulation import TarSimulator, initialize_tar_simulation
 from ..analysis.tarplotter import ModelStatsTar, TarExperimentPlotter
 from ..environment import AbstractEnvironment
 from ..environment.memory import MemoryEnvironment
+from ..environment.abstracts import transform_ranking
 from ..estimation.base import AbstractEstimator
 from ..module.factory import MainFactory
 from ..stopcriterion.base import AbstractStopCriterion
@@ -95,6 +96,51 @@ def read_metadata(metadata_file: Path) -> Mapping[str, Any]:
     return dict()
 
 
+def read_synergy_new(
+    df: pd.DataFrame, pos_label: LT, neg_label: LT
+) -> AbstractEnvironment[
+    PaperAbstractInstance[int, Any],
+    Union[int, UUID],
+    Mapping[str, str],
+    Any,
+    str,
+    LT,
+]:
+    env = PaperAbstractEnvironment.from_pandas(
+            df, "title", "abstract", "label_included", pos_label, neg_label
+        )
+    return env
+
+def read_synergy_old(
+    df: pd.DataFrame, pos_label: LT, neg_label: LT
+) -> AbstractEnvironment[
+    PaperAbstractInstance[int, Any],
+    Union[int, UUID],
+    Mapping[str, str],
+    Any,
+    str,
+    LT,
+]:
+    env = PaperAbstractEnvironment.from_pandas(
+            df, "title", "abstract", "label_included", pos_label, neg_label
+        )
+    return env
+
+def read_asreview_results(
+    df: pd.DataFrame, pos_label: LT, neg_label: LT,
+) -> AbstractEnvironment[
+    PaperAbstractInstance[int, Any],
+    Union[int, UUID],
+    Mapping[str, str],
+    Any,
+    str,
+    LT,
+]:
+    env = PaperAbstractEnvironment.from_pandas(
+            df, "Title", "Abstract", "included", pos_label, neg_label)
+    return env
+
+
 def read_review_dataset_new(
     path: Path, pos_label: LT, neg_label: LT, rng: Optional[np.random.Generator] = None
 ) -> AbstractEnvironment[
@@ -117,17 +163,19 @@ def read_review_dataset_new(
     MemoryEnvironment[int, str, npt.NDArray[Any], str]
         A MemoryEnvironment. The labels that
     """
-    df = pd.read_csv(path)
+    try:
+        df = pd.read_csv(path)
+    except:
+        df = pd.read_csv(path, sep=";")
     metadata_file = path.parent / f"{path.stem}.yaml"
     metadata = read_metadata(metadata_file)
+    
     if "label_included" in df.columns:
-        env = PaperAbstractEnvironment.from_pandas(
-            df, "title", "abstract", "label_included", pos_label, neg_label
-        )
+        env = read_synergy_new(df, pos_label, neg_label)
+    elif "Title" in df.columns: # asreview file has
+        env = read_asreview_results(df, pos_label,neg_label)
     else:
-        env = PaperAbstractEnvironment.from_pandas(
-            df, "title", "abstract", "included", pos_label, neg_label
-        )
+        env = read_synergy_old(df, pos_label, neg_label)
     if isinstance(env, il.TextEnvironment):
         if rng is None:
             rng = np.random.default_rng(42)

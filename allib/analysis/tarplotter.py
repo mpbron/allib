@@ -154,26 +154,45 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
     ) -> None:
         effort_axis = self._effort_axis()
         curve = np.array([stats[it].__dict__[key] for it in self.it_axis])
-        plt.plot(effort_axis, curve, label=label)
-
-    def _plot_estimator(self, key: str, color="gray", alpha=0.2, latex=False) -> None:
+        if label[0] == "_":
+            plt.plot(effort_axis, curve, label=label, alpha=0.5, color="gray")
+        else:
+            plt.plot(effort_axis, curve, label=label)
+    def _plot_estimator(
+        self,
+        key: str,
+        color: str = "gray",
+        alpha: float = 0.4,
+        latex: bool = False,
+        rename_dict: Mapping[str, str] = dict(),
+    ) -> None:
         effort_axis = self._effort_axis()
         points = np.array([self.estimates[it][key].point for it in self.it_axis])
         lows = np.array([self.estimates[it][key].lower_bound for it in self.it_axis])
         uppers = np.array([self.estimates[it][key].upper_bound for it in self.it_axis])
-        xs, ys = effort_axis, points #smooth_similar(effort_axis, points)
-        xrs, ls, us = effort_axis, lows, uppers #smooth_similar3(effort_axis, lows, uppers)
+        xs, ys = effort_axis, points  # smooth_similar(effort_axis, points)
+        xrs, ls, us = (
+            effort_axis,
+            lows,
+            uppers,
+        )  # smooth_similar3(effort_axis, lows, uppers)
+        estimator_name = key if key not in rename_dict else rename_dict[key]
         plt.plot(
             xs,
             ys,
             linestyle="-.",
-            label=escape(f"Estimate by {key}", latex),
+            label=escape(f"Estimate by {estimator_name}", latex),
             color=color,
         )
         plt.fill_between(xrs, ls, us, color=color, alpha=alpha)  # type: ignore
 
     def _plot_stop_criteria(
-        self, included_criteria: Optional[Sequence[str]], show_stats=True, latex=False
+        self,
+        included_criteria: Optional[Sequence[str]],
+        show_stats=True,
+        show_recall=False,
+        latex=False,
+        rename_dict: Mapping[str, str] = dict(),
     ) -> None:
         results: Sequence[Tuple[int, float, float, str, str]] = list()
         if included_criteria is None:
@@ -191,10 +210,17 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         for it, recall, wss, crit_name, color in results_sorted:
             exp_found = self.exp_random_recall(it)
             act_found = self.recall_stats[it].pos_docs_found
-            nicer_name = crit_name.replace("_", " ").title()
+            criterion_name = (
+                crit_name if crit_name not in rename_dict else rename_dict[crit_name]
+            )
+            nicer_name = criterion_name.replace("_", " ").title()
             if show_stats:
                 legend = (
-                    f"{nicer_name} WSS: {(wss*100):.1f} Recall: {(recall*100):.1f} %"
+                    f"{nicer_name} \n WSS: {(wss*100):.1f} Recall: {(recall*100):.1f} %"
+                )
+            elif show_recall:
+                legend = (
+                    f"{nicer_name} ({(recall*100):.1f} %)"
                 )
             else:
                 legend = f"{nicer_name}"
@@ -246,7 +272,12 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         )
 
     def _plot_recall_stats(
-        self, included: Optional[Sequence[str]] = list(), short_names=False, latex=False
+        self,
+        included: Optional[Sequence[str]] = list(),
+        short_names=False,
+        latex=False,
+        rename_dict: Mapping[str, str] = dict(),
+        show_only_legend: Sequence[str] = list(),
     ) -> None:
         # Gather and reorganize recall data
         recall_stats = TemporalRecallStats.transpose_dict(self.recall_stats)
@@ -260,18 +291,27 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
             else:
                 pname = name
             if included is None or name in included:
-                self.plot_recall_statistic(
-                    stats, "pos_docs_found", escape(f"# by {pname}", latex)
-                )
+                model_name = pname if pname not in rename_dict else rename_dict[pname]
+                if show_only_legend and name not in show_only_legend:
+                    self.plot_recall_statistic(
+                        stats, "pos_docs_found", f"_{model_name}"
+                    )
+                else:
+                    self.plot_recall_statistic(
+                        stats, "pos_docs_found", escape(f"# by {model_name}", latex)
+                    )
 
     def _plot_estimators(
-        self, included_estimators: Optional[Sequence[str]] = None, latex=False
+        self,
+        included_estimators: Optional[Sequence[str]] = None,
+        latex=False,
+        rename_dict: Mapping[str, str] = dict(),
     ) -> None:
         if included_estimators is None:
             included_estimators = list(self.estimator_names)
         # Plotting estimations
         for i, estimator in enumerate(included_estimators):
-            self._plot_estimator(estimator, color=f"C{i}")
+            self._plot_estimator(estimator, color=f"C{i*2}", rename_dict=rename_dict)
 
     def _set_axes(
         self, x_lim: Optional[float] = None, y_lim: Optional[float] = None
@@ -303,13 +343,29 @@ class TarExperimentPlotter(ExperimentPlotter[LT], Generic[LT]):
         latex: bool = False,
         show_stats=True,
         short_names=False,
+        rename_models=dict(),
+        rename_estimators=dict(),
+        rename_criteria=dict(),
+        show_recall=False,
+        show_only_models=list(),
     ) -> None:
         self._graph_setup(latex=latex)
         self._plot_static_data(recall_target, latex=latex)
-        self._plot_recall_stats(included_models, latex=latex, short_names=short_names)
-        self._plot_estimators(included_estimators, latex=latex)
+        self._plot_recall_stats(
+            included_models,
+            latex=latex,
+            short_names=short_names,
+            show_only_legend=show_only_models,
+        )
+        self._plot_estimators(
+            included_estimators, latex=latex, rename_dict=rename_estimators
+        )
         self._plot_stop_criteria(
-            included_stopcriteria, latex=latex, show_stats=show_stats
+            included_stopcriteria,
+            latex=latex,
+            show_stats=show_stats,
+            show_recall=show_recall,
+            rename_dict=rename_criteria,
         )
         self._set_axes(x_lim, y_lim)
         self._plot_legend(latex=latex)
@@ -421,9 +477,12 @@ class ModelStatsTar(TarExperimentPlotter[LT]):
         self.model_stats[self.it] = filter_model_infos(exp_iterator.estimators)
 
     def _plot_estimators(
-        self, included_estimators: Optional[Sequence[str]] = None, latex=False
+        self,
+        included_estimators: Optional[Sequence[str]] = None,
+        latex=False,
+        rename_dict: Mapping[str, str] = dict(),
     ) -> None:
-        super()._plot_estimators(included_estimators, latex)
+        super()._plot_estimators(included_estimators, latex, rename_dict=rename_dict)
         if included_estimators is None:
             included_estimators = list(self.estimator_names)
         assert included_estimators is not None
@@ -432,9 +491,14 @@ class ModelStatsTar(TarExperimentPlotter[LT]):
                 deviances = [
                     self.model_stats[it][estimator].deviance for it in self.it_axis
                 ]
+                est_name = (
+                    estimator
+                    if estimator not in rename_dict
+                    else rename_dict[estimator]
+                )
                 plt.plot(
                     self._effort_axis(),
                     deviances,
-                    label=escape(f"Deviance {estimator}", latex),
+                    label=escape(f"Deviance {est_name}", latex),
                     linestyle="--",
                 )

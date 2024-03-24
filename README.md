@@ -1,0 +1,296 @@
+# Active Learning and Technology-Assisted Review library for Python
+
+[![PyPI](https://img.shields.io/pypi/v/python-allib.png)](https://pypi.org/project/instancelib/)
+[![Python_version](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-blue)](https://pypi.org/project/instancelib/)
+[![License](https://img.shields.io/pypi/l/python-allib.png)](https://www.gnu.org/licenses/lgpl-3.0.en.html)
+[![DOI](https://zenodo.org/badge/421403034.svg)](https://zenodo.org/badge/latestdoi/421403034)
+
+------------------------------------------------------------------------
+
+`python-allib` is a library that enables efficient data annotation with
+Active Learning on various types of datasets. Through the
+library[`instancelib`](https://github.com/mpbron/instancelib) we support
+various **machine learning algorithms** and **instance types**. Besides
+canonical Active Learning, this library offers Technology-Assisted
+Review methods, which aid in making High-Recall Information Retrieval
+tasks more efficient.
+
+© Michiel Bron, 2024
+
+## Quick tour of Technology-Assisted Review simulation
+
+**Load dataset**: Load the dataset in an environment using Instancelib
+
+``` python
+# Some imports
+from pathlib import Path
+from allib.benchmarking.datasets import TarDataset, DatasetType
+
+POS = "Relevant"
+NEG = "Irrelevant"
+# Load a dataset in SYNERGY/ASREVIEW format
+dataset_description = TarDataset(
+  DatasetType.REVIEW, 
+  Path("./allib/tests/testdataset.csv"))
+
+# Get an instancelib Environment object
+ds = dataset_description.env
+
+ds
+```
+
+    Environment(dataset=InstanceProvider(length=2019), 
+       labels=LabelProvider(labelset=frozenset({'Relevant', 'Irrelevant'}), 
+       length=0, 
+       statistics={'Relevant': 0, 'Irrelevant': 0}), 
+       named_providers={}, 
+       length=2019, 
+       typeinfo=TypeInfo(identifier=int, data=str, vector=NoneType, representation=str)) 
+
+The `ds` object is currently loaded in TAR simulation mode. This means,
+that like the at the start of review process, there is no labeled data.
+This is visible in the statistics in the `ds` objects. However, as this
+is simulation mode, there is a ground truth available. This can be
+accessed as follows:
+
+``` python
+ds.truth
+```
+
+    LabelProvider(labelset=frozenset({'Relevant', 'Irrelevant'}), 
+       length=2019, 
+       statistics={'Relevant': 101, 'Irrelevant': 1918})
+
+In Active Learning, we are dealing with a partially labeled dataset.
+There are two `InstanceProvider` objects inside the `ds` object that
+maintain the label status:
+
+``` python
+print(f"Unlabeled: {ds.unlabeled}, Labeled: {ds.labeled}")
+```
+
+    Unlabeled: InstanceProvider(length=2019), Labeled: InstanceProvider(length=0)
+
+### Basic operations
+
+The `ds` object supports all `instancelib` operations, for example,
+dividing the dataset in a train and test set.
+
+``` python
+train, test = ds.train_test_split(ds.dataset, train_size=0.70)
+print(f"Train: {train}, Test: {test}")
+```
+
+    Train: InstanceProvider(length=1413), Test: InstanceProvider(length=606)
+
+### Train a ML model
+
+We can also train Machine Learning methods on the ground truth data in
+`ds.truth`.
+
+``` python
+from sklearn.pipeline import Pipeline 
+from sklearn.linear_model import LogisticRegression
+from sklearn.feature_extraction.text import TfidfTransformer, CountVectorizer
+from instancelib.analysis.base import prediction_viewer
+import instancelib as il
+pipeline = Pipeline([
+     ('vect', CountVectorizer()),
+     ('tfidf', TfidfTransformer()),
+     ('clf', LogisticRegression()),
+     ])
+
+model = il.SkLearnDataClassifier.build(pipeline, ds)
+model.fit_provider(train, ds.truth)
+```
+
+With the method `prediction_viewer` we can view the predictions as a
+Pandas dataframe.
+
+``` python
+# Show the three instances with the highest probability to be Relevant
+df = prediction_viewer(model, test, ds.truth).sort_values(by="p_Relevant", ascending=False)
+df.head(3)
+```
+
+      0%|          | 0/4 [00:00<?, ?it/s]
+
+      0%|          | 0/4 [00:00<?, ?it/s]
+
+<div>
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+&#10;    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+&#10;    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+
+|      | data                                              | label      | prediction | p_Relevant | p_Irrelevant |
+|------|---------------------------------------------------|------------|------------|------------|--------------|
+| 1216 | Electronic Laboratory Medicine ordering with e... | Irrelevant | Irrelevant | 0.227442   | 0.772558     |
+| 907  | An administrative intervention to improve the ... | Irrelevant | Irrelevant | 0.219139   | 0.780861     |
+| 1752 | Oral quinolones in hospitalized patients: an e... | Relevant   | Irrelevant | 0.210115   | 0.789885     |
+
+</div>
+
+</div>
+
+Although the predicition probabilities are below 0.50, the \### Active
+Learning
+
+We can integrate the model in an Active Learning method. A simple TAR
+method is AutoTAR.
+
+``` python
+from allib.activelearning.autotar import AutoTarLearner
+
+al = AutoTarLearner(ds, model, POS, NEG, k_sample=100, batch_size=20)
+```
+
+To kick-off the process, we need some labeled data. Let’s give it some
+training data.
+
+``` python
+pos_instance = al.env.dataset[28]
+neg_instance = al.env.dataset[30]
+al.env.labels.set_labels(pos_instance, POS)
+al.env.labels.set_labels(neg_instance, NEG)
+al.set_as_labeled(pos_instance)
+al.set_as_labeled(neg_instance)
+```
+
+Next, we can retrieve the instance that should be labeled next with the
+following command.
+
+``` python
+next_instance = next(al) 
+# next_instance is an Instance object.
+# Representation contains a human-readable string version of the instance
+print(f"{next_instance.representation[:60]}...\nGround Truth Label: {al.env.truth[next_instance]}")
+```
+
+      0%|          | 0/11 [00:00<?, ?it/s]
+
+    Oral quinolones in hospitalized patients: an evaluation of a...
+    Ground Truth Label: frozenset({'Relevant'})
+
+### Simulation
+
+Using the ground truth data, we can further simulate the TAR process in
+an automated fashion:
+
+``` python
+simulator.simulate()
+plotter.show()
+```
+
+      0%|          | 0/2019 [00:00<?, ?it/s]
+
+      0%|          | 0/10 [00:00<?, ?it/s]
+
+      0%|          | 0/10 [00:00<?, ?it/s]
+
+      0%|          | 0/10 [00:00<?, ?it/s]
+
+      0%|          | 0/10 [00:00<?, ?it/s]
+
+      0%|          | 0/10 [00:00<?, ?it/s]
+
+      0%|          | 0/10 [00:00<?, ?it/s]
+
+      0%|          | 0/10 [00:00<?, ?it/s]
+
+      0%|          | 0/9 [00:00<?, ?it/s]
+
+      0%|          | 0/9 [00:00<?, ?it/s]
+
+      0%|          | 0/9 [00:00<?, ?it/s]
+
+      0%|          | 0/9 [00:00<?, ?it/s]
+
+      0%|          | 0/8 [00:00<?, ?it/s]
+
+      0%|          | 0/8 [00:00<?, ?it/s]
+
+      0%|          | 0/7 [00:00<?, ?it/s]
+
+      0%|          | 0/7 [00:00<?, ?it/s]
+
+      0%|          | 0/7 [00:00<?, ?it/s]
+
+      0%|          | 0/6 [00:00<?, ?it/s]
+
+      0%|          | 0/5 [00:00<?, ?it/s]
+
+![](README_files/figure-commonmark/cell-13-output-20.png)
+
+## Commandline interface
+
+Besides importing the library, the code can be used to run some
+predefined experiments.
+
+For a CSV in SYNERGY format:
+
+``` console
+python -m allib benchmark -m Review -d  ./path/to/dataset -t ./path/to/results/ -e AUTOTAR -r 42
+```
+
+For a dataset in TREC-style:
+
+``` console
+python -m allib benchmark -m Trec -d  ./path/to/dataset/ -t ./path/to/results/ -e AUTOTAR -r 42
+```
+
+Experiment options are:
+
+- `AUTOTAR`
+- `AUTOSTOP`
+- `CHAO`
+- `TARGET`
+- `CMH`
+
+The `-r` option is used to supply a seed value that is given to a random
+generator.
+
+## Installation
+
+See [installation.md](installation.md) for an extended installation
+guide, especially for enabling the `CHAO` method. Short instructions are
+below.
+
+| Method | Instructions                                                                                       |
+|--------|----------------------------------------------------------------------------------------------------|
+| `pip`  | Install from [PyPI](https://pypi.org/project/python-allib/) via `pip install python-allib`.        |
+| Local  | Clone this repository and install via `pip install -e .` or locally run `python setup.py install`. |
+
+## Releases
+
+`python-allib` is officially released through
+[PyPI](https://pypi.org/project/instancelib/).
+
+See [CHANGELOG](CHANGELOG) for a full overview of the changes for each
+version.
+
+## Citation
+
+``` bibtex
+@misc{pythonallib,
+  title = {Python package python-allib},
+  author = {Michiel Bron},
+  howpublished = {\url{https://github.com/mpbron/allib}},
+  year = {2024}
+}
+```
+
+## Maintenance
+
+### Contributors
+
+- [Michiel Bron](https://www.uu.nl/staff/MPBron) (`@mpbron`)

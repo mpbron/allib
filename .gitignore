@@ -1,3 +1,7 @@
+.quarto/
+installation_files/
+installation.html
+README.html
 review_experiments.txt
 datasets_review.txt
 docs/source/_build

@@ -24,7 +24,7 @@ class DatasetType(str, Enum):
 class TarDataset:
     type: DatasetType
     path: Path
-    topic: Optional[str]
+    topic: Optional[str] = None
 
     @property
     def env(self) -> AbstractEnvironment:

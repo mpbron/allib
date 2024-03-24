@@ -52,7 +52,18 @@ def transform_labels(label_col: str, pos_label: LT, neg_label: LT) -> Callable[[
     def func(row: pd.Series) -> FrozenSet[LT]:
         if row[label_col] == 1:
             return frozenset([pos_label])
-        return frozenset([neg_label])
+        if row[label_col] == 0:
+            return frozenset([neg_label])
+        return frozenset()
+    return func
+
+def transform_ranking(label_col: str, pos_label: LT, neg_label: LT, threshold: Optional[int] = None) -> Callable[[pd.Series], FrozenSet[LT]]:
+    def func(row: pd.Series) -> FrozenSet[LT]:
+        if threshold is not None:
+            if int(row[label_col]) <= threshold:
+                return frozenset([pos_label])
+            return frozenset([neg_label])
+        return frozenset()
     return func
 
 class PaperAbstractEnvironment(
@@ -89,18 +100,24 @@ class PaperAbstractEnvironment(
         abstract_col: str,
         label_col: str,
         pos_label: LT,
-        neg_label: LT
+        neg_label: LT,
+        transform_label_function: Optional[Callable[[pd.Series], FrozenSet[LT]]] = None,
     ):
+        tfl =  (
+            transform_label_function if transform_label_function is not None else transform_labels(label_col, pos_label, neg_label)
+        )
         triples = instance_extractor(
                     df,
                     id_index(),
                     text_dict(title_col, abstract_col),
                     no_vector(),
                     text_concatenation(title_col, abstract_col),
-                    transform_labels(label_col, pos_label, neg_label),
+                    tfl,
                     text_builder,
                 )
         keys, instances, labels = list_unzip3(triples)
         dataset = MemoryPaperAbstractInstanceProvider(instances)
         labels = MemoryLabelProvider.from_tuples(list(zip(keys, labels)))
         return cls(dataset, labels)
+    
+    
