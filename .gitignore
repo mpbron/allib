@@ -144,7 +144,6 @@ venv.bak/
 
 .venv/
 .mypy_cache/
-*.png
 *.cer
 .env
 .vscode
