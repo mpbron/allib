@@ -12,9 +12,13 @@ jupyter: python3
 `python-allib` is a library that enables efficient data annotation with Active Learning on various types of datasets. Through the library[`instancelib`](https://github.com/mpbron/instancelib) we support various **machine learning algorithms** and **instance types**. Besides canonical Active Learning, this library offers Technology-Assisted Review methods, which aid in making High-Recall Information Retrieval tasks more efficient.
 
 © Michiel Bron, 2024
+
 ## Quick tour of Technology-Assisted Review simulation
 
-**Load dataset**: Load the dataset in an environment using Instancelib
+### Load dataset
+
+Load the dataset in an `instancelib` environment.
+
 
 ```{python}
 # Some imports
@@ -178,7 +182,7 @@ simulator = TarSimulator(exp, plotter)
 simulator.simulate()
 plotter.show()
 ```
-## Commandline interface
+## Command Line Interface
 
 Besides importing the library, the code can be used to run some predefined experiments. 
 

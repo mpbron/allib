@@ -15,10 +15,13 @@ canonical Active Learning, this library offers Technology-Assisted
 Review methods, which aid in making High-Recall Information Retrieval
 tasks more efficient.
 
-© Michiel Bron, 2024 \## Quick tour of Technology-Assisted Review
-simulation
+© Michiel Bron, 2024
 
-**Load dataset**: Load the dataset in an environment using Instancelib
+## Quick tour of Technology-Assisted Review simulation
+
+### Load dataset
+
+Load the dataset in an `instancelib` environment.
 
 ``` python
 # Some imports
@@ -122,11 +125,11 @@ df.head(3)
 
 <div>
 
-|     | data                                              | label      | prediction | p_Relevant | p_Irrelevant |
-|-----|---------------------------------------------------|------------|------------|------------|--------------|
-| 429 | Documentation-based clinical decision support ... | Irrelevant | Irrelevant | 0.265006   | 0.734994     |
-| 667 | The medical office of the 21st century (MOXXI)... | Irrelevant | Irrelevant | 0.242001   | 0.757999     |
-| 859 | Impact of a clinical decision support system o... | Irrelevant | Irrelevant | 0.232597   | 0.767403     |
+|      | data                                              | label    | prediction | p_Irrelevant | p_Relevant |
+|------|---------------------------------------------------|----------|------------|--------------|------------|
+| 28   | A randomized trial of "corollary orders" to pr... | Relevant | Irrelevant | 0.743227     | 0.256773   |
+| 175  | A randomized trial of a computer-based interve... | Relevant | Irrelevant | 0.750378     | 0.249622   |
+| 1597 | A computerized reminder system to increase the... | Relevant | Irrelevant | 0.770695     | 0.229305   |
 
 </div>
 
@@ -255,7 +258,7 @@ plotter.show()
 
 ![](README_files/figure-commonmark/cell-12-output-25.png)
 
-## Commandline interface
+## Command Line Interface
 
 Besides importing the library, the code can be used to run some
 predefined experiments.
