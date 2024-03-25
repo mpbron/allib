@@ -1,9 +1,8 @@
 # Active Learning and Technology-Assisted Review library for Python
 
-[![PyPI](https://img.shields.io/pypi/v/python-allib.png)](https://pypi.org/project/instancelib/)
+[![PyPI](https://img.shields.io/pypi/v/python-allib.png)](https://pypi.org/project/python-allib/)
 [![Python_version](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-blue)](https://pypi.org/project/instancelib/)
-[![License](https://img.shields.io/pypi/l/python-allib.png)](https://www.gnu.org/licenses/lgpl-3.0.en.html)
-[![DOI](https://zenodo.org/badge/421403034.svg)](https://zenodo.org/badge/latestdoi/421403034)
+[![License](https://img.shields.io/pypi/l/python-allib.png)](https://www.gnu.org/licenses/lgpl-3.0.en.html)[![DOI](https://zenodo.org/badge/414780120.svg)](https://zenodo.org/doi/10.5281/zenodo.10869682)
 
 ------------------------------------------------------------------------
 
@@ -125,11 +124,11 @@ df.head(3)
 
 <div>
 
-|      | data                                              | label    | prediction | p_Irrelevant | p_Relevant |
-|------|---------------------------------------------------|----------|------------|--------------|------------|
-| 28   | A randomized trial of "corollary orders" to pr... | Relevant | Irrelevant | 0.743227     | 0.256773   |
-| 175  | A randomized trial of a computer-based interve... | Relevant | Irrelevant | 0.750378     | 0.249622   |
-| 1597 | A computerized reminder system to increase the... | Relevant | Irrelevant | 0.770695     | 0.229305   |
+|     | data                                              | label      | prediction | p_Relevant | p_Irrelevant |
+|-----|---------------------------------------------------|------------|------------|------------|--------------|
+| 175 | A randomized trial of a computer-based interve... | Relevant   | Irrelevant | 0.298010   | 0.701990     |
+| 133 | Format change of a laboratory test order form ... | Relevant   | Irrelevant | 0.242501   | 0.757499     |
+| 667 | The medical office of the 21st century (MOXXI)... | Irrelevant | Irrelevant | 0.207292   | 0.792708     |
 
 </div>
 
