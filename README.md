@@ -15,9 +15,8 @@ canonical Active Learning, this library offers Technology-Assisted
 Review methods, which aid in making High-Recall Information Retrieval
 tasks more efficient.
 
-© Michiel Bron, 2024
-
-## Quick tour of Technology-Assisted Review simulation
+© Michiel Bron, 2024 \## Quick tour of Technology-Assisted Review
+simulation
 
 **Load dataset**: Load the dataset in an environment using Instancelib
 
@@ -109,7 +108,9 @@ Pandas dataframe.
 
 ``` python
 # Show the three instances with the highest probability to be Relevant
-df = prediction_viewer(model, test, ds.truth).sort_values(by="p_Relevant", ascending=False)
+df = prediction_viewer(model, test, ds.truth).sort_values(
+    by="p_Relevant", ascending=False
+)
 df.head(3)
 ```
 
@@ -120,23 +121,12 @@ df.head(3)
 <div>
 
 <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-&#10;    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-&#10;    .dataframe thead th {
-        text-align: right;
-    }
-</style>
 
-|      | data                                              | label    | prediction | p_Irrelevant | p_Relevant |
-|------|---------------------------------------------------|----------|------------|--------------|------------|
-| 175  | A randomized trial of a computer-based interve... | Relevant | Irrelevant | 0.661173     | 0.338827   |
-| 1555 | Assessment of decision support for blood test ... | Relevant | Irrelevant | 0.716272     | 0.283728   |
-| 133  | Format change of a laboratory test order form ... | Relevant | Irrelevant | 0.734804     | 0.265196   |
+|     | data                                              | label      | prediction | p_Relevant | p_Irrelevant |
+|-----|---------------------------------------------------|------------|------------|------------|--------------|
+| 429 | Documentation-based clinical decision support ... | Irrelevant | Irrelevant | 0.265006   | 0.734994     |
+| 667 | The medical office of the 21st century (MOXXI)... | Irrelevant | Irrelevant | 0.242001   | 0.757999     |
+| 859 | Impact of a clinical decision support system o... | Irrelevant | Irrelevant | 0.232597   | 0.767403     |
 
 </div>
 
@@ -172,16 +162,19 @@ Next, we can retrieve the instance that should be labeled next with the
 following command.
 
 ``` python
-next_instance = next(al) 
+next_instance = next(al)
 # next_instance is an Instance object.
 # Representation contains a human-readable string version of the instance
-print(f"{next_instance.representation[:60]}...\nGround Truth Label: {al.env.truth[next_instance]}")
+print(
+    f"{next_instance.representation[:60]}...\n"
+    f"Ground Truth Labels: {al.env.truth[next_instance]}"
+)
 ```
 
       0%|          | 0/11 [00:00<?, ?it/s]
 
     Oral quinolones in hospitalized patients: an evaluation of a...
-    Ground Truth Label: frozenset({'Relevant'})
+    Ground Truth Labels: frozenset({'Relevant'})
 
 ### Simulation
 
@@ -193,6 +186,7 @@ from allib.stopcriterion.heuristic import AprioriRecallTarget
 from allib.analysis.tarplotter import TarExperimentPlotter
 from allib.analysis.experiments import ExperimentIterator
 from allib.analysis.simulation import TarSimulator
+
 recall95 = AprioriRecallTarget(POS, 0.95)
 recall100 = AprioriRecallTarget(POS, 1.0)
 criteria = {
@@ -203,7 +197,7 @@ criteria = {
 # Then we can specify our experiment
 exp = ExperimentIterator(al, POS, NEG, criteria, {})
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, stop_when_found_all=True)
+simulator = TarSimulator(exp, plotter)
 ```
 
 ``` python
@@ -249,7 +243,17 @@ plotter.show()
 
       0%|          | 0/5 [00:00<?, ?it/s]
 
-![](README_files/figure-commonmark/cell-12-output-20.png)
+      0%|          | 0/5 [00:00<?, ?it/s]
+
+      0%|          | 0/4 [00:00<?, ?it/s]
+
+      0%|          | 0/3 [00:00<?, ?it/s]
+
+      0%|          | 0/2 [00:00<?, ?it/s]
+
+      0%|          | 0/1 [00:00<?, ?it/s]
+
+![](README_files/figure-commonmark/cell-12-output-25.png)
 
 ## Commandline interface
 

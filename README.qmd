@@ -12,7 +12,6 @@ jupyter: python3
 `python-allib` is a library that enables efficient data annotation with Active Learning on various types of datasets. Through the library[`instancelib`](https://github.com/mpbron/instancelib) we support various **machine learning algorithms** and **instance types**. Besides canonical Active Learning, this library offers Technology-Assisted Review methods, which aid in making High-Recall Information Retrieval tasks more efficient.
 
 © Michiel Bron, 2024
-
 ## Quick tour of Technology-Assisted Review simulation
 
 **Load dataset**: Load the dataset in an environment using Instancelib
@@ -78,11 +77,44 @@ model.fit_provider(train, ds.truth)
 
 With the method `prediction_viewer` we can view the predictions as a Pandas dataframe.
 
-```{python}
+```python
 # Show the three instances with the highest probability to be Relevant
-df = prediction_viewer(model, test, ds.truth).sort_values(by="p_Relevant", ascending=False)
+df = prediction_viewer(model, test, ds.truth).sort_values(
+    by="p_Relevant", ascending=False
+)
 df.head(3)
 ```
+```{python}
+#| echo: false
+import re
+
+import pandas as pd
+
+
+class GitHubMarkdownDataFrame(pd.DataFrame):
+    """DataFrame that strips <style> tags when used in a Notebook."""
+
+    def _repr_html_(self):
+        """Override parent's method."""
+        original = super()._repr_html_()
+
+        # See https://stackoverflow.com/a/55148480/3324095
+        stripped = re.sub(
+            "<style scoped>.*</style>\n",  # replace the CSS...
+            "",  # ...with an empty string
+            original,
+            flags=re.DOTALL,  # match across multiple \n lines
+        )
+
+        return stripped
+
+
+df = prediction_viewer(model, test, ds.truth).sort_values(
+    by="p_Relevant", ascending=False
+)
+GitHubMarkdownDataFrame(data=df.head(3))
+```
+
 Although the predicition probabilities are below 0.50, some of the top ranked documents have a ground truth label
 relevant.
 
@@ -110,10 +142,13 @@ al.set_as_labeled(neg_instance)
 Next, we can retrieve the instance that should be labeled next with the following command.
 
 ```{python}
-next_instance = next(al) 
+next_instance = next(al)
 # next_instance is an Instance object.
 # Representation contains a human-readable string version of the instance
-print(f"{next_instance.representation[:60]}...\nGround Truth Label: {al.env.truth[next_instance]}")
+print(
+    f"{next_instance.representation[:60]}...\n"
+    f"Ground Truth Labels: {al.env.truth[next_instance]}"
+)
 ```
 
 ### Simulation
@@ -125,6 +160,7 @@ from allib.stopcriterion.heuristic import AprioriRecallTarget
 from allib.analysis.tarplotter import TarExperimentPlotter
 from allib.analysis.experiments import ExperimentIterator
 from allib.analysis.simulation import TarSimulator
+
 recall95 = AprioriRecallTarget(POS, 0.95)
 recall100 = AprioriRecallTarget(POS, 1.0)
 criteria = {
@@ -135,7 +171,7 @@ criteria = {
 # Then we can specify our experiment
 exp = ExperimentIterator(al, POS, NEG, criteria, {})
 plotter = TarExperimentPlotter(POS, NEG)
-simulator = TarSimulator(exp, plotter, stop_when_found_all=True)
+simulator = TarSimulator(exp, plotter)
 ```
 
 ```{python}
