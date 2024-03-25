@@ -223,12 +223,18 @@ See [CHANGELOG](CHANGELOG) for a full overview of the changes for each version.
 
 ## Citation
 
+Use this bibtex to cite this package, or go to [ZENODO](https://doi.org/10.5281/zenodo.10869682), to cite a specific version.
+
 ``` bibtex
-@misc{pythonallib,
-  title = {Python package python-allib},
-  author = {Michiel Bron},
-  howpublished = {\url{https://github.com/mpbron/allib}},
-  year = {2024}
+@software{bron_2024_108698682,
+  author       = {Bron, Michiel},
+  title        = {Python Package python-allib},
+  month        = mar,
+  year         = 2024,
+  publisher    = {Zenodo},
+  version      = {0.5.1},
+  doi          = {10.5281/zenodo.10869682},
+  url          = {https://doi.org/10.5281/zenodo.10869682}
 }
 ```
 

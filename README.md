@@ -124,11 +124,11 @@ df.head(3)
 
 <div>
 
-|     | data                                              | label      | prediction | p_Relevant | p_Irrelevant |
-|-----|---------------------------------------------------|------------|------------|------------|--------------|
-| 175 | A randomized trial of a computer-based interve... | Relevant   | Irrelevant | 0.298010   | 0.701990     |
-| 133 | Format change of a laboratory test order form ... | Relevant   | Irrelevant | 0.242501   | 0.757499     |
-| 667 | The medical office of the 21st century (MOXXI)... | Irrelevant | Irrelevant | 0.207292   | 0.792708     |
+|      | data                                              | label    | prediction | p_Irrelevant | p_Relevant |
+|------|---------------------------------------------------|----------|------------|--------------|------------|
+| 175  | A randomized trial of a computer-based interve... | Relevant | Irrelevant | 0.639552     | 0.360448   |
+| 1797 | Computerized decision support to reduce potent... | Relevant | Irrelevant | 0.737130     | 0.262870   |
+| 956  | Improvement of intraoperative antibiotic proph... | Relevant | Irrelevant | 0.762803     | 0.237197   |
 
 </div>
 
@@ -306,12 +306,20 @@ version.
 
 ## Citation
 
+Use this bibtex to cite this package, or go to
+[ZENODO](https://doi.org/10.5281/zenodo.10869682), to cite a specific
+version.
+
 ``` bibtex
-@misc{pythonallib,
-  title = {Python package python-allib},
-  author = {Michiel Bron},
-  howpublished = {\url{https://github.com/mpbron/allib}},
-  year = {2024}
+@software{bron_2024_108698682,
+  author       = {Bron, Michiel},
+  title        = {Python Package python-allib},
+  month        = mar,
+  year         = 2024,
+  publisher    = {Zenodo},
+  version      = {0.5.1},
+  doi          = {10.5281/zenodo.10869682},
+  url          = {https://doi.org/10.5281/zenodo.10869682}
 }
 ```
 
