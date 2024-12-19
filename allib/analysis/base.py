@@ -1,16 +1,7 @@
 import collections
 from abc import ABC, abstractmethod
-from typing import (
-    Any,
-    Deque,
-    FrozenSet,
-    Generic,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import (Any, Deque, FrozenSet, Generic, List, Mapping, Optional,
+                    Sequence, Tuple)
 
 import numpy as np
 from instancelib import Instance
@@ -263,17 +254,21 @@ class AnnotationStatisticsSlim(AbstractStatistics[KT, LT]):
         return len(self.annotated)
 
     def current_label_count(self, label: LT) -> int:
-        return 0 if not self.labelwise else self.labelwise[-1][label]
+        if self.labelwise:
+            return self.labelwise[-1].get(label, 0)
+        return 0
 
     @property
     def current_annotated(self) -> int:
         return 0 if not self.annotated else self.annotated[-1]
 
     def label_annotated(self, label: LT, it: int) -> int:
-        return 0 if not self.per_round else self.per_round[it][label]
+        if self.per_round:
+            return self.per_round[it].get(label,0)
+        return 0
 
     def label_per_round(self, label: LT) -> Sequence[int]:
-        return [dc[label] for dc in self.per_round]
+        return [dc.get(label,0) for dc in self.per_round]
 
     @property
     def annotations_per_round(self) -> Sequence[int]:

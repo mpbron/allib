@@ -1,38 +1,23 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import (
-    Any,
-    Dict,
-    FrozenSet,
-    Generic,
-    Iterable,
-    Iterator,
-    Mapping,
-    MutableMapping,
-    Sequence,
-    Tuple,
-    Union,
-)
+from typing import (Any, Dict, FrozenSet, Generic, Iterable, Iterator, Mapping,
+                    MutableMapping, Sequence, Tuple, Union)
 from uuid import UUID
 
 import instancelib as il
-
 from instancelib import InstanceProvider
-from instancelib.instances.memory import (
-    DataPoint,
-    DataPointProvider,
-    MemoryBucketProvider,
-)
+from instancelib.instances.memory import (DataPoint, DataPointProvider,
+                                          MemoryBucketProvider)
 from instancelib.labels.base import LabelProvider
 from instancelib.labels.memory import MemoryLabelProvider
 from instancelib.typehints import DT, KT, LT, RT, VT
 from instancelib.utils.func import union
+from typing_extensions import Self
 
 from ..history import MemoryLogger
 from ..history.base import BaseLogger
 from .base import IT, AbstractEnvironment
-from typing_extensions import Self
 
 # TODO Adjust MemoryEnvironment Generic Type (ADD ST)
 
@@ -204,12 +189,13 @@ class MemoryEnvironment(
             labels,
             logger,
             truth,
+            environment.metadata
         )
 
     @classmethod
     def from_instancelib(
         cls, environment: il.AbstractEnvironment[IT, KT, DT, VT, RT, LT]
-    ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
+    ) -> Self:
         dataset = environment.all_instances
         labeled_docs = union(
             *(
@@ -245,7 +231,7 @@ class MemoryEnvironment(
         cls,
         environment: il.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         metadata: Mapping[str, Any] = dict(),
-    ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
+    ) -> Self:
         dataset = environment.all_instances
         unlabeled = MemoryBucketProvider(dataset, environment.dataset.key_list)
         labeled = MemoryBucketProvider(dataset, [])
@@ -276,7 +262,7 @@ class MemoryEnvironment(
         cls,
         environment: il.AbstractEnvironment[IT, KT, DT, VT, RT, LT],
         train_set: il.InstanceProvider[IT, KT, DT, VT, RT],
-    ) -> AbstractEnvironment[IT, KT, DT, VT, RT, LT]:
+    ) -> Self:
         dataset = environment.all_instances
         unlabeled = MemoryBucketProvider(dataset, train_set.key_list)
         labeled = MemoryBucketProvider(dataset, [])

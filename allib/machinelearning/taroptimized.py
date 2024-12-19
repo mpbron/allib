@@ -1,52 +1,46 @@
 import itertools
 import logging
+import math
 from os import PathLike
-from typing import (
-    Any,
-    Callable,
-    FrozenSet,
-    Generic,
-    Iterable,
-    Iterator,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+from typing import (Any, Callable, FrozenSet, Generic, Iterable, Iterator,
+                    Optional, Sequence, Tuple, Union)
 
 import instancelib as il
-import math
 import numpy as np
 import numpy.typing as npt
-from instancelib.labels.encoder import (
-    DictionaryEncoder,
-    IdentityEncoder,
-    LabelEncoder,
-    MultilabelDictionaryEncoder,
-    SklearnLabelEncoder,
-    SklearnMultiLabelEncoder,
-)
 from instancelib.exceptions.base import LabelEncodingException
+from instancelib.instances.vectorstorage import VectorStorage
+from instancelib.labels.encoder import (DictionaryEncoder, IdentityEncoder,
+                                        LabelEncoder,
+                                        MultilabelDictionaryEncoder,
+                                        SklearnLabelEncoder,
+                                        SklearnMultiLabelEncoder)
 from instancelib.machinelearning.sklearn import SkLearnClassifier
 from instancelib.typehints.typevars import DT, KT, LMT, LT, PMT, RT, VT, DType
-from instancelib.utils.func import list_unzip, zip_chain, filter_snd_none
 from instancelib.utils.chunks import divide_iterable_in_lists
+from instancelib.utils.func import filter_snd_none, list_unzip, zip_chain
 from instancelib.utils.saveablemodel import SaveableInnerModel
-from instancelib.instances.vectorstorage import VectorStorage
-from sklearn.base import ClassifierMixin, TransformerMixin
-from sklearn.pipeline import Pipeline  # type: ignore
+from tqdm.auto import tqdm
 from typing_extensions import Self
 
-from sklearn.preprocessing import (
-    LabelEncoder as SKLabelEncoder,
-)
+from sklearn.base import ClassifierMixin, TransformerMixin
+from sklearn.pipeline import Pipeline  # type: ignore
+from sklearn.preprocessing import LabelEncoder as SKLabelEncoder
 from sklearn.preprocessing import MultiLabelBinarizer
-from tqdm.auto import tqdm
-from ..balancing.base import BaseBalancer, IdentityBalancer
 
+from ..balancing.base import BaseBalancer, IdentityBalancer
 from ..typehints.typevars import IT
 
 LOGGER = logging.getLogger(__name__)
+
+def matrix_fixer(keys_desired: Sequence[KT], keys_returned: Sequence[KT], mat: npt.NDArray[DType]) -> npt.NDArray[DType]:
+    key_map = {k: i for i, k in enumerate(keys_returned)}
+    ret_mat = np.zeros_like(mat)
+    for i, key in enumerate(keys_desired):
+        old_row = key_map[key]
+        ret_mat[i,:] = mat[old_row,:]
+    return ret_mat
+
 
 
 class ALSklearn(
@@ -75,11 +69,12 @@ class ALSklearn(
 
     def encode_x(
         self, instances: Iterable[il.Instance[KT, DT, VT, Any]]
-    ) -> Tuple[Sequence[KT], npt.NDArray[DType]]:
+    ) -> npt.NDArray[DType]:
         ins_keys = [ins.identifier for ins in instances]
         or_keys, x_fm = self.vectorstorage.get_matrix(ins_keys)
-        return or_keys, x_fm
-
+        if tuple(ins_keys) == tuple(or_keys):
+            return x_fm
+        return matrix_fixer(ins_keys, or_keys, x_fm)
     def encode_xy(
         self,
         instances: Iterable[il.Instance[KT, DT, VT, Any]],
