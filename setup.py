@@ -19,7 +19,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setuptools.setup(  # type: ignore
     name="python-allib",
-    version="0.5.2",  # NOSONAR
+    version="0.5.3",  # NOSONAR
     description="A typed Active Learning Library",
     long_description=README,
     long_description_content_type="text/markdown",
